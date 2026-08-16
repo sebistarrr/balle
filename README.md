@@ -13,6 +13,7 @@ En ligne : <https://sebistarrr.github.io/balle/>
 | 03 | Billard en boucle | [`3-billard-en-boucle/`](3-billard-en-boucle/) | `billiard_loop.py` |
 | 04 | La balle qui grossit | [`4-balle-qui-grossit/`](4-balle-qui-grossit/) | `growing_ball.py` |
 | 05 | Plus grosse à chaque rebond | [`5-plus-grosse-a-chaque-rebond/`](5-plus-grosse-a-chaque-rebond/) | `growing_bounce.py` |
+| 06 | Rayons de rebond | [`6-rayons-de-rebond/`](6-rayons-de-rebond/) | `bounce_rays.py` |
 
 `index.html` à la racine est la page d'accueil : la liste des titres, qui sert
 de menu.
@@ -29,7 +30,7 @@ La page web et le script Manim d'une même animation partagent les mêmes
 constantes, converties d'un repère à l'autre. La page est l'aperçu ; le script
 Manim est la référence.
 
-## Les trois animations
+## Les animations
 
 **01 — Vagues de pendule.** Seize pendules ; le *k*-ième effectue *30 − k*
 oscillations par cycle de 96 s. La version d'origine, sobre.
@@ -70,6 +71,14 @@ les distances passent par `sqrt(dx*dx+dy*dy)` plutôt que par `hypot`, dont
 l'arrondi n'est pas spécifié et diffère entre JavaScript et Python. À ce prix,
 la page et le script Manim jouent exactement la même partie : 447 chocs, 53,75 s.
 
+**06 — Rayons de rebond.** Même mécanique et mêmes constantes que la 05 — au
+choc près, c'est la même partie — mais l'autre tracé, celui du modèle. Ce n'est
+pas la trajectoire qui est dessinée : chaque choc laisse un point fixe sur la
+paroi, et à chaque image on relie le centre de la balle à tous ces points.
+L'éventail balaie l'espace à mesure qu'elle se déplace, et les traits sont
+rigoureusement droits. C'est ce tracé-là, et non la trajectoire, qui donne
+l'aspect en rayons de l'animation d'origine.
+
 Toutes ont un son facultatif : une note par impact, pentatonique mineure, grave
 pour les éléments lents ou gros.
 
@@ -83,15 +92,16 @@ manim -r 1080,1920 --fps 60 2-vagues-de-pendule-intense/pendulum_wave_intense.py
 manim -r 1080,1080 --fps 60 3-billard-en-boucle/billiard_loop.py BilliardLoop
 manim -r 1080,1080 --fps 60 4-balle-qui-grossit/growing_ball.py GrowingBall
 manim -r 720,1244  --fps 60 5-plus-grosse-a-chaque-rebond/growing_bounce.py GrowingBounce
+manim -r 720,1244  --fps 60 6-rayons-de-rebond/bounce_rays.py BounceRays
 ```
 
 Garder le format indiqué : 9:16 pour les deux premières, carré pour les 03 et
-04, 720:1244 pour la 05. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
+04, 720:1244 pour les 05 et 06. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
 pour la bande son, et pour la 01 `FORME` (`"triangle"` comme la vidéo d'origine,
 ou `"sinus"` pour un mouvement physiquement correct).
 
 Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (le
-compteur de la 04, la légende de la 05) passent par Pango.
+compteur de la 04, les légendes des 05 et 06) passent par Pango.
 
 ## Voir en local
 
