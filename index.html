@@ -3,192 +3,231 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vague de pendules — rendu</title>
+<title>Animations — boucles exactes</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; min-height: 100dvh; background: #000; color: #7f8a8a;
-    display: flex; flex-direction: column; align-items: center;
-    justify-content: center; gap: 1rem; padding: 1rem;
-    font: 400 14px/1.5 ui-sans-serif, system-ui, sans-serif;
+    margin: 0; min-height: 100dvh; color: #7f8a8a;
+    background: #04060a radial-gradient(120% 80% at 50% -10%, #0d1622 0%, #04060a 60%);
+    font: 400 14px/1.6 ui-sans-serif, system-ui, sans-serif;
+    padding: clamp(1.5rem, 5vw, 4rem) 1rem 3rem;
   }
-  canvas { display: block; height: min(78dvh, 90vw * 16 / 9); aspect-ratio: 9/16; }
-  .bar { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap;
-         justify-content: center; }
-  button, a.btn {
-    background: #101414; color: #9aa5a5; border: 1px solid #232b2b;
-    border-radius: 7px; padding: .4rem .8rem; font: inherit;
-    cursor: pointer; text-decoration: none;
+  header { max-width: 1100px; margin: 0 auto clamp(1.5rem, 4vw, 3rem); }
+  h1 {
+    margin: 0 0 .4rem; font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 500;
+    letter-spacing: -.02em; color: #dde4e4;
   }
-  button[aria-pressed="true"] { color: #49c4b9; border-color: #2c4a49; }
-  p { margin: 0; max-width: 46ch; text-align: center; }
+  header p { margin: 0; max-width: 54ch; }
+  .grille {
+    max-width: 1100px; margin: 0 auto; display: grid; gap: 1.1rem;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+  .carte {
+    display: block; text-decoration: none; color: inherit; overflow: hidden;
+    background: #080c11; border: 1px solid #1a2330; border-radius: 14px;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .carte:hover, .carte:focus-visible {
+    transform: translateY(-4px); border-color: #2c4a49;
+    box-shadow: 0 12px 32px -12px #000, 0 0 0 1px #2c4a49 inset;
+  }
+  .carte canvas { display: block; width: 100%; aspect-ratio: 4/5; background: #000; }
+  .meta { padding: .9rem 1rem 1.1rem; border-top: 1px solid #141d28; }
+  .num { font-size: 11px; letter-spacing: .18em; color: #49c4b9; }
+  .meta h2 { margin: .15rem 0 .3rem; font-size: 1.05rem; font-weight: 500; color: #dde4e4; }
+  .meta p { margin: 0; font-size: 13px; }
+  footer { max-width: 1100px; margin: 2.5rem auto 0; font-size: 13px; }
+  footer a { color: #49c4b9; }
+  @media (prefers-reduced-motion: reduce) { .carte { transition: none; } }
 </style>
 </head>
 <body>
 
-<canvas id="c"></canvas>
+<header>
+  <h1>Animations</h1>
+  <p>Des mouvements réglés pour se resynchroniser exactement&nbsp;: au bout d'un
+     cycle, chaque figure retrouve sa position de départ, à la fraction de seconde
+     près. Aucune bibliothèque, tout est calculé image par image.</p>
+</header>
 
-<div class="bar">
-  <button id="play" aria-pressed="true">❚❚ pause</button>
-  <button id="snd" aria-pressed="false">♪ son</button>
-  <!-- adapte le lien si tu déplaces le script -->
-  <a class="btn" href="pendulum_wave.py">code Manim</a>
-</div>
+<main class="grille">
+  <a class="carte" href="1-vagues-de-pendule/">
+    <canvas data-apercu="1"></canvas>
+    <div class="meta">
+      <span class="num">01</span>
+      <h2>Vagues de pendule</h2>
+      <p>Seize pendules, seize périodes. La version d'origine, sobre, fidèle au
+         rendu Manim.</p>
+    </div>
+  </a>
 
-<p>16 pendules&nbsp;; le <em>k</em><sup>e</sup> effectue <em>30&nbsp;−&nbsp;k</em>
-   oscillations par cycle de 96&nbsp;s. Boucle exacte.</p>
+  <a class="carte" href="2-vagues-de-pendule-intense/">
+    <canvas data-apercu="2"></canvas>
+    <div class="meta">
+      <span class="num">02</span>
+      <h2>Vagues de pendule, intensifié</h2>
+      <p>Même mécanique, plus rapide&nbsp;: traînées lumineuses, ondes de choc
+         et gerbes à chaque impact.</p>
+    </div>
+  </a>
+
+  <a class="carte" href="3-billard-en-boucle/">
+    <canvas data-apercu="3"></canvas>
+    <div class="meta">
+      <span class="num">03</span>
+      <h2>Billard en boucle</h2>
+      <p>Douze balles dans un carré. Leurs vitesses tracent des courbes fermées
+         qui se dessinent en lumière.</p>
+    </div>
+  </a>
+</main>
+
+<footer>
+  <p>Le script Manim de la première animation reste disponible&nbsp;:
+     <a href="1-vagues-de-pendule/pendulum_wave.py">pendulum_wave.py</a>.</p>
+</footer>
 
 <script>
 // ---------------------------------------------------------------------------
-//  Mêmes constantes que pendulum_wave.py, dans le repère pixel d'origine.
-//  Ce fichier n'est qu'un aperçu : la référence reste le script Manim.
+//  Aperçus : versions miniatures et accélérées, écrites pour cette page seule.
+//  Les animations complètes vivent chacune dans son dossier, sans code partagé.
 // ---------------------------------------------------------------------------
-const N = 16, CYCLE = 96, OSC_MAX = 30;
-const AMP = 25 * Math.PI / 180, GUIDE = 26.5 * Math.PI / 180;
-const W = 1080, H = 1920, PX = 540, PY = 400;
-const L_MIN = 627.4, L_MAX = 1049.2, R = 33.5;
 const STOPS = ['#F56E51', '#F9B060', '#49C4B9', '#1F99D0'];
 
-const periode  = k => CYCLE / (OSC_MAX - k);
-const longueur = k => L_MIN + (L_MAX - L_MIN) * k / (N - 1);
-
-// dégradé : interpolation linéaire entre les 4 couleurs de référence
-const COL = Array.from({ length: N }, (_, i) => {
-  const u = i / (N - 1) * (STOPS.length - 1);
-  const j = Math.min(Math.floor(u), STOPS.length - 2), f = u - j;
-  const hex = s => [1, 3, 5].map(p => parseInt(s.slice(p, p + 2), 16));
-  const a = hex(STOPS[j]), b = hex(STOPS[j + 1]);
-  return a.map((v, n) => Math.round(v + (b[n] - v) * f));
-});
+function degrade(n) {
+  return Array.from({ length: n }, (_, i) => {
+    const u = i / (n - 1) * (STOPS.length - 1);
+    const j = Math.min(Math.floor(u), STOPS.length - 2), f = u - j;
+    const hex = s => [1, 3, 5].map(p => parseInt(s.slice(p, p + 2), 16));
+    const a = hex(STOPS[j]), b = hex(STOPS[j + 1]);
+    return a.map((v, m) => Math.round(v + (b[m] - v) * f));
+  });
+}
 const rgba = (c, o = 1) => `rgba(${c[0]},${c[1]},${c[2]},${o})`;
 
-// onde triangulaire : vitesse angulaire constante, demi-tour instantané
-function angle(k, t) {
-  const ph = (t / periode(k)) % 1;
-  return AMP * (ph < 0.5 ? 4 * ph - 1 : 3 - 4 * ph);
+// --- 01 et 02 : la vague de pendules ---------------------------------------
+const N1 = 14, COL1 = degrade(N1);
+const CYCLE1 = 26, OSC1 = 26, AMP1 = 25 * Math.PI / 180;
+
+function pendule(k, t) {
+  const ph = (t / (CYCLE1 / (OSC1 - k))) % 1;
+  return AMP1 * (ph < 0.5 ? 4 * ph - 1 : 3 - 4 * ph);
 }
 
-// couleur du dernier pendule ayant touché ce côté (0 = gauche, 1 = droite)
-// extrêmes à t = m * (période / 2) : m pair = gauche, m impair = droite
-function dernierImpact(t, cote) {
-  let best = -1, bk = -1;
-  for (let k = 0; k < N; k++) {
-    const h = periode(k) / 2;
-    let m = Math.floor(t / h + 1e-9);
-    if ((m & 1) !== cote) m -= 1;
-    if (m < (cote === 0 ? 2 : 1)) continue;   // m = 0 est le lâcher, pas un impact
-    // >= et non > : quand plusieurs pendules frappent au même instant
-    // (t = 19,2 s p. ex.), c'est le plus long qui donne sa couleur.
-    if (m * h >= best) { best = m * h; bk = k; }
+function apercuPendules(g, w, h, t, intense) {
+  const px = w / 2, py = h * 0.12, lmin = h * 0.40, lmax = h * 0.80;
+  const guide = 26.5 * Math.PI / 180;
+
+  g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+  g.lineCap = 'round';
+
+  // les deux traits obliques
+  g.strokeStyle = intense ? 'rgba(73,196,185,0.55)' : 'rgba(255,255,255,0.5)';
+  g.lineWidth = intense ? 2 : 1.5;
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.moveTo(px, py);
+    g.lineTo(px + h * s * Math.sin(guide), py + h * Math.cos(guide));
+    g.stroke();
   }
-  return bk;
-}
 
-// ---------------------------------------------------------------------------
-//  Son : une note par impact, aiguë pour les pendules courts
-// ---------------------------------------------------------------------------
-let audio = null;
-const DEMI_TONS = [0, 3, 5, 7, 10];               // pentatonique mineure
-const NOTES = Array.from({ length: N }, (_, i) =>
-  220 * Math.pow(2, (DEMI_TONS[i % 5] + 12 * Math.floor(i / 5)) / 12));
+  const point = (k, u) => {
+    const a = pendule(k, u), L = lmin + (lmax - lmin) * k / (N1 - 1);
+    return [px + L * Math.sin(a), py + L * Math.cos(a)];
+  };
 
-function note(k) {
-  if (!audio || audio.state !== 'running') return;
-  const f = NOTES[N - 1 - k], t0 = audio.currentTime, g = audio.createGain();
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.linearRampToValueAtTime(0.13, t0 + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
-  g.connect(audio.destination);
-  for (const [mult, amp] of [[1, 1], [2, 0.3], [3, 0.12]]) {
-    const o = audio.createOscillator(), gg = audio.createGain();
-    o.frequency.value = f * mult; gg.gain.value = amp;
-    o.connect(gg); gg.connect(g);
-    o.start(t0); o.stop(t0 + 1.7);
+  // traînées : quelques positions passées, de plus en plus effacées
+  if (intense) {
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 6; i >= 1; i--) {
+      for (let k = 0; k < N1; k++) {
+        const [x, y] = point(k, t - i * 0.035);
+        g.fillStyle = rgba(COL1[k], 0.10 * (1 - i / 7));
+        g.beginPath(); g.arc(x, y, h * 0.020, 0, 6.2832); g.fill();
+      }
+    }
+    g.globalCompositeOperation = 'source-over';
   }
+
+  g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = 1;
+  const pts = Array.from({ length: N1 }, (_, k) => point(k, t));
+  for (const [x, y] of pts) {
+    g.beginPath(); g.moveTo(px, py); g.lineTo(x, y); g.stroke();
+  }
+
+  pts.forEach(([x, y], k) => {
+    if (intense) { g.shadowColor = rgba(COL1[k]); g.shadowBlur = h * 0.035; }
+    g.fillStyle = rgba(COL1[k], 0.92);
+    g.beginPath(); g.arc(x, y, h * 0.019, 0, 6.2832); g.fill();
+    g.shadowBlur = 0;
+  });
 }
 
-// ---------------------------------------------------------------------------
-//  Rendu
-// ---------------------------------------------------------------------------
-const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+// --- 03 : le billard ---------------------------------------------------------
+const PAIRES = [[3, 4], [4, 3], [3, 5], [5, 3], [4, 5], [5, 4],
+                [5, 6], [6, 5], [3, 7], [7, 3], [5, 7], [7, 5]];
+const COL3 = degrade(PAIRES.length), T3 = 13;
+const tri = u => 2 * Math.abs(u - Math.floor(u) - 0.5);
+
+function apercuBillard(g, w, h, t) {
+  const S = Math.min(w, h * 0.88) * 0.86;
+  const ox = (w - S) / 2, oy = (h - S) / 2, r = S * 0.032, A = S - 2 * r;
+
+  g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(73,196,185,0.35)'; g.lineWidth = 1.5;
+  g.strokeRect(ox, oy, S, S);
+
+  const point = (k, u) => {
+    const [nx, ny] = PAIRES[k];
+    return [ox + r + A * tri(nx * u / T3 + k * 0.083),
+            oy + r + A * tri(ny * u / T3 + k * 0.137)];
+  };
+
+  g.globalCompositeOperation = 'lighter';
+  for (let i = 14; i >= 1; i--) {          // traînée : positions passées
+    for (let k = 0; k < PAIRES.length; k++) {
+      const [x, y] = point(k, t - i * 0.045);
+      g.fillStyle = rgba(COL3[k], 0.055 * (1 - i / 15));
+      g.beginPath(); g.arc(x, y, r * 0.8, 0, 6.2832); g.fill();
+    }
+  }
+  for (let k = 0; k < PAIRES.length; k++) {
+    const [x, y] = point(k, t);
+    g.fillStyle = rgba(COL3[k], 0.95);
+    g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
+}
+
+// --- boucle commune aux trois vignettes -------------------------------------
+const vignettes = [...document.querySelectorAll('canvas[data-apercu]')];
+
 function redimensionner() {
-  const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
-  cv.width = Math.round(r.width * d) || 1;
-  cv.height = Math.round(r.height * d) || 1;
+  for (const cv of vignettes) {
+    const r = cv.getBoundingClientRect();
+    cv.dpr = Math.min(devicePixelRatio || 1, 2);
+    cv.width = Math.round(r.width * cv.dpr) || 1;
+    cv.height = Math.round(r.height * cv.dpr) || 1;
+    cv.logique = [r.width, r.height];
+  }
 }
 redimensionner();
 addEventListener('resize', redimensionner);
 
-function dessiner(t) {
-  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  ctx.lineCap = 'round';
+const doux = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // les deux traits obliques
-  for (const cote of [0, 1]) {
-    const s = cote ? 1 : -1, k = dernierImpact(t, cote);
-    ctx.strokeStyle = k < 0 ? '#ffffff' : rgba(COL[k]);
-    ctx.lineWidth = 15;
-    ctx.beginPath();
-    ctx.moveTo(PX, PY);
-    ctx.lineTo(PX + 2400 * s * Math.sin(GUIDE), PY + 2400 * Math.cos(GUIDE));
-    ctx.stroke();
-  }
-
-  // fils d'abord, billes ensuite (elles passent devant)
-  const pts = Array.from({ length: N }, (_, k) => {
-    const a = angle(k, t), L = longueur(k);
-    return [PX + L * Math.sin(a), PY + L * Math.cos(a)];
-  });
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 6;
-  for (const [x, y] of pts) {
-    ctx.beginPath(); ctx.moveTo(PX, PY); ctx.lineTo(x, y); ctx.stroke();
-  }
-  ctx.lineWidth = 3.5; ctx.strokeStyle = '#DDE4E4';
-  pts.forEach(([x, y], k) => {
-    ctx.fillStyle = rgba(COL[k], 0.9);
-    ctx.beginPath(); ctx.arc(x, y, R, 0, 6.2832); ctx.fill(); ctx.stroke();
-  });
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.arc(PX, PY, 6, 0, 6.2832); ctx.fill();
-}
-
-// ---------------------------------------------------------------------------
-//  Boucle
-// ---------------------------------------------------------------------------
-let t = 0, dernier = null, actif = true;
 function boucle(now) {
   requestAnimationFrame(boucle);
-  if (dernier === null) dernier = now;
-  const dt = Math.min((now - dernier) / 1000, 0.25);   // anti-saut de changement d'onglet
-  dernier = now;
-  if (actif) {
-    const avant = t;
-    t += dt;
-    for (let k = 0; k < N; k++) {                      // impacts franchis pendant dt
-      const h = periode(k) / 2;
-      const m1 = Math.floor(t / h);
-      for (let m = Math.floor(avant / h) + 1; m <= m1; m++) if (m > 0) note(k);
-    }
+  const t = doux ? 4.2 : now / 1000;      // mouvement réduit : image figée
+  for (const cv of vignettes) {
+    const g = cv.getContext('2d'), [w, h] = cv.logique;
+    g.setTransform(cv.dpr, 0, 0, cv.dpr, 0, 0);
+    if (cv.dataset.apercu === '3') apercuBillard(g, w, h, t);
+    else apercuPendules(g, w, h, t, cv.dataset.apercu === '2');
   }
-  dessiner(t);
 }
 requestAnimationFrame(boucle);
-
-document.getElementById('play').onclick = e => {
-  actif = !actif;
-  e.target.setAttribute('aria-pressed', actif);
-  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
-};
-document.getElementById('snd').onclick = e => {
-  if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
-  if (audio.state === 'running') {
-    audio.suspend(); e.target.setAttribute('aria-pressed', 'false');
-  } else {
-    audio.resume(); e.target.setAttribute('aria-pressed', 'true');
-  }
-};
 </script>
 </body>
 </html>
