@@ -12,6 +12,7 @@ En ligne : <https://sebistarrr.github.io/balle/>
 | 02 | Vagues de pendule, intensifié | [`2-vagues-de-pendule-intense/`](2-vagues-de-pendule-intense/) | `pendulum_wave_intense.py` |
 | 03 | Billard en boucle | [`3-billard-en-boucle/`](3-billard-en-boucle/) | `billiard_loop.py` |
 | 04 | La balle qui grossit | [`4-balle-qui-grossit/`](4-balle-qui-grossit/) | `growing_ball.py` |
+| 05 | Plus grosse à chaque rebond | [`5-plus-grosse-a-chaque-rebond/`](5-plus-grosse-a-chaque-rebond/) | `growing_bounce.py` |
 
 `index.html` à la racine est la page d'accueil : la liste des titres, qui sert
 de menu.
@@ -52,6 +53,23 @@ premier rebond arrive après 0,8 s, les derniers s'enchaînent en centièmes de
 seconde. Au 45e elle est inscrite dans le carré, puis tout recommence à
 l'identique.
 
+**05 — Plus grosse à chaque rebond.** Reproduction d'une animation existante.
+Une balle tombe dans un récipient en U — deux parois verticales fermées en bas
+par un demi-cercle, ouvert en haut — et gagne un cran de rayon chaque fois
+qu'elle retombe sur le fond, jusqu'à occuper toute la largeur en 54 s. Sa
+trajectoire reste inscrite, et la teinte de l'ensemble tourne en continu.
+
+Géométrie, gravité et croissance sont relevées image par image sur la vidéo
+d'origine : récipient de 550 px de large, gravité 6500 px/s², sommet de la
+course à 500 px. La courbe du rayon suit celle du modèle à 14 px près en
+moyenne (sur 275), et la teinte fait 10 tours comme l'original.
+
+Un billard sous gravité est chaotique. Deux précautions en découlent : le pas
+de temps est **fixe** (sinon la partie dépendrait de la cadence d'affichage), et
+les distances passent par `sqrt(dx*dx+dy*dy)` plutôt que par `hypot`, dont
+l'arrondi n'est pas spécifié et diffère entre JavaScript et Python. À ce prix,
+la page et le script Manim jouent exactement la même partie : 447 chocs, 53,75 s.
+
 Toutes ont un son facultatif : une note par impact, pentatonique mineure, grave
 pour les éléments lents ou gros.
 
@@ -64,15 +82,16 @@ manim -r 1080,1920 --fps 60 1-vagues-de-pendule/pendulum_wave.py PendulumWave
 manim -r 1080,1920 --fps 60 2-vagues-de-pendule-intense/pendulum_wave_intense.py PendulumWaveIntense
 manim -r 1080,1080 --fps 60 3-billard-en-boucle/billiard_loop.py BilliardLoop
 manim -r 1080,1080 --fps 60 4-balle-qui-grossit/growing_ball.py GrowingBall
+manim -r 720,1244  --fps 60 5-plus-grosse-a-chaque-rebond/growing_bounce.py GrowingBounce
 ```
 
-Garder le format indiqué : 9:16 pour les deux premières, carré pour les deux
-autres. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
+Garder le format indiqué : 9:16 pour les deux premières, carré pour les 03 et
+04, 720:1244 pour la 05. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
 pour la bande son, et pour la 01 `FORME` (`"triangle"` comme la vidéo d'origine,
 ou `"sinus"` pour un mouvement physiquement correct).
 
-Aucun de ces scripts n'a besoin de LaTeX : le seul texte affiché (le compteur de
-la 04) passe par Pango.
+Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (le
+compteur de la 04, la légende de la 05) passent par Pango.
 
 ## Voir en local
 
