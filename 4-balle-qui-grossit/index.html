@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La balle qui grossit</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a;
+    background: #04060a radial-gradient(110% 90% at 50% 0%, #0b1424 0%, #04060a 70%);
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 1rem; padding: 1rem;
+    font: 400 14px/1.5 ui-sans-serif, system-ui, sans-serif;
+  }
+  canvas {
+    display: block; width: min(88vw, 76dvh); aspect-ratio: 1/1;
+    border-radius: 14px; box-shadow: 0 24px 60px -24px #000;
+  }
+  .bar { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap;
+         justify-content: center; }
+  button, a.btn {
+    background: #0b1016; color: #9aa5a5; border: 1px solid #1e2a35;
+    border-radius: 7px; padding: .4rem .8rem; font: inherit;
+    cursor: pointer; text-decoration: none;
+  }
+  button[aria-pressed="true"] { color: #49c4b9; border-color: #2c4a49; }
+  label { display: flex; align-items: center; gap: .45rem; font-size: 13px; }
+  input[type=range] { accent-color: #49c4b9; width: 108px; }
+  p { margin: 0; max-width: 52ch; text-align: center; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div class="bar">
+  <a class="btn" href="../">← animations</a>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="snd" aria-pressed="false">♪ son</button>
+  <button id="trn" aria-pressed="true">traînées</button>
+  <label>vitesse <input id="vit" type="range" min="0.2" max="2.5" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="growing_ball.py">code Manim</a>
+</div>
+
+<p>Une balle, 45&nbsp;rebonds. À chaque contact avec une paroi elle grandit d'un
+   cran, et l'espace qui lui reste se referme d'autant&nbsp;: les derniers
+   rebonds s'enchaînent en rafale, jusqu'à ce qu'elle remplisse le carré. Puis
+   tout recommence à l'identique.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  La balle rebondit sans frottement : vitesse constante, réflexion parfaite.
+//  Le centre est confiné dans un carré de côté S - 2r ; comme r grandit à
+//  chaque contact, ce carré se resserre et la cadence s'emballe d'elle-même.
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+const W = 1000, H = 1000, MARGE = 72;
+const S = W - 2 * MARGE;                    // côté du carré
+const R0 = 18, RMAX = S / 2;                // rayon au départ, puis à l'arrivée
+const REBONDS = 45;                         // contacts nécessaires pour remplir
+const PAS = (RMAX - R0) / REBONDS;          // ce que gagne le rayon par contact
+const VITESSE = 620;                        // px/s dans le repère ci-dessus
+const CAP = 32.7 * Math.PI / 180;           // direction initiale
+const ATTENTE = 1.6;                        // pause une fois le carré rempli
+
+const STOPS = ['#1F99D0', '#49C4B9', '#F9B060', '#F56E51'];   // petit -> plein
+function couleur(p) {
+  const u = Math.max(0, Math.min(1, p)) * (STOPS.length - 1);
+  const j = Math.min(Math.floor(u), STOPS.length - 2), f = u - j;
+  const hex = s => [1, 3, 5].map(q => parseInt(s.slice(q, q + 2), 16));
+  const a = hex(STOPS[j]), b = hex(STOPS[j + 1]);
+  return a.map((v, n) => Math.round(v + (b[n] - v) * f));
+}
+const rgba = (c, o = 1) => `rgba(${c[0]},${c[1]},${c[2]},${o})`;
+
+// ---------------------------------------------------------------------------
+//  Son : une note par rebond, de plus en plus grave à mesure que la balle
+//  grossit, placée à gauche ou à droite selon la paroi touchée.
+// ---------------------------------------------------------------------------
+let audio = null;
+const DEMI_TONS = [0, 3, 5, 7, 10];         // pentatonique mineure
+const NOTES = Array.from({ length: 16 }, (_, i) =>
+  147 * Math.pow(2, (DEMI_TONS[i % 5] + 12 * Math.floor(i / 5)) / 12)).reverse();
+
+function note(p, pan) {
+  if (!audio || audio.state !== 'running') return;
+  const f = NOTES[Math.min(NOTES.length - 1, Math.floor(p * NOTES.length))];
+  const t0 = audio.currentTime;
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(0.12, t0 + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.3);
+  g.connect(sp); sp.connect(audio.destination);
+  for (const [mult, amp] of [[1, 1], [2, 0.3], [3, 0.1]]) {
+    const o = audio.createOscillator(), gg = audio.createGain();
+    o.frequency.value = f * mult; gg.gain.value = amp;
+    o.connect(gg); gg.connect(g);
+    o.start(t0); o.stop(t0 + 1.4);
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+const MEMOIRE = 0.7;                        // longueur de la traînée, en secondes
+const BANDES = 6;                           // paliers d'estompage de la traînée
+let trace = [];
+
+function redimensionner() {
+  const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(r.width * d) || 1;
+  cv.height = Math.round(r.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+const ondes = [], gerbes = [], eclats = [];
+let flashCadre = 0;
+
+// --- état de la balle -------------------------------------------------------
+let bx, by, vx, vy, r, compte, plein, t;
+
+function reinitialiser() {
+  r = R0; compte = 0; plein = 0; t = 0;
+  bx = MARGE + S * 0.5; by = MARGE + S * 0.62;
+  vx = Math.cos(CAP) * VITESSE; vy = -Math.sin(CAP) * VITESSE;
+  trace = [];
+}
+reinitialiser();
+
+function contact(vertical) {
+  const p = (r - R0) / (RMAX - R0), col = couleur(p);
+  ondes.push({ x: bx, y: by, r, col, vie: 1 });
+  eclats.push({ vertical, x: bx, y: by, col, vie: 1 });
+  for (let i = 0; i < 10; i++) {
+    const dir = Math.random() * 6.2832, v = 110 + Math.random() * 300;
+    gerbes.push({ x: bx, y: by, vx: Math.cos(dir) * v, vy: Math.sin(dir) * v,
+                  col, vie: 1 });
+  }
+  if (notesCeTour < 4) { note(p, (bx - W / 2) / (W / 2)); notesCeTour++; }
+}
+
+function remplir() {
+  plein = 1e-6; flashCadre = 1;
+  bx = by = MARGE + S / 2; r = RMAX;
+}
+
+let notesCeTour = 0;
+
+function avancer(dt) {
+  notesCeTour = 0;
+  if (plein > 0) {                          // carré rempli : on marque un temps
+    plein += dt;
+    if (plein > ATTENTE) reinitialiser();
+    return;
+  }
+  let reste = dt, garde = 0;
+  while (reste > 1e-9 && garde++ < 400) {
+    const min = MARGE + r, max = MARGE + S - r;
+    if (max - min <= 1e-9) { remplir(); return; }
+
+    // temps jusqu'à la prochaine paroi, sur chaque axe
+    let tt = reste, axe = -1;
+    if (vx > 0) { const u = (max - bx) / vx; if (u < tt) { tt = u; axe = 0; } }
+    else if (vx < 0) { const u = (min - bx) / vx; if (u < tt) { tt = u; axe = 0; } }
+    if (vy > 0) { const u = (max - by) / vy; if (u < tt) { tt = u; axe = 1; } }
+    else if (vy < 0) { const u = (min - by) / vy; if (u < tt) { tt = u; axe = 1; } }
+    if (tt < 0) tt = 0;
+
+    bx += vx * tt; by += vy * tt; reste -= tt; t += tt;
+    if (axe < 0) break;                     // aucune paroi atteinte dans ce pas
+
+    if (axe === 0) vx = -vx; else vy = -vy;
+    contact(axe === 0);
+    r = Math.min(RMAX, r + PAS); compte++;
+
+    // la croissance peut faire déborder le centre : on le ramène dans le carré
+    const min2 = MARGE + r, max2 = MARGE + S - r;
+    if (max2 <= min2 || r >= RMAX - 1e-9) { remplir(); return; }
+    bx = Math.min(max2, Math.max(min2, bx));
+    by = Math.min(max2, Math.max(min2, by));
+  }
+}
+
+function dessiner(dt) {
+  const dx = cv.width / W, dy = cv.height / H;
+  ctx.setTransform(dx, 0, 0, dy, 0, 0);
+
+  const p = (r - R0) / (RMAX - R0), col = couleur(p);
+
+  // --- fond -----------------------------------------------------------------
+  const fond = ctx.createRadialGradient(W / 2, H / 2, 60, W / 2, H / 2, W * 0.8);
+  fond.addColorStop(0, '#0c1729');
+  fond.addColorStop(1, '#020306');
+  ctx.fillStyle = fond; ctx.fillRect(0, 0, W, H);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  // --- cadre ----------------------------------------------------------------
+  ctx.strokeStyle = `rgba(73,196,185,${0.30 + 0.6 * flashCadre})`;
+  ctx.lineWidth = 3 + 6 * flashCadre;
+  ctx.shadowColor = '#49C4B9'; ctx.shadowBlur = 14 + 55 * flashCadre;
+  ctx.strokeRect(MARGE, MARGE, S, S);
+  ctx.shadowBlur = 0;
+  flashCadre = Math.max(0, flashCadre - dt * 1.4);
+
+  ctx.globalCompositeOperation = 'lighter';
+
+  // --- traînée, en bandes continues -----------------------------------------
+  if (trainees && trace.length > 2) {
+    for (let b = 0; b < BANDES; b++) {
+      const i0 = Math.floor(b * (trace.length - 1) / BANDES);
+      const i1 = Math.floor((b + 1) * (trace.length - 1) / BANDES);
+      if (i1 <= i0) continue;
+      const age = (b + 1) / BANDES;
+      ctx.strokeStyle = rgba(col, 0.30 * age * age);
+      ctx.lineWidth = r * 0.55 * age;
+      ctx.beginPath();
+      ctx.moveTo(trace[i0][0], trace[i0][1]);
+      for (let i = i0 + 1; i <= i1; i++) ctx.lineTo(trace[i][0], trace[i][1]);
+      ctx.stroke();
+    }
+  }
+
+  // --- éclats sur les parois touchées ---------------------------------------
+  for (let i = eclats.length - 1; i >= 0; i--) {
+    const e = eclats[i];
+    e.vie -= dt * 1.8;
+    if (e.vie <= 0) { eclats.splice(i, 1); continue; }
+    const l = 60 + 200 * (1 - e.vie);
+    ctx.lineWidth = 3 + 8 * e.vie;
+    if (e.vertical) {
+      const px = e.x < W / 2 ? MARGE : W - MARGE;
+      const g = ctx.createLinearGradient(px, e.y - l, px, e.y + l);
+      g.addColorStop(0, rgba(e.col, 0)); g.addColorStop(0.5, rgba(e.col, e.vie));
+      g.addColorStop(1, rgba(e.col, 0));
+      ctx.strokeStyle = g;
+      ctx.beginPath(); ctx.moveTo(px, e.y - l); ctx.lineTo(px, e.y + l); ctx.stroke();
+    } else {
+      const py = e.y < H / 2 ? MARGE : H - MARGE;
+      const g = ctx.createLinearGradient(e.x - l, py, e.x + l, py);
+      g.addColorStop(0, rgba(e.col, 0)); g.addColorStop(0.5, rgba(e.col, e.vie));
+      g.addColorStop(1, rgba(e.col, 0));
+      ctx.strokeStyle = g;
+      ctx.beginPath(); ctx.moveTo(e.x - l, py); ctx.lineTo(e.x + l, py); ctx.stroke();
+    }
+  }
+
+  // --- ondes ----------------------------------------------------------------
+  for (let i = ondes.length - 1; i >= 0; i--) {
+    const o = ondes[i];
+    o.vie -= dt * 1.6; o.r += dt * 340;
+    if (o.vie <= 0) { ondes.splice(i, 1); continue; }
+    ctx.strokeStyle = rgba(o.col, o.vie * 0.5);
+    ctx.lineWidth = 2 + 7 * o.vie;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.2832); ctx.stroke();
+  }
+
+  // --- gerbes ---------------------------------------------------------------
+  for (let i = gerbes.length - 1; i >= 0; i--) {
+    const q = gerbes[i];
+    q.vie -= dt * 1.5;
+    if (q.vie <= 0) { gerbes.splice(i, 1); continue; }
+    q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.96; q.vy *= 0.96;
+    ctx.fillStyle = rgba(q.col, q.vie * 0.75);
+    ctx.beginPath(); ctx.arc(q.x, q.y, 1.5 + 4 * q.vie, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // --- la balle -------------------------------------------------------------
+  // une fois le carré rempli, elle respire un instant avant la remise à zéro
+  const souffle = plein > 0 ? 1 + 0.012 * Math.sin(plein * 14) : 1;
+  const rr = r * souffle;
+  ctx.shadowColor = rgba(col); ctx.shadowBlur = 30 + 40 * p;
+  const g = ctx.createRadialGradient(bx - rr * 0.35, by - rr * 0.4, rr * 0.08,
+                                     bx, by, rr);
+  g.addColorStop(0, rgba(col.map(v => Math.min(255, v + 100)), 1));
+  g.addColorStop(1, rgba(col, 0.96));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(bx, by, rr, 0, 6.2832); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(240,250,250,0.5)'; ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // --- compteur et remplissage ----------------------------------------------
+  ctx.font = '500 26px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(200,220,220,0.55)';
+  ctx.textAlign = 'left';
+  ctx.fillText(`rebond ${compte} / ${REBONDS}`, MARGE, MARGE - 22);
+  ctx.textAlign = 'right';
+  ctx.fillText(`${Math.round(p * 100)} %`, W - MARGE, MARGE - 22);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.fillRect(MARGE, H - 34, S, 3);
+  ctx.fillStyle = rgba(col);
+  ctx.fillRect(MARGE, H - 34, S * p, 3);
+}
+
+// ---------------------------------------------------------------------------
+//  Boucle
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, trainees = true, vitesse = 1;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+
+  if (actif) {
+    avancer(brut * vitesse);
+    trace.push([bx, by, t]);
+    while (trace.length && t - trace[0][2] > MEMOIRE) trace.shift();
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('trn').onclick = e => {
+  trainees = !trainees;
+  e.target.setAttribute('aria-pressed', trainees);
+  if (!trainees) trace = [];
+};
+let son = false;
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre
+  // déjà actif, se fier à audio.state suspendrait le son dès le 1er appui.
+  if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>

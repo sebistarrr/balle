@@ -1,0 +1,5 @@
+# sorties de Manim
+media/
+__pycache__/
+*.pyc
+*.wav

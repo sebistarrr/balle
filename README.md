@@ -6,29 +6,32 @@ calculé image par image sur un `<canvas>`.
 
 En ligne : <https://sebistarrr.github.io/balle/>
 
-| | Animation | Dossier |
-|---|---|---|
-| 01 | Vagues de pendule | [`1-vagues-de-pendule/`](1-vagues-de-pendule/) |
-| 02 | Vagues de pendule, intensifié | [`2-vagues-de-pendule-intense/`](2-vagues-de-pendule-intense/) |
-| 03 | Billard en boucle | [`3-billard-en-boucle/`](3-billard-en-boucle/) |
+| | Animation | Dossier | Script Manim |
+|---|---|---|---|
+| 01 | Vagues de pendule | [`1-vagues-de-pendule/`](1-vagues-de-pendule/) | `pendulum_wave.py` |
+| 02 | Vagues de pendule, intensifié | [`2-vagues-de-pendule-intense/`](2-vagues-de-pendule-intense/) | `pendulum_wave_intense.py` |
+| 03 | Billard en boucle | [`3-billard-en-boucle/`](3-billard-en-boucle/) | `billiard_loop.py` |
+| 04 | La balle qui grossit | [`4-balle-qui-grossit/`](4-balle-qui-grossit/) | `growing_ball.py` |
 
-`index.html` à la racine est la page d'accueil : une vignette animée par
-animation, qui sert de menu.
+`index.html` à la racine est la page d'accueil : la liste des titres, qui sert
+de menu.
 
 ## Organisation
 
 **Chaque animation est un dossier autonome**, avec son propre `index.html`
-contenant tout son HTML, son CSS et son JavaScript. Rien n'est mis en commun :
-modifier ou refondre une animation ne peut pas altérer les autres. Ajouter une
-animation = créer un dossier `N-nom/` et ajouter une carte sur la page
-d'accueil.
+contenant tout son HTML, son CSS et son JavaScript, plus le script Manim qui en
+produit la version vidéo. Rien n'est mis en commun : modifier ou refondre une
+animation ne peut pas altérer les autres. Ajouter une animation = créer un
+dossier `N-nom/` et ajouter une ligne sur la page d'accueil.
+
+La page web et le script Manim d'une même animation partagent les mêmes
+constantes, converties d'un repère à l'autre. La page est l'aperçu ; le script
+Manim est la référence.
 
 ## Les trois animations
 
 **01 — Vagues de pendule.** Seize pendules ; le *k*-ième effectue *30 − k*
-oscillations par cycle de 96 s. La version d'origine, sobre. Le script
-[Manim](https://www.manim.community/) qui produit la vidéo verticale
-l'accompagne : [`pendulum_wave.py`](1-vagues-de-pendule/pendulum_wave.py).
+oscillations par cycle de 96 s. La version d'origine, sobre.
 
 **02 — Vagues de pendule, intensifié.** Mêmes constantes, même géométrie que la
 01, jouée deux fois plus vite : traînées lumineuses, ondes de choc et gerbes de
@@ -42,19 +45,34 @@ de Lissajous polygonale, que les traînées dessinent peu à peu. Les balles se
 traversent : c'est la condition pour que la boucle reste exacte. Le bouton
 « trajectoires » révèle les courbes complètes.
 
-Les trois ont un son facultatif : une note par impact, pentatonique mineure,
-grave pour les éléments lents.
+**04 — La balle qui grossit.** Une balle rebondit sans frottement dans le
+carré ; à chaque contact avec une paroi son rayon gagne un cran. L'espace laissé
+à son centre se resserre d'autant, donc la cadence s'emballe toute seule : le
+premier rebond arrive après 0,8 s, les derniers s'enchaînent en centièmes de
+seconde. Au 45e elle est inscrite dans le carré, puis tout recommence à
+l'identique.
 
-## Rendre la vidéo de la 01
+Toutes ont un son facultatif : une note par impact, pentatonique mineure, grave
+pour les éléments lents ou gros.
+
+## Rendre les vidéos
 
 ```sh
 pip install manim numpy
+
 manim -r 1080,1920 --fps 60 1-vagues-de-pendule/pendulum_wave.py PendulumWave
+manim -r 1080,1920 --fps 60 2-vagues-de-pendule-intense/pendulum_wave_intense.py PendulumWaveIntense
+manim -r 1080,1080 --fps 60 3-billard-en-boucle/billiard_loop.py BilliardLoop
+manim -r 1080,1080 --fps 60 4-balle-qui-grossit/growing_ball.py GrowingBall
 ```
 
-Les réglages sont en tête du script : `DUREE` (48 s = demi-cycle, 96 s = boucle
-parfaite), `FORME` (`"triangle"` comme la vidéo d'origine, ou `"sinus"` pour un
-mouvement physiquement correct) et `AVEC_SON`.
+Garder le format indiqué : 9:16 pour les deux premières, carré pour les deux
+autres. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
+pour la bande son, et pour la 01 `FORME` (`"triangle"` comme la vidéo d'origine,
+ou `"sinus"` pour un mouvement physiquement correct).
+
+Aucun de ces scripts n'a besoin de LaTeX : le seul texte affiché (le compteur de
+la 04) passe par Pango.
 
 ## Voir en local
 
