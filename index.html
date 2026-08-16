@@ -10,77 +10,59 @@
   body {
     margin: 0; min-height: 100dvh; color: #7f8a8a;
     background: #04060a radial-gradient(120% 80% at 50% -10%, #0d1622 0%, #04060a 60%);
-    font: 400 14px/1.6 ui-sans-serif, system-ui, sans-serif;
-    padding: clamp(1.5rem, 5vw, 4rem) 1rem 3rem;
+    font: 400 15px/1.6 ui-sans-serif, system-ui, sans-serif;
+    padding: clamp(2rem, 8vw, 5rem) 1.25rem 3rem;
   }
-  header { max-width: 1100px; margin: 0 auto clamp(1.5rem, 4vw, 3rem); }
+  main { max-width: 680px; margin: 0 auto; }
   h1 {
-    margin: 0 0 .4rem; font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 500;
+    margin: 0 0 .5rem; font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 500;
     letter-spacing: -.02em; color: #dde4e4;
   }
-  header p { margin: 0; max-width: 54ch; }
-  .grille {
-    max-width: 1100px; margin: 0 auto; display: grid; gap: 1.1rem;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  header p { margin: 0 0 clamp(2rem, 5vw, 3rem); max-width: 52ch; }
+  ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid #16202c; }
+  li { border-bottom: 1px solid #16202c; }
+  a.item {
+    display: flex; align-items: baseline; gap: 1rem; padding: 1.1rem .25rem;
+    text-decoration: none; color: #dde4e4;
+    transition: color .15s ease, padding-left .15s ease;
   }
-  .carte {
-    display: block; text-decoration: none; color: inherit; overflow: hidden;
-    background: #080c11; border: 1px solid #1a2330; border-radius: 14px;
-    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-  }
-  .carte:hover, .carte:focus-visible {
-    transform: translateY(-4px); border-color: #2c4a49;
-    box-shadow: 0 12px 32px -12px #000, 0 0 0 1px #2c4a49 inset;
-  }
-  .carte canvas { display: block; width: 100%; aspect-ratio: 4/5; background: #000; }
-  .meta { padding: .9rem 1rem 1.1rem; border-top: 1px solid #141d28; }
-  .num { font-size: 11px; letter-spacing: .18em; color: #49c4b9; }
-  .meta h2 { margin: .15rem 0 .3rem; font-size: 1.05rem; font-weight: 500; color: #dde4e4; }
-  .meta p { margin: 0; font-size: 13px; }
-  footer { max-width: 1100px; margin: 2.5rem auto 0; font-size: 13px; }
+  a.item:hover, a.item:focus-visible { color: #49c4b9; padding-left: .75rem; }
+  .num { font-size: 12px; letter-spacing: .18em; color: #49c4b9; flex: none; }
+  .titre { font-size: 1.15rem; font-weight: 500; }
+  .fleche { margin-left: auto; color: #2c4a49; }
+  a.item:hover .fleche { color: #49c4b9; }
+  footer { max-width: 680px; margin: 2.5rem auto 0; font-size: 13px; }
   footer a { color: #49c4b9; }
-  @media (prefers-reduced-motion: reduce) { .carte { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { a.item { transition: none; } }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>Animations</h1>
-  <p>Des mouvements réglés pour se resynchroniser exactement&nbsp;: au bout d'un
-     cycle, chaque figure retrouve sa position de départ, à la fraction de seconde
-     près. Aucune bibliothèque, tout est calculé image par image.</p>
-</header>
+<main>
+  <header>
+    <h1>Animations</h1>
+    <p>Des mouvements réglés pour se resynchroniser exactement&nbsp;: au bout d'un
+       cycle, chaque figure retrouve sa position de départ. Aucune bibliothèque,
+       tout est calculé image par image.</p>
+  </header>
 
-<main class="grille">
-  <a class="carte" href="1-vagues-de-pendule/">
-    <canvas data-apercu="1"></canvas>
-    <div class="meta">
+  <ul>
+    <li><a class="item" href="1-vagues-de-pendule/">
       <span class="num">01</span>
-      <h2>Vagues de pendule</h2>
-      <p>Seize pendules, seize périodes. La version d'origine, sobre, fidèle au
-         rendu Manim.</p>
-    </div>
-  </a>
-
-  <a class="carte" href="2-vagues-de-pendule-intense/">
-    <canvas data-apercu="2"></canvas>
-    <div class="meta">
+      <span class="titre">Vagues de pendule</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="2-vagues-de-pendule-intense/">
       <span class="num">02</span>
-      <h2>Vagues de pendule, intensifié</h2>
-      <p>Même mécanique, plus rapide&nbsp;: traînées lumineuses, ondes de choc
-         et gerbes à chaque impact.</p>
-    </div>
-  </a>
-
-  <a class="carte" href="3-billard-en-boucle/">
-    <canvas data-apercu="3"></canvas>
-    <div class="meta">
+      <span class="titre">Vagues de pendule, intensifié</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="3-billard-en-boucle/">
       <span class="num">03</span>
-      <h2>Billard en boucle</h2>
-      <p>Douze balles dans un carré. Leurs vitesses tracent des courbes fermées
-         qui se dessinent en lumière.</p>
-    </div>
-  </a>
+      <span class="titre">Billard en boucle</span>
+      <span class="fleche">→</span>
+    </a></li>
+  </ul>
 </main>
 
 <footer>
@@ -88,146 +70,5 @@
      <a href="1-vagues-de-pendule/pendulum_wave.py">pendulum_wave.py</a>.</p>
 </footer>
 
-<script>
-// ---------------------------------------------------------------------------
-//  Aperçus : versions miniatures et accélérées, écrites pour cette page seule.
-//  Les animations complètes vivent chacune dans son dossier, sans code partagé.
-// ---------------------------------------------------------------------------
-const STOPS = ['#F56E51', '#F9B060', '#49C4B9', '#1F99D0'];
-
-function degrade(n) {
-  return Array.from({ length: n }, (_, i) => {
-    const u = i / (n - 1) * (STOPS.length - 1);
-    const j = Math.min(Math.floor(u), STOPS.length - 2), f = u - j;
-    const hex = s => [1, 3, 5].map(p => parseInt(s.slice(p, p + 2), 16));
-    const a = hex(STOPS[j]), b = hex(STOPS[j + 1]);
-    return a.map((v, m) => Math.round(v + (b[m] - v) * f));
-  });
-}
-const rgba = (c, o = 1) => `rgba(${c[0]},${c[1]},${c[2]},${o})`;
-
-// --- 01 et 02 : la vague de pendules ---------------------------------------
-const N1 = 14, COL1 = degrade(N1);
-const CYCLE1 = 26, OSC1 = 26, AMP1 = 25 * Math.PI / 180;
-
-function pendule(k, t) {
-  const ph = (t / (CYCLE1 / (OSC1 - k))) % 1;
-  return AMP1 * (ph < 0.5 ? 4 * ph - 1 : 3 - 4 * ph);
-}
-
-function apercuPendules(g, w, h, t, intense) {
-  const px = w / 2, py = h * 0.12, lmin = h * 0.40, lmax = h * 0.80;
-  const guide = 26.5 * Math.PI / 180;
-
-  g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
-  g.lineCap = 'round';
-
-  // les deux traits obliques
-  g.strokeStyle = intense ? 'rgba(73,196,185,0.55)' : 'rgba(255,255,255,0.5)';
-  g.lineWidth = intense ? 2 : 1.5;
-  for (const s of [-1, 1]) {
-    g.beginPath();
-    g.moveTo(px, py);
-    g.lineTo(px + h * s * Math.sin(guide), py + h * Math.cos(guide));
-    g.stroke();
-  }
-
-  const point = (k, u) => {
-    const a = pendule(k, u), L = lmin + (lmax - lmin) * k / (N1 - 1);
-    return [px + L * Math.sin(a), py + L * Math.cos(a)];
-  };
-
-  // traînées : quelques positions passées, de plus en plus effacées
-  if (intense) {
-    g.globalCompositeOperation = 'lighter';
-    for (let i = 6; i >= 1; i--) {
-      for (let k = 0; k < N1; k++) {
-        const [x, y] = point(k, t - i * 0.035);
-        g.fillStyle = rgba(COL1[k], 0.10 * (1 - i / 7));
-        g.beginPath(); g.arc(x, y, h * 0.020, 0, 6.2832); g.fill();
-      }
-    }
-    g.globalCompositeOperation = 'source-over';
-  }
-
-  g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = 1;
-  const pts = Array.from({ length: N1 }, (_, k) => point(k, t));
-  for (const [x, y] of pts) {
-    g.beginPath(); g.moveTo(px, py); g.lineTo(x, y); g.stroke();
-  }
-
-  pts.forEach(([x, y], k) => {
-    if (intense) { g.shadowColor = rgba(COL1[k]); g.shadowBlur = h * 0.035; }
-    g.fillStyle = rgba(COL1[k], 0.92);
-    g.beginPath(); g.arc(x, y, h * 0.019, 0, 6.2832); g.fill();
-    g.shadowBlur = 0;
-  });
-}
-
-// --- 03 : le billard ---------------------------------------------------------
-const PAIRES = [[3, 4], [4, 3], [3, 5], [5, 3], [4, 5], [5, 4],
-                [5, 6], [6, 5], [3, 7], [7, 3], [5, 7], [7, 5]];
-const COL3 = degrade(PAIRES.length), T3 = 13;
-const tri = u => 2 * Math.abs(u - Math.floor(u) - 0.5);
-
-function apercuBillard(g, w, h, t) {
-  const S = Math.min(w, h * 0.88) * 0.86;
-  const ox = (w - S) / 2, oy = (h - S) / 2, r = S * 0.032, A = S - 2 * r;
-
-  g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
-  g.strokeStyle = 'rgba(73,196,185,0.35)'; g.lineWidth = 1.5;
-  g.strokeRect(ox, oy, S, S);
-
-  const point = (k, u) => {
-    const [nx, ny] = PAIRES[k];
-    return [ox + r + A * tri(nx * u / T3 + k * 0.083),
-            oy + r + A * tri(ny * u / T3 + k * 0.137)];
-  };
-
-  g.globalCompositeOperation = 'lighter';
-  for (let i = 14; i >= 1; i--) {          // traînée : positions passées
-    for (let k = 0; k < PAIRES.length; k++) {
-      const [x, y] = point(k, t - i * 0.045);
-      g.fillStyle = rgba(COL3[k], 0.055 * (1 - i / 15));
-      g.beginPath(); g.arc(x, y, r * 0.8, 0, 6.2832); g.fill();
-    }
-  }
-  for (let k = 0; k < PAIRES.length; k++) {
-    const [x, y] = point(k, t);
-    g.fillStyle = rgba(COL3[k], 0.95);
-    g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.fill();
-  }
-  g.globalCompositeOperation = 'source-over';
-}
-
-// --- boucle commune aux trois vignettes -------------------------------------
-const vignettes = [...document.querySelectorAll('canvas[data-apercu]')];
-
-function redimensionner() {
-  for (const cv of vignettes) {
-    const r = cv.getBoundingClientRect();
-    cv.dpr = Math.min(devicePixelRatio || 1, 2);
-    cv.width = Math.round(r.width * cv.dpr) || 1;
-    cv.height = Math.round(r.height * cv.dpr) || 1;
-    cv.logique = [r.width, r.height];
-  }
-}
-redimensionner();
-addEventListener('resize', redimensionner);
-
-const doux = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-function boucle(now) {
-  requestAnimationFrame(boucle);
-  const t = doux ? 4.2 : now / 1000;      // mouvement réduit : image figée
-  for (const cv of vignettes) {
-    const g = cv.getContext('2d'), [w, h] = cv.logique;
-    g.setTransform(cv.dpr, 0, 0, cv.dpr, 0, 0);
-    if (cv.dataset.apercu === '3') apercuBillard(g, w, h, t);
-    else apercuPendules(g, w, h, t, cv.dataset.apercu === '2');
-  }
-}
-requestAnimationFrame(boucle);
-</script>
 </body>
 </html>
