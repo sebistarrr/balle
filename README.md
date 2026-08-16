@@ -33,5 +33,10 @@ Les réglages sont en tête de `pendulum_wave.py` : `DUREE` (48 s = demi-cycle,
 ## Déploiement
 
 `.github/workflows/pages.yml` publie la racine du dépôt sur GitHub Pages à
-chaque push. Il faut avoir réglé une fois **Settings → Pages → Source** sur
-**GitHub Actions**.
+chaque push.
+
+Une manipulation manuelle est nécessaire **une seule fois**, car créer le site
+Pages demande un droit d'administration que le `GITHUB_TOKEN` du workflow n'a
+pas : **Settings → Pages → Source → GitHub Actions**. Ensuite, relancer le
+workflow (**Actions → Deploy to GitHub Pages → Run workflow**) ou pousser un
+commit ; le site sort sur `https://sebistarrr.github.io/balle/`.

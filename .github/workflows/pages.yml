@@ -24,10 +24,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Prérequis, une seule fois : Settings > Pages > Source = GitHub Actions.
+      # `enablement: true` ne suffit pas ici — créer le site demande un droit
+      # admin que le GITHUB_TOKEN du workflow n'a pas.
       - uses: actions/configure-pages@v5
-        with:
-          # active Pages (source = GitHub Actions) au premier passage
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
