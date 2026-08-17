@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vagues de pendule, intensifié</title>
+<title>Vagues de pendule</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -46,13 +46,15 @@
   <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
 </div>
 
-<p>La mécanique de la première animation, jouée deux fois plus vite&nbsp;: chaque
-   contact déclenche une onde et une gerbe de la couleur du pendule. Le cycle se
-   referme exactement&nbsp;; la barre du bas indique où l'on en est.</p>
+<p>Seize pendules de longueurs réglées pour se resynchroniser exactement au bout
+   d'un cycle&nbsp;: chaque contact déclenche une onde et une gerbe de la couleur
+   du pendule. Le cycle se referme au pixel près&nbsp;; la barre du bas indique
+   où l'on en est.</p>
 
 <script>
 // ---------------------------------------------------------------------------
-//  Cinématique : identique à l'animation 1 (mêmes constantes, même repère).
+//  Cinématique : seize pendules dont les périodes sont dans un rapport entier,
+//  si bien qu'ils se retrouvent alignés au bout d'un cycle exactement.
 //  Tout ce qui suit — traînées, ondes, gerbes, lueurs — est ajouté par-dessus.
 //  Page autonome : rien n'est partagé avec les autres animations.
 // ---------------------------------------------------------------------------

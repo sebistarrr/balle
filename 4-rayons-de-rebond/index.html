@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Plus grosse à chaque rebond</title>
+<title>Rayons de rebond</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -38,27 +38,28 @@
   <a class="btn" href="../">← animations</a>
   <button id="play" aria-pressed="true">❚❚ pause</button>
   <button id="snd" aria-pressed="false">♪ son</button>
-  <button id="trc" aria-pressed="true">trace</button>
+  <button id="trc" aria-pressed="true">rayons</button>
   <label>vitesse <input id="vit" type="range" min="0.2" max="4" step="0.1" value="1">
     <span id="vitval">1,0×</span></label>
-  <a class="btn" href="growing_bounce.py">code Manim</a>
+  <a class="btn" href="bounce_rays.py">code Manim</a>
   <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
 </div>
 
-<p>Une balle tombe dans un récipient en U et grandit d'un cran chaque fois
-   qu'elle retombe sur le fond. Sa trajectoire reste inscrite. Elle accélère
-   aussi, mais jusqu'à un plafond seulement&nbsp;: ce qui s'emballe vraiment,
-   c'est la cadence des chocs, l'espace se refermant à mesure — 3 par seconde au
-   début, une douzaine à la fin. Environ 55&nbsp;s pour qu'elle occupe toute la
-   largeur, puis on recommence à l'identique.</p>
+<p>Une balle tombe dans un récipient en U et gagne un cran de rayon chaque fois
+   qu'elle retombe sur le fond. Chaque choc laisse un point fixe sur la paroi, et l'on
+   relie en permanence le centre de la balle à tous ces points&nbsp;: un éventail
+   de droites qui balaie l'espace au lieu d'une trajectoire figée. Le dessin se
+   densifie à mesure que la balle grossit et que les chocs s'accélèrent.</p>
 
 <script>
 // ---------------------------------------------------------------------------
-//  Le récipient : deux parois verticales fermées en bas par un demi-cercle,
-//  ouvert en haut. La balle rebondit sans perte, gagne un cran de rayon chaque
-//  fois qu'elle retombe sur le fond, et laisse derrière elle toute sa
-//  trajectoire. Géométrie, gravité et croissance sont relevées sur la vidéo
-//  d'origine ; l'écart sur le rayon est de 8 px en moyenne sur tout le cycle.
+//  Récipient en U, balle qui grossit à chaque fond touché. Le sujet, ici,
+//  c'est le tracé.
+//
+//  Ce n'est pas la trajectoire qui est dessinée : chaque choc laisse un point
+//  fixe sur la paroi, et à chaque image on relie le centre de la balle à tous
+//  ces points. L'éventail balaie donc l'espace à mesure qu'elle se déplace, et
+//  les traits sont rigoureusement droits.
 //
 //  Le pas de temps est FIXE. Un billard sous gravité est chaotique : avec un
 //  pas lié à la cadence d'affichage, deux lectures de la même page ne
@@ -118,12 +119,12 @@ function note(p, pan) {
 // ---------------------------------------------------------------------------
 //  Simulation
 // ---------------------------------------------------------------------------
-let x, y, vx, vy, r, teinte, chocs, plein, trace, notesCeTour;
+let x, y, vx, vy, r, teinte, chocs, plein, impacts, notesCeTour;
 
 function reinitialiser() {
   x = CX + 40; y = SOMMET; vx = 650; vy = 0;
   r = R0; teinte = 268; chocs = 0; plein = 0;
-  trace = [[x, y]];
+  impacts = [];
 }
 reinitialiser();
 
@@ -131,7 +132,9 @@ function contact(nx, ny, fond) {
   const d = 2 * (vx * nx + vy * ny);
   vx -= d * nx; vy -= d * ny;         // rebond parfaitement élastique
 
-  trace.push([x, y]);                 // un point pile au choc : l'angle est net
+  // Le point touché sur la paroi. Le centre est à RC - r du centre du fond,
+  // donc le contact est à RC pile : il tombe sur le tracé du récipient.
+  impacts.push(fond ? [CX + nx * RC, ARC_CY + ny * RC] : [CX + nx * RC, y]);
   chocs++;
   teinte -= TEINTE_PAR_CHOC;
   if (fond) { r = Math.min(RC, r + PAS_RAYON); vx *= GAIN; vy *= GAIN; }
@@ -214,12 +217,11 @@ function dessiner() {
   ctx.lineTo(CX + RC, HAUT);
   ctx.stroke();
 
-  // --- la trajectoire, entièrement conservée ---------------------------------
-  if (montrerTrace && trace.length > 1) {
-    ctx.strokeStyle = c; ctx.lineWidth = 1.4; ctx.lineJoin = 'round';
+  // --- les rayons : du centre de la balle vers chaque impact -----------------
+  if (montrerTrace && impacts.length) {
+    ctx.strokeStyle = c; ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.moveTo(trace[0][0], trace[0][1]);
-    for (let i = 1; i < trace.length; i++) ctx.lineTo(trace[i][0], trace[i][1]);
+    for (const [ix, iy] of impacts) { ctx.moveTo(x, y); ctx.lineTo(ix, iy); }
     ctx.stroke();
   }
 
@@ -259,7 +261,6 @@ function boucle(now) {
       reste += brut * vitesse;
       let n = 0;
       while (reste >= DT && n++ < 400 && plein === 0) { pas(); reste -= DT; }
-      trace.push([x, y]);
     }
   }
   dessiner();

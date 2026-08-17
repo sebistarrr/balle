@@ -3,8 +3,3 @@ media/
 __pycache__/
 *.pyc
 *.wav
-
-# ...sauf la voix off de l'animation 9 : 1,5 Mo, et sans elle le film ne se
-# rend qu'en muet. outils/faire-la-voix.py la régénère, mais cela demande
-# piper et un modèle de 63 Mo — autant la garder ici.
-!9-tables-expliquees/voix/*.wav

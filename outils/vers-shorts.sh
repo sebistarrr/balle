@@ -4,7 +4,7 @@
 # (YouTube Shorts, TikTok, Reels) : 1080x1920, 60 fps, H.264 + AAC.
 #
 # Les animations n'ont pas toutes le même rapport d'image — deux sont carrées,
-# deux sont en 720:1244. On met donc l'image à l'échelle sans la déformer, puis
+# une est en 720:1244. On met donc l'image à l'échelle sans la déformer, puis
 # on complète en noir jusqu'au cadre 9:16. Le fond des animations étant noir,
 # le raccord ne se voit pas.
 #
@@ -59,14 +59,9 @@ pad=${CIBLE_L}:${CIBLE_H}:(ow-iw)/2:(oh-ih)/2:black,format=yuv420p" \
 
 echo "Conversion au format 1080x1920 :"
 #            dossier                       scène                durée + 0,5 s
-convertir 1-vagues-de-pendule           PendulumWave         48.5
-convertir 2-vagues-de-pendule-intense   PendulumWaveIntense  24.5
-convertir 3-billard-en-boucle           BilliardLoop         24.5
-convertir 4-balle-qui-grossit           GrowingBall          23.7
-convertir 5-plus-grosse-a-chaque-rebond GrowingBounce        55.7
-convertir 6-rayons-de-rebond            BounceRays           55.7
-convertir 7-resonance                   Resonance            10.0
-convertir 8-comprendre-les-tables       Explication          52.0
-convertir 9-tables-expliquees           TablesExpliquees     38.9
-convertir 10-balle-et-pointes           BalleEtPointes       30.0
+convertir 1-vagues-de-pendule-intense   PendulumWaveIntense  24.5
+convertir 2-billard-en-boucle           BilliardLoop         24.5
+convertir 3-balle-qui-grossit           GrowingBall          23.7
+convertir 4-rayons-de-rebond            BounceRays           55.7
+convertir 5-balle-et-pointes            BalleEtPointes       30.0
 echo "Terminé."

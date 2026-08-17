@@ -1,14 +1,15 @@
 """
-Plus grosse à chaque rebond — reproduction Manim.
+Rayons de rebond — reproduction Manim.
 
-Une balle tombe dans un récipient en U (deux parois verticales fermées en bas
-par un demi-cercle, ouvert en haut). Elle rebondit sans perte et gagne un cran
-de rayon chaque fois qu'elle retombe sur le fond, jusqu'à occuper toute la
-largeur. Sa trajectoire reste inscrite à l'écran, et la teinte de l'ensemble
-tourne en continu.
+Une balle tombe dans un récipient en U et gagne un cran de rayon chaque fois
+qu'elle retombe sur le fond. Le sujet, ici, c'est le tracé : ce n'est pas la
+trajectoire qui est dessinée. Chaque choc
+laisse un point fixe sur la paroi, et à chaque image on relie le centre de la
+balle à tous ces points. L'éventail balaie donc l'espace à mesure qu'elle se
+déplace, et les traits sont rigoureusement droits.
 
 Rendu :
-    manim -r 720,1244 --fps 60 growing_bounce.py GrowingBounce
+    manim -r 720,1244 --fps 60 bounce_rays.py BounceRays
 
 Les constantes reprennent celles de la page `index.html` voisine, dans le même
 repère pixel (720 x 1244) ; un pixel vaut 0,01 unité de scène.
@@ -25,7 +26,7 @@ import numpy as np
 #  Repère de la scène — DOIT être au niveau module : la CLI manim importe ce
 #  fichier APRÈS avoir lu ses options, donc ces valeurs-là gagnent.
 #  La résolution vient de la ligne de commande : garder le rapport 720:1244.
-#      manim -r 720,1244 --fps 60 growing_bounce.py GrowingBounce
+#      manim -r 720,1244 --fps 60 bounce_rays.py BounceRays
 # --------------------------------------------------------------------------
 config.frame_width = 7.20
 config.frame_height = 12.44
@@ -84,10 +85,8 @@ def simuler():
     t = 0.0
 
     temps, chemin, rayons, teintes, chocs = [0.0], [(x, y)], [r], [teinte], []
+    impacts = []                     # (instant, point touché sur la paroi)
     prochain = 1 / ECH
-
-    def note_choc():
-        chocs.append((t, x, y, (r - R0) / (RC - R0)))
 
     while r < RC - 1e-9 and t < 300:
         vy += G * DT
@@ -114,6 +113,10 @@ def simuler():
             x, nx, touche = CX + RC - r, 1.0, True
 
         if touche:
+            #  Le point touché. Le centre est à RC - r du centre du fond, donc
+            #  le contact tombe à RC pile : il est sur le tracé du récipient.
+            impacts.append((t, CX + nx * RC,
+                            ARC_CY + ny * RC if fond else y))
             p = 2 * (vx * nx + vy * ny)
             vx -= p * nx
             vy -= p * ny                                 # rebond élastique
@@ -134,7 +137,7 @@ def simuler():
             if s > vmax > 0:
                 vx *= vmax / s
                 vy *= vmax / s
-            note_choc()
+            chocs.append((t, (r - R0) / (RC - R0)))
             temps.append(t); chemin.append((x, y)); rayons.append(r); teintes.append(teinte)
 
         if t >= prochain:
@@ -147,16 +150,24 @@ def simuler():
         teintes.append(teinte - TEINTE_PAR_S * (u - t))
 
     return (np.array(temps), np.array(chemin), np.array(rayons),
-            np.array(teintes), chocs, temps[-1])
+            np.array(teintes), chocs, np.array(impacts), temps[-1])
 
 
-TEMPS, CHEMIN, RAYONS, TEINTES, CHOCS, DUREE = simuler()
+TEMPS, CHEMIN, RAYONS, TEINTES, CHOCS, IMPACTS, DUREE = simuler()
 #  Trajectoire déjà convertie dans le repère de la scène : on ne la recalcule
 #  pas à chaque image, la trace peut compter plusieurs milliers de points.
 CHEMIN_SCENE = np.stack([
     (CHEMIN[:, 0] - CX) * ECHELLE,
     (H / 2 - CHEMIN[:, 1]) * ECHELLE,
     np.zeros(len(CHEMIN)),
+], axis=1)
+
+
+IMPACTS_T = IMPACTS[:, 0]
+IMPACTS_SCENE = np.stack([
+    (IMPACTS[:, 1] - CX) * ECHELLE,
+    (H / 2 - IMPACTS[:, 2]) * ECHELLE,
+    np.zeros(len(IMPACTS)),
 ], axis=1)
 
 
@@ -167,7 +178,7 @@ def indice(t):
 # --------------------------------------------------------------------------
 #  Scène
 # --------------------------------------------------------------------------
-class GrowingBounce(Scene):
+class BounceRays(Scene):
     def construct(self):
         t = ValueTracker(0.0)
 
@@ -192,15 +203,26 @@ class GrowingBounce(Scene):
         recipient = VMobject(stroke_width=3).set_points_as_corners(pts)
         recipient.add_updater(lambda m: m.set_stroke(color=teinte_courante()))
 
-        # --- la trajectoire, entièrement conservée -----------------------------
-        trace = VMobject(stroke_width=1.4)
+        # --- les rayons : du centre de la balle vers chaque impact -------------
+        #  Une seule courbe en zigzag centre -> impact -> centre -> impact...
+        #  Chaque rayon est donc parcouru deux fois, ce qui ne se voit pas, et
+        #  cela évite d'avoir à gérer des centaines de tracés séparés.
+        rayons = VMobject(stroke_width=1.4)
 
-        def maj_trace(m):
-            n = max(2, min(indice(t.get_value()) + 1, len(CHEMIN_SCENE)))
-            m.set_points_as_corners(CHEMIN_SCENE[:n])
-            m.set_stroke(color=teinte_courante(), width=1.4)
+        def maj_rayons(m):
+            tv = t.get_value()
+            n = int(np.searchsorted(IMPACTS_T, tv, side="right"))
+            if n == 0:
+                m.set_stroke(opacity=0)
+                return
+            centre = CHEMIN_SCENE[min(indice(tv), len(CHEMIN_SCENE) - 1)]
+            zigzag = np.empty((2 * n, 3))
+            zigzag[0::2] = centre
+            zigzag[1::2] = IMPACTS_SCENE[:n]
+            m.set_points_as_corners(zigzag)
+            m.set_stroke(color=teinte_courante(), width=1.4, opacity=1)
 
-        trace.add_updater(maj_trace)
+        rayons.add_updater(maj_rayons)
 
         # --- la balle, par-dessus ----------------------------------------------
         balle = Circle(radius=1.0, stroke_width=0, fill_opacity=1)
@@ -227,7 +249,7 @@ class GrowingBounce(Scene):
 
         jauge.add_updater(maj_jauge)
 
-        self.add(legende, recipient, rail, jauge, trace, balle)
+        self.add(legende, recipient, rail, jauge, rayons, balle)
 
         if AVEC_SON:
             self.add_sound(generer_bande_son())
@@ -238,7 +260,7 @@ class GrowingBounce(Scene):
 # --------------------------------------------------------------------------
 #  Bande son : une note par choc (facultatif)
 # --------------------------------------------------------------------------
-def generer_bande_son(chemin="rebonds.wav", sr=44100):
+def generer_bande_son(chemin="rayons.wav", sr=44100):
     """Note à chaque choc, d'autant plus grave que la balle est grosse.
 
     Vers la fin les chocs se comptent par dizaines par seconde : on n'en garde
@@ -254,7 +276,7 @@ def generer_bande_son(chemin="rebonds.wav", sr=44100):
              for i in range(16)][::-1]
 
     dernier, garde = -1.0, []
-    for instant, _, _, p in CHOCS:
+    for instant, p in CHOCS:
         if instant - dernier < 0.06:      # au plus ~16 notes par seconde
             continue
         dernier = instant
@@ -283,7 +305,7 @@ def generer_bande_son(chemin="rebonds.wav", sr=44100):
 
 # --------------------------------------------------------------------------
 if __name__ == "__main__":
-    # Lancement direct : python growing_bounce.py
+    # Lancement direct : python bounce_rays.py
     config.pixel_width, config.pixel_height = 720, 1244
     config.frame_rate = 60
-    GrowingBounce().render()
+    BounceRays().render()

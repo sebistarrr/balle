@@ -1,8 +1,8 @@
 """
-Vagues de pendule, intensifié — reproduction Manim.
+Vagues de pendule — reproduction Manim.
 
-Même cinématique que `1-vagues-de-pendule/pendulum_wave.py` (mêmes longueurs,
-mêmes périodes, même onde triangulaire), jouée deux fois plus vite et habillée :
+Seize pendules dont les périodes sont dans un rapport entier : au bout d'un
+cycle, tous se retrouvent alignés et la figure repart à l'identique. Habillage :
 traînées derrière les billes, onde de choc à chaque contact, traits obliques en
 dégradé qui s'avivent au moment de l'impact.
 
@@ -28,7 +28,7 @@ config.frame_height = 16.0
 config.background_color = "#020306"
 
 # --------------------------------------------------------------------------
-#  Réglages — identiques à l'animation 1, sauf VITESSE et l'habillage
+#  Réglages
 # --------------------------------------------------------------------------
 N_PENDULES = 16
 CYCLE = 96.0        # s d'animation — au bout de ce temps tout se resynchronise
@@ -54,7 +54,7 @@ AVEC_SON = True
 
 
 # --------------------------------------------------------------------------
-#  Cinématique (reprise telle quelle de l'animation 1)
+#  Cinématique : périodes en rapport entier, d'où la resynchronisation exacte
 # --------------------------------------------------------------------------
 def periode(k):
     return CYCLE / (OSC_MAX - k)
