@@ -296,6 +296,16 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 03 | La balle qui grossit | 24 s | 2,7 Mo |
 | 04 | Rayons de rebond | 56 s | 31 Mo |
 | 05 | La balle et les pointes | 30 s | 8,2 Mo |
+| 06 | Cinq vies | 24 s | 2,2 Mo |
+| 07 | Course en spirale | 14 s | 0,95 Mo |
+| 08 | Le sol qui s'effrite | 23 s | 1,3 Mo |
+| 09 | Le grand plongeon | 17 s | 1,1 Mo |
+| 10 | Guerre de territoire | 21 s | 1,7 Mo |
+| 11 | Les pointes qui poussent | 17 s | 1,5 Mo |
+| 12 | Sumo | 21 s | 1,5 Mo |
+| 13 | Les portes | 25 s | 2,9 Mo |
+| 14 | Le dernier debout | 25 s | 2,1 Mo |
+| 15 | Le mur qui pousse | 24 s | 1,3 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
 l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
@@ -321,10 +331,25 @@ manim -r 1080,1080 --fps 60 2-billard-en-boucle/billiard_loop.py BilliardLoop
 manim -r 1080,1080 --fps 60 3-balle-qui-grossit/growing_ball.py GrowingBall
 manim -r 720,1244  --fps 60 4-rayons-de-rebond/bounce_rays.py BounceRays
 manim -r 1080,1920 --fps 60 5-balle-et-pointes/balle_et_pointes.py BalleEtPointes
+
+manim -r 1080,1920 --fps 60 6-cinq-vies/cinq_vies.py CinqVies
+manim -r 1080,1920 --fps 60 7-course-en-spirale/course_spirale.py CourseSpirale
+manim -r 1080,1920 --fps 60 8-sol-qui-s-effrite/sol_effrite.py SolEffrite
+manim -r 1080,1920 --fps 60 9-grand-plongeon/grand_plongeon.py GrandPlongeon
+manim -r 1080,1920 --fps 60 10-guerre-de-territoire/guerre_territoire.py GuerreTerritoire
+manim -r 1080,1920 --fps 60 11-pointes-qui-poussent/pointes_poussent.py PointesPoussent
+manim -r 1080,1920 --fps 60 12-sumo/sumo.py Sumo
+manim -r 1080,1920 --fps 60 13-les-portes/les_portes.py LesPortes
+manim -r 1080,1920 --fps 60 14-le-dernier-debout/dernier_debout.py DernierDebout
+manim -r 1080,1920 --fps 60 15-le-mur-qui-pousse/mur_qui_pousse.py MurQuiPousse
 ```
 
+Les dix duels sont tous en 9:16. Chacun accepte `--graines`, qui simule une
+série de tirages et affiche pour chacun la durée et le vainqueur : de quoi
+choisir un autre duel que celui retenu, sans toucher au reste.
+
 Garder le format indiqué : carré pour les 02 et 03, 720:1244 pour la 04, 9:16
-pour les 01 et 05. Les réglages sont en tête de chaque script — durée, vitesse,
+pour la 01, la 05 et les dix duels. Les réglages sont en tête de chaque script — durée, vitesse,
 `AVEC_SON` pour la bande son, et pour la 01 `FORME` (`"triangle"` comme la vidéo
 d'origine, ou `"sinus"` pour un mouvement physiquement correct).
 
