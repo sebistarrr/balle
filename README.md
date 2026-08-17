@@ -83,10 +83,11 @@ l'aspect en rayons de l'animation d'origine.
 **07 — Résonance.** Celle-ci n'est pas une page interactive mais un **film de
 10 s au format vertical**, rendu par Manim et destiné à être publié tel quel.
 Sur un cercle de 240 points, on relie le point *k* au point *m·k* ; le
-multiplicateur monte de 2 à 10 par paliers rythmés, traversant la cardioïde
-(m = 2), la néphroïde (m = 3), puis des rosaces de plus en plus fines.
+multiplicateur monte de 2 à 15 par paliers rythmés, traversant la cardioïde
+(m = 2), la néphroïde (m = 3), puis des rosaces de plus en plus fines jusqu'à
+la dentelle de m = 15. Une accroche en haut du cadre annonce le sujet.
 
-Trois temps : une détonation qui déploie le cercle, huit paliers scandés par
+Trois temps : une détonation qui déploie le cercle, treize paliers scandés par
 des ondes de choc, un effondrement vers le centre. Faute de flou dans Manim,
 la lueur est obtenue en superposant le même tracé en trois épaisseurs, aux
 teintes légèrement décalées.
@@ -98,6 +99,36 @@ grave et note montante à chaque palier, montée de bruit sur la fin.
 
 Toutes ont un son facultatif : une note par impact, pentatonique mineure, grave
 pour les éléments lents ou gros.
+
+## Télécharger les vidéos
+
+Chaque dossier contient `shorts.mp4` : l'animation rendue en **1080×1920, 60 fps,
+H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
+« ↓ mp4 1080×1920 » de chaque page y renvoie.
+
+| | Animation | Durée | Poids |
+|---|---|---|---|
+| 01 | Vagues de pendule | 48 s | 18 Mo |
+| 02 | Vagues de pendule, intensifié | 24 s | 16 Mo |
+| 03 | Billard en boucle | 24 s | 8,6 Mo |
+| 04 | La balle qui grossit | 24 s | 2,7 Mo |
+| 05 | Plus grosse à chaque rebond | 56 s | 15 Mo |
+| 06 | Rayons de rebond | 56 s | 31 Mo |
+| 07 | Résonance | 10 s | 20 Mo |
+
+Les animations 03 et 04 sont carrées, les 05 et 06 en 720:1244 : elles sont
+mises à l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
+Le fond étant noir, le raccord ne se voit pas.
+
+Pour les regénérer après avoir modifié une animation :
+
+```sh
+./outils/vers-shorts.sh
+```
+
+Le script part des rendus Manim présents dans `media/` (voir ci-dessous), retient
+la plus haute définition disponible, et coupe la traîne d'image figée que Manim
+ajoute pour aligner la vidéo sur la piste sonore.
 
 ## Rendre les vidéos
 

@@ -3,9 +3,10 @@ Résonance — 10 secondes, format vertical, pensé pour être vu en boucle.
 
 Sur un cercle de N points, on relie le point k au point m·k. En faisant varier
 le multiplicateur m, la figure obtenue traverse toute une famille de courbes :
-cardioïde à m = 2, néphroïde à m = 3, puis des rosaces de plus en plus fines.
-Le film tient en trois temps — une détonation, huit paliers rythmés, un
-effondrement — et se referme sur l'image exacte du départ, donc il boucle.
+cardioïde à m = 2, néphroïde à m = 3, puis des rosaces de plus en plus fines,
+jusqu'à la dentelle de m = 15. Le film tient en trois temps — une détonation,
+treize paliers rythmés, un effondrement — et se referme sur l'image exacte du
+départ, donc il boucle.
 
 Rendu (format YouTube Shorts) :
     manim -r 1080,1920 --fps 60 resonance.py Resonance
@@ -34,8 +35,8 @@ DUREE = 10.0
 T_ECLAT = 0.55        # la détonation initiale
 T_TABLE = 8.30        # fin des paliers, début de l'effondrement
 T_NOIR = 9.55         # tout est rentré au centre
-M_MIN, M_MAX = 2, 10  # multiplicateurs traversés
-PALIERS = M_MAX - M_MIN            # 8 intervalles, donc 8 temps forts
+M_MIN, M_MAX = 2, 15  # multiplicateurs traversés
+PALIERS = M_MAX - M_MIN            # 13 intervalles, donc 13 temps forts
 
 N = 240               # points sur le cercle
 RAYON = 3.55
@@ -280,6 +281,30 @@ class Resonance(Scene):
 
         compteur.add_updater(maj_compteur)
 
+        # --- accroche, en haut du cadre -----------------------------------------
+        #  Elle apparaît juste après la détonation et s'efface à l'effondrement,
+        #  donc elle est absente des images de début et de fin : la boucle reste
+        #  propre. Placée assez bas pour ne pas passer sous l'interface des
+        #  applications, qui mange le haut de l'écran.
+        titre = Text("les tables de multiplication", weight=BOLD, color=WHITE)
+        sous = Text("sur un cercle de 240 points", color="#93A4B8")
+        #  On règle la taille sur la largeur du cadre plutôt que par font_size :
+        #  une police au rendu plus large déborderait sans prévenir.
+        titre.scale_to_fit_width(config.frame_width - 1.3)
+        sous.scale_to_fit_width((config.frame_width - 1.3) * 0.66)
+        accroche = VGroup(titre, sous).arrange(DOWN, buff=0.26)
+        accroche.move_to([0, 5.95, 0])
+
+        def maj_accroche(g):
+            u = t.get_value()
+            entree = np.clip((u - 0.10) / 0.35, 0, 1)
+            sortie_ = np.clip(1 - (u - T_TABLE) / 0.45, 0, 1)
+            op = float(doux(entree) * doux(sortie_))
+            g[0].set_opacity(op)
+            g[1].set_opacity(op * 0.85)
+
+        accroche.add_updater(maj_accroche)
+
         # --- éclair de bascule ---------------------------------------------------
         #  Un voile blanc très bref à l'effondrement : il masque la couture de la
         #  boucle, l'image d'arrivée redevenant celle du départ.
@@ -293,7 +318,8 @@ class Resonance(Scene):
 
         voile.add_updater(maj_voile)
 
-        self.add(halo, poussieres, ondes, toile, anneau, coeur, compteur, voile)
+        self.add(halo, poussieres, ondes, toile, anneau, coeur,
+                 accroche, compteur, voile)
 
         if AVEC_SON:
             self.add_sound(generer_bande_son())
@@ -334,8 +360,9 @@ def generer_bande_son(chemin="resonance.wav", sr=44100):
                               + 0.5 * np.sin(TAU * freq * 2.01 * tt)
                               + 0.25 * np.sin(TAU * freq * 3.02 * tt))
 
-    # gamme pentatonique mineure, une note plus haute à chaque palier
-    demi = [0, 3, 5, 7, 10, 12, 15, 17, 19]
+    # gamme pentatonique mineure, une note plus haute à chaque palier ;
+    # engendrée plutôt qu'écrite en dur, le nombre de paliers étant réglable
+    demi = [[0, 3, 5, 7, 10][i % 5] + 12 * (i // 5) for i in range(24)]
     for i, instant in enumerate(TEMPS_FORTS):
         force = 0.75 + 0.32 * i / max(1, len(TEMPS_FORTS) - 1)
         poser(gauche, instant, frappe_grave(force))
