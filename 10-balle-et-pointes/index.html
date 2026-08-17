@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La balle et les pointes</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a; background: #000;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 1rem; padding: 1rem;
+    font: 400 14px/1.5 ui-sans-serif, system-ui, sans-serif;
+  }
+  canvas {
+    display: block; height: min(80dvh, 92vw * 16 / 9); aspect-ratio: 9/16;
+    border-radius: 14px; background: #000;
+  }
+  .bar { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap;
+         justify-content: center; }
+  button, a.btn {
+    background: #0b1016; color: #9aa5a5; border: 1px solid #1e2a35;
+    border-radius: 7px; padding: .4rem .8rem; font: inherit;
+    cursor: pointer; text-decoration: none;
+  }
+  button[aria-pressed="true"] { color: #49c4b9; border-color: #2c4a49; }
+  label { display: flex; align-items: center; gap: .45rem; font-size: 13px; }
+  input[type=range] { accent-color: #49c4b9; width: 104px; }
+  p { margin: 0; max-width: 54ch; text-align: center; }
+  .note { font-size: 13px; color: #5d6a6a; max-width: 54ch; text-align: center; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div class="bar">
+  <a class="btn" href="../">← animations</a>
+  <button id="snd" aria-pressed="false">♪ activer le son</button>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="raz">recommencer</button>
+  <label>vitesse <input id="vit" type="range" min="0.3" max="2" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="balle_et_pointes.py">code Manim</a>
+  <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
+</div>
+
+<p>Une balle rebondit dans un cercle. <strong>Chaque rebond joue la note
+   suivante</strong> d'une mélodie&nbsp;: le rythme de la musique, c'est la
+   physique. Trois pointes tournent sur le bord — les toucher fait éclater la
+   balle en une centaine de billes, qui retombent et s'entassent.</p>
+
+<p class="note">La mélodie est écrite pour cette page et synthétisée dans le
+   navigateur, note par note. Le son est coupé par défaut&nbsp;:
+   <em>cliquez « activer le son »</em>.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  Une balle, un cercle, trois pointes qui tournent. Chaque contact avec le
+//  bord avance la mélodie d'une note ; toucher une pointe fait éclater la balle.
+//
+//  Les réglages viennent de mesures faites sur une vidéo de référence, ramenées
+//  d'un cadre de 576 x 1024 à celui-ci (facteur 1,875) : trois pointes espacées
+//  de 120°, tournant à −52 °/s, teinte du bord égale à l'angle, rebonds
+//  élastiques à vitesse à peu près constante.
+//
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+const W = 1080, H = 1920;
+const CX = 540, CY = 976, R = 514;      // le cercle
+const R_BALLE = 30;
+const G = 1350;                          // gravité, px/s²
+const V0 = 1120;                         // vitesse de la balle, px/s
+                                         // (donne ~1,2 rebond/s, comme la référence)
+const DT = 1 / 480;                      // pas de temps fixe de la simulation
+
+const N_POINTES = 3;
+const DEMI_POINTE = 4.6 * Math.PI / 180; // demi-largeur angulaire d'une pointe
+const HAUT_POINTE = 46;                  // hauteur du triangle, vers l'intérieur
+const ROTATION = -52 * Math.PI / 180;    // rad/s
+
+const N_ECLATS = 110;                    // billes libérées par éclatement
+const MAX_ECLATS = 1400;                 // au-delà, les plus vieilles s'effacent
+
+//  Mélodie écrite pour cette page : demi-tons au-dessus d'un la. Elle avance
+//  d'un cran par rebond, donc c'est la physique qui en donne le rythme.
+const MELODIE = [0, 3, 5, 7, 10, 7, 5, 3,
+                 0, 3, 5, 10, 12, 10, 7, 5,
+                 0, -2, 3, 5, 7, 12, 10, 7,
+                 5, 3, 0, 3, 7, 10, 12, 15];
+const LA = 220;
+
+const teinteAngle = a => ((a * 180 / Math.PI) % 360 + 360) % 360;
+const couleur = (h, s = 100, l = 60) => `hsl(${h} ${s}% ${l}%)`;
+
+// ---------------------------------------------------------------------------
+//  Son : une cloche par rebond, un fracas par pointe touchée
+// ---------------------------------------------------------------------------
+let audio = null, son = false;
+
+function cloche(demi, pan, force = 0.20, duree = 1.1) {
+  if (!audio || audio.state !== 'running') return;
+  const f = LA * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(force, t0 + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
+  g.connect(sp); sp.connect(audio.destination);
+  // fondamentale plus deux harmoniques : le timbre d'un métallophone
+  for (const [mult, amp, det] of [[1, 1, 0], [2, 0.32, 4], [3, 0.12, -5]]) {
+    const o = audio.createOscillator(), gg = audio.createGain();
+    o.frequency.value = f * mult; o.detune.value = det; gg.gain.value = amp;
+    o.connect(gg); gg.connect(g);
+    o.start(t0); o.stop(t0 + duree + 0.05);
+  }
+}
+
+function fracas(pan) {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime;
+  // une grappe aiguë : on entend tout de suite que ce n'est pas un rebond
+  for (const [i, demi] of [12, 15, 19, 22, 24].entries()) {
+    setTimeout(() => cloche(demi, pan, 0.11, 1.6), i * 18);
+  }
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = pan;
+  const n = audio.createBufferSource();
+  const buf = audio.createBuffer(1, audio.sampleRate * 0.5, audio.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+  }
+  n.buffer = buf;
+  const filtre = audio.createBiquadFilter();
+  filtre.type = 'highpass'; filtre.frequency.value = 1400;
+  g.gain.setValueAtTime(0.16, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
+  n.connect(filtre); filtre.connect(g); g.connect(sp); sp.connect(audio.destination);
+  n.start(t0);
+}
+
+// ---------------------------------------------------------------------------
+//  État
+// ---------------------------------------------------------------------------
+let bx, by, vx, vy, teinteBalle, note, rebonds, eclatements, tps, eclats, ondes;
+
+//  Les billes posées sont rangées dans une grille : sans elle, tester chaque
+//  bille en vol contre le millier de dormeuses coûterait le carré du nombre.
+//  C'est ce contact bille-contre-bille qui fait les tas ; sans lui, elles se
+//  couchent en une seule épaisseur le long du bord.
+const CASE = 46;
+let grille;
+const cle = (x, y) => ((x / CASE) | 0) + ',' + ((y / CASE) | 0);
+
+function coucher(e) {
+  e.dort = true;
+  const k = cle(e.x, e.y);
+  if (!grille.has(k)) grille.set(k, []);
+  grille.get(k).push(e);
+}
+
+function autour(x, y) {
+  const gx = (x / CASE) | 0, gy = (y / CASE) | 0, out = [];
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const c = grille.get((gx + i) + ',' + (gy + j));
+    if (c) out.push(...c);
+  }
+  return out;
+}
+
+function refaireGrille() {
+  grille = new Map();
+  for (const e of eclats) if (e.dort) coucher(e);
+}
+
+function reinitialiser() {
+  lancerBalle(0.6);
+  teinteBalle = 150; note = 0; rebonds = 0; eclatements = 0; tps = 0;
+  eclats = []; ondes = []; grille = new Map();
+}
+
+function lancerBalle(cap) {
+  bx = CX; by = CY - R * 0.45;
+  vx = Math.cos(cap) * V0; vy = Math.sin(cap) * V0;
+}
+reinitialiser();
+
+//  Les pointes tournent ; celle-ci est-elle sous l'angle donné ?
+function surUnePointe(angle) {
+  for (let i = 0; i < N_POINTES; i++) {
+    const a = ROTATION * tps + i * 2 * Math.PI / N_POINTES;
+    let d = (angle - a) % (2 * Math.PI);
+    if (d > Math.PI) d -= 2 * Math.PI;
+    if (d < -Math.PI) d += 2 * Math.PI;
+    if (Math.abs(d) < DEMI_POINTE) return true;
+  }
+  return false;
+}
+
+function eclater(x, y) {
+  eclatements++;
+  const base = teinteBalle;
+  for (let i = 0; i < N_ECLATS; i++) {
+    const a = Math.random() * 2 * Math.PI;
+    const v = 250 + Math.random() * 900;
+    eclats.push({
+      x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+      r: 5 + Math.random() * 7,
+      h: (base + (Math.random() - 0.5) * 160 + 360) % 360,
+      dort: false,
+    });
+  }
+  if (eclats.length > MAX_ECLATS) {
+    eclats.splice(0, eclats.length - MAX_ECLATS);
+    refaireGrille();                     // la grille pointait sur les effacées
+  }
+  ondes.push({ x, y, r: R_BALLE, vie: 1, h: base });
+  fracas((x - CX) / R);
+  //  Nouvelle balle au centre, couleur avancée : c'est ce qui fait « évoluer »
+  //  la partie plutôt que la remettre à zéro.
+  teinteBalle = (teinteBalle + 47) % 360;
+  lancerBalle(Math.random() * 2 * Math.PI);
+}
+
+function pas() {
+  tps += DT;
+  vy += G * DT;
+  bx += vx * DT;
+  by += vy * DT;
+
+  const dx = bx - CX, dy = by - CY;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d > R - R_BALLE) {
+    const nx = dx / d, ny = dy / d;
+    const angle = Math.atan2(-ny, nx);
+    if (surUnePointe(angle)) { eclater(bx, by); return; }
+    bx = CX + nx * (R - R_BALLE);
+    by = CY + ny * (R - R_BALLE);
+    const p = 2 * (vx * nx + vy * ny);
+    vx -= p * nx; vy -= p * ny;          // rebond élastique
+    //  La vitesse est maintenue : sans cela la balle finit par se traîner au
+    //  fond, et la mélodie s'éteint avec elle.
+    const s = Math.sqrt(vx * vx + vy * vy);
+    vx *= V0 / s; vy *= V0 / s;
+    rebonds++;
+    if (notesCeTour < 3) {
+      cloche(MELODIE[note % MELODIE.length], (bx - CX) / R);
+      notesCeTour++;
+    }
+    note++;
+    ondes.push({ x: bx, y: by, r: R_BALLE, vie: 1, h: teinteAngle(angle) });
+  }
+}
+
+function pasEclats(dt) {
+  for (const e of eclats) {
+    if (e.dort) continue;
+    e.vy += G * dt;
+    e.x += e.vx * dt; e.y += e.vy * dt;
+    const dx = e.x - CX, dy = e.y - CY;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d > R - e.r) {
+      const nx = dx / d, ny = dy / d;
+      e.x = CX + nx * (R - e.r); e.y = CY + ny * (R - e.r);
+      const p = 2 * (e.vx * nx + e.vy * ny);
+      e.vx = (e.vx - p * nx) * 0.34;      // amorti : elles finissent par se poser
+      e.vy = (e.vy - p * ny) * 0.34;
+      if (Math.sqrt(e.vx * e.vx + e.vy * e.vy) < 90 && ny > 0.15) { coucher(e); continue; }
+    }
+    // contact avec les billes déjà posées : c'est ce qui construit les tas
+    for (const o of autour(e.x, e.y)) {
+      const ox = e.x - o.x, oy = e.y - o.y;
+      const dd = Math.sqrt(ox * ox + oy * oy), min = e.r + o.r;
+      if (dd > min || dd < 1e-6) continue;
+      const nx = ox / dd, ny = oy / dd;
+      e.x = o.x + nx * min; e.y = o.y + ny * min;
+      const p = 2 * (e.vx * nx + e.vy * ny);
+      e.vx = (e.vx - p * nx) * 0.22;
+      e.vy = (e.vy - p * ny) * 0.22;
+      if (Math.sqrt(e.vx * e.vx + e.vy * e.vy) < 110) { coucher(e); break; }
+    }
+    //  Une bille repoussée par sa voisine peut sortir du cercle et s'y
+    //  endormir : on la ramène dedans.
+    const dd = Math.sqrt((e.x - CX) ** 2 + (e.y - CY) ** 2);
+    if (dd > R - e.r) {
+      const k = (R - e.r) / dd;
+      e.x = CX + (e.x - CX) * k; e.y = CY + (e.y - CY) * k;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+function redimensionner() {
+  const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(b.width * d) || 1;
+  cv.height = Math.round(b.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+function dessiner(dt) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  // --- le bord, en arc-en-ciel : la teinte suit l'angle -------------------
+  ctx.lineWidth = 7; ctx.lineCap = 'butt';
+  const PAS = 3;
+  for (let a = 0; a < 360; a += PAS) {
+    ctx.strokeStyle = couleur(a, 100, 58);
+    //  Départ puis arrivée dans le sens antihoraire : inversés, chaque arc
+    //  faisait presque le tour complet et le dernier recouvrait tous les autres.
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, -a * Math.PI / 180,
+            -(a + PAS + 0.6) * Math.PI / 180, true);
+    ctx.stroke();
+  }
+  ctx.shadowColor = 'rgba(255,255,255,0.25)'; ctx.shadowBlur = 26;
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 9;
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // --- les pointes ---------------------------------------------------------
+  for (let i = 0; i < N_POINTES; i++) {
+    const a = ROTATION * tps + i * 2 * Math.PI / N_POINTES;
+    const p = (ang, ray) => [CX + ray * Math.cos(ang), CY - ray * Math.sin(ang)];
+    const g1 = p(a - DEMI_POINTE, R), g2 = p(a + DEMI_POINTE, R);
+    const sommet = p(a, R - HAUT_POINTE);
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = '#fff'; ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.moveTo(g1[0], g1[1]); ctx.lineTo(g2[0], g2[1]);
+    ctx.lineTo(sommet[0], sommet[1]); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // --- les billes ----------------------------------------------------------
+  for (const e of eclats) {
+    ctx.fillStyle = couleur(e.h, 95, e.dort ? 52 : 62);
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 6.2832); ctx.fill();
+  }
+
+  // --- les ondes de contact ------------------------------------------------
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = ondes.length - 1; i >= 0; i--) {
+    const o = ondes[i];
+    o.vie -= dt * 2.2; o.r += dt * 620;
+    if (o.vie <= 0) { ondes.splice(i, 1); continue; }
+    ctx.strokeStyle = couleur(o.h, 100, 65);
+    ctx.globalAlpha = 0.5 * o.vie;
+    ctx.lineWidth = 2 + 7 * o.vie;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.2832); ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  // --- la balle ------------------------------------------------------------
+  ctx.shadowColor = couleur(teinteBalle); ctx.shadowBlur = 38;
+  const g = ctx.createRadialGradient(bx - R_BALLE * 0.3, by - R_BALLE * 0.35,
+                                     R_BALLE * 0.1, bx, by, R_BALLE);
+  g.addColorStop(0, couleur(teinteBalle, 100, 92));
+  g.addColorStop(1, couleur(teinteBalle, 100, 52));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(bx, by, R_BALLE, 0, 6.2832); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // --- compteurs -----------------------------------------------------------
+  ctx.textAlign = 'center';
+  ctx.font = '600 44px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(240,248,252,0.92)';
+  ctx.fillText('la balle survivra-t-elle aux pointes ?', CX, 250);
+  ctx.font = '400 34px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(190,205,210,0.65)';
+  ctx.fillText(`${rebonds} notes   ·   ${eclatements} éclatements`, CX, H - 200);
+}
+
+// ---------------------------------------------------------------------------
+//  Boucle : temps réel converti en un nombre entier de pas fixes
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, vitesse = 1, reste = 0, notesCeTour = 0;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+
+  if (actif) {
+    notesCeTour = 0;
+    reste += brut * vitesse;
+    let n = 0;
+    while (reste >= DT && n++ < 600) { pas(); reste -= DT; }
+    pasEclats(brut * vitesse);
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('raz').onclick = () => reinitialiser();
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre
+  // déjà actif, se fier à audio.state couperait le son dès le 1er appui.
+  if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+  e.target.textContent = son ? '♪ couper le son' : '♪ activer le son';
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>

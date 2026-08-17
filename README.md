@@ -17,6 +17,7 @@ En ligne : <https://sebistarrr.github.io/balle/>
 | 07 | Résonance *(film)* | [`7-resonance/`](7-resonance/) | `resonance.py` |
 | 08 | Comprendre les tables *(film)* | [`8-comprendre-les-tables/`](8-comprendre-les-tables/) | `explication.py` |
 | 09 | Les tables expliquées, avec voix *(film)* | [`9-tables-expliquees/`](9-tables-expliquees/) | `explication.py` |
+| 10 | La balle et les pointes | [`10-balle-et-pointes/`](10-balle-et-pointes/) | `balle_et_pointes.py` |
 
 `index.html` à la racine est la page d'accueil : la liste des titres, qui sert
 de menu.
@@ -127,6 +128,37 @@ phrases à l'identique. Les fichiers sont versionnés dans
 `9-tables-expliquees/voix/` : 1,5 Mo, et sans eux le film ne se rend qu'en muet
 — le minutage étant conservé par des durées de repli.
 
+**10 — La balle et les pointes.** Reproduction d'une animation existante, du
+genre « ball simulator ». Une balle rebondit dans un cercle et **chaque rebond
+joue la note suivante d'une mélodie** : le rythme de la musique, c'est la
+physique. Trois pointes tournent sur le bord ; les toucher fait éclater la balle
+en billes, qui retombent, s'entassent, et restent là.
+
+Relevé sur la vidéo de référence, puis ramené d'un cadre de 576 × 1024 au nôtre
+(facteur 1,875) : trois pointes espacées de **120°** tournant à **−52 °/s** (un
+tour en 6,94 s), teinte du bord **égale à l'angle**, rebonds élastiques à vitesse
+à peu près constante (~780 px/s), **1,12 rebond par seconde**, bille de 16 px
+pour un rayon de 274. La page en fait 1,07/s.
+
+Deux détails qui font la différence :
+
+- Les billes posées sont rangées dans une **grille**, et une bille en vol teste
+  le contact avec ses voisines endormies. Sans ce contact bille-contre-bille,
+  elles se couchent en une seule épaisseur le long du bord au lieu de former des
+  tas.
+- La vitesse de la balle est **maintenue constante** après chaque rebond. Sans
+  cela elle finit par se traîner au fond, et la mélodie s'éteint avec elle.
+
+La mélodie est écrite pour cette animation. Celle de la vidéo de référence est
+un morceau du commerce — la vidéo demande d'ailleurs aux spectateurs de le
+reconnaître — et ne peut être ni extraite ni rediffusée. Le principe est le même
+et fonctionne avec n'importe quelle mélodie.
+
+Le script Manim ne met que 55 billes par éclatement contre 110 sur la page :
+Manim dessine du vectoriel. Pour que le rendu reste faisable, les billes y sont
+groupées par teinte dans **six objets seulement**, chacune dessinée comme quatre
+cubiques — les sous-chemins se séparant d'eux-mêmes entre deux disques.
+
 Toutes ont un son facultatif : une note par impact, pentatonique mineure, grave
 pour les éléments lents ou gros.
 
@@ -146,7 +178,8 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 06 | Rayons de rebond | 56 s | 31 Mo |
 | 07 | Résonance | 10 s | 20 Mo |
 | 08 | Comprendre les tables | 52 s | 6,1 Mo |
-| 09 | Les tables expliquées, avec voix | 39 s | — |
+| 09 | Les tables expliquées, avec voix | 39 s | 11,3 Mo |
+| 10 | La balle et les pointes | 30 s | — |
 
 Les animations 03 et 04 sont carrées, les 05 et 06 en 720:1244 : elles sont
 mises à l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
@@ -176,15 +209,16 @@ manim -r 720,1244  --fps 60 6-rayons-de-rebond/bounce_rays.py BounceRays
 manim -r 1080,1920 --fps 60 7-resonance/resonance.py Resonance
 manim -r 1080,1920 --fps 60 8-comprendre-les-tables/explication.py Explication
 manim -r 1080,1920 --fps 60 9-tables-expliquees/explication.py TablesExpliquees
+manim -r 1080,1920 --fps 60 10-balle-et-pointes/balle_et_pointes.py BalleEtPointes
 ```
 
 Garder le format indiqué : 9:16 pour les deux premières, carré pour les 03 et
-04, 720:1244 pour les 05 et 06, 9:16 pour les 07 à 09. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
+04, 720:1244 pour les 05 et 06, 9:16 pour les 07 à 10. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
 pour la bande son, et pour la 01 `FORME` (`"triangle"` comme la vidéo d'origine,
 ou `"sinus"` pour un mouvement physiquement correct).
 
 Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (le
-compteur de la 04, les légendes et textes des 05 à 09) passent par Pango.
+compteur de la 04, les légendes et textes des 05 à 10) passent par Pango.
 
 ## Voir en local
 
