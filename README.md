@@ -16,6 +16,7 @@ En ligne : <https://sebistarrr.github.io/balle/>
 | 06 | Rayons de rebond | [`6-rayons-de-rebond/`](6-rayons-de-rebond/) | `bounce_rays.py` |
 | 07 | Résonance *(film)* | [`7-resonance/`](7-resonance/) | `resonance.py` |
 | 08 | Comprendre les tables *(film)* | [`8-comprendre-les-tables/`](8-comprendre-les-tables/) | `explication.py` |
+| 09 | Les tables expliquées, avec voix *(film)* | [`9-tables-expliquees/`](9-tables-expliquees/) | `explication.py` |
 
 `index.html` à la racine est la page d'accueil : la liste des titres, qui sert
 de menu.
@@ -109,6 +110,23 @@ Le minutage est en tête du script : chaque étape a son instant de départ, et
 texte, cordes et bande son s'y accrochent. C'est ce qui permet de régler le
 rythme d'une explication sans reprendre le reste.
 
+**09 — Les tables expliquées, avec voix.** Le même sujet que la 08, mais
+commenté : une voix off porte l'explication, et c'est elle qui donne le tempo.
+39 s au lieu de 52, sans temps mort — onze phrases courtes qui s'enchaînent.
+
+Le script lit la **durée réelle** de chaque phrase enregistrée et cale les
+étapes dessus : le tracé d'une corde par sous-phrase de « un donne deux, deux
+donne quatre, trois donne six », l'arc qui fait le tour du cercle au moment
+exact où la voix dit qu'il n'y a pas de dix, les trois densifications sur
+« quarante, cent vingt, deux cent quarante ». Refaire une phrase ne dérègle
+donc pas le reste du montage, et le dessin ne devance jamais le commentaire.
+
+La voix est synthétisée par [piper](https://github.com/OHF-Voice/piper1-gpl)
+(modèle `fr_FR-siwis-medium`) ; `outils/faire-la-voix.py` régénère les onze
+phrases à l'identique. Les fichiers sont versionnés dans
+`9-tables-expliquees/voix/` : 1,5 Mo, et sans eux le film ne se rend qu'en muet
+— le minutage étant conservé par des durées de repli.
+
 Toutes ont un son facultatif : une note par impact, pentatonique mineure, grave
 pour les éléments lents ou gros.
 
@@ -127,7 +145,8 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 05 | Plus grosse à chaque rebond | 56 s | 15 Mo |
 | 06 | Rayons de rebond | 56 s | 31 Mo |
 | 07 | Résonance | 10 s | 20 Mo |
-| 08 | Comprendre les tables | 52 s | — |
+| 08 | Comprendre les tables | 52 s | 6,1 Mo |
+| 09 | Les tables expliquées, avec voix | 39 s | — |
 
 Les animations 03 et 04 sont carrées, les 05 et 06 en 720:1244 : elles sont
 mises à l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
@@ -156,15 +175,16 @@ manim -r 720,1244  --fps 60 5-plus-grosse-a-chaque-rebond/growing_bounce.py Grow
 manim -r 720,1244  --fps 60 6-rayons-de-rebond/bounce_rays.py BounceRays
 manim -r 1080,1920 --fps 60 7-resonance/resonance.py Resonance
 manim -r 1080,1920 --fps 60 8-comprendre-les-tables/explication.py Explication
+manim -r 1080,1920 --fps 60 9-tables-expliquees/explication.py TablesExpliquees
 ```
 
 Garder le format indiqué : 9:16 pour les deux premières, carré pour les 03 et
-04, 720:1244 pour les 05 et 06, 9:16 pour les 07 et 08. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
+04, 720:1244 pour les 05 et 06, 9:16 pour les 07 à 09. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
 pour la bande son, et pour la 01 `FORME` (`"triangle"` comme la vidéo d'origine,
 ou `"sinus"` pour un mouvement physiquement correct).
 
 Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (le
-compteur de la 04, les légendes et textes des 05 à 08) passent par Pango.
+compteur de la 04, les légendes et textes des 05 à 09) passent par Pango.
 
 ## Voir en local
 

@@ -67,4 +67,5 @@ convertir 5-plus-grosse-a-chaque-rebond GrowingBounce        55.7
 convertir 6-rayons-de-rebond            BounceRays           55.7
 convertir 7-resonance                   Resonance            10.0
 convertir 8-comprendre-les-tables       Explication          52.0
+convertir 9-tables-expliquees           TablesExpliquees     38.9
 echo "Terminé."
