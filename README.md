@@ -15,6 +15,7 @@ En ligne : <https://sebistarrr.github.io/balle/>
 | 05 | Plus grosse à chaque rebond | [`5-plus-grosse-a-chaque-rebond/`](5-plus-grosse-a-chaque-rebond/) | `growing_bounce.py` |
 | 06 | Rayons de rebond | [`6-rayons-de-rebond/`](6-rayons-de-rebond/) | `bounce_rays.py` |
 | 07 | Résonance *(film)* | [`7-resonance/`](7-resonance/) | `resonance.py` |
+| 08 | Comprendre les tables *(film)* | [`8-comprendre-les-tables/`](8-comprendre-les-tables/) | `explication.py` |
 
 `index.html` à la racine est la page d'accueil : la liste des titres, qui sert
 de menu.
@@ -97,6 +98,17 @@ poussières de fond dérivent sur des périodes entières, et la dernière image
 au pixel près la première. La bande son est synthétisée par le script — coup
 grave et note montante à chaque palier, montée de bruit sur la fin.
 
+**08 — Comprendre les tables.** La même figure que la 07, mais expliquée depuis
+le début, pour qui ne l'a jamais vue. Cinquante-deux secondes, en cinq temps :
+dix points numérotés en cercle comme un cadran ; la table de 2 tracée une corde
+à la fois avec le calcul écrit dessous ; le passage qui bloque tout le monde —
+5 × 2 = 10, donc on retombe sur 0 ; la densification à 40, 120 puis 240 points,
+où le cœur apparaît ; le défilé des tables, chacune avec ses *m − 1* pointes.
+
+Le minutage est en tête du script : chaque étape a son instant de départ, et
+texte, cordes et bande son s'y accrochent. C'est ce qui permet de régler le
+rythme d'une explication sans reprendre le reste.
+
 Toutes ont un son facultatif : une note par impact, pentatonique mineure, grave
 pour les éléments lents ou gros.
 
@@ -115,6 +127,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 05 | Plus grosse à chaque rebond | 56 s | 15 Mo |
 | 06 | Rayons de rebond | 56 s | 31 Mo |
 | 07 | Résonance | 10 s | 20 Mo |
+| 08 | Comprendre les tables | 52 s | — |
 
 Les animations 03 et 04 sont carrées, les 05 et 06 en 720:1244 : elles sont
 mises à l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
@@ -142,15 +155,16 @@ manim -r 1080,1080 --fps 60 4-balle-qui-grossit/growing_ball.py GrowingBall
 manim -r 720,1244  --fps 60 5-plus-grosse-a-chaque-rebond/growing_bounce.py GrowingBounce
 manim -r 720,1244  --fps 60 6-rayons-de-rebond/bounce_rays.py BounceRays
 manim -r 1080,1920 --fps 60 7-resonance/resonance.py Resonance
+manim -r 1080,1920 --fps 60 8-comprendre-les-tables/explication.py Explication
 ```
 
 Garder le format indiqué : 9:16 pour les deux premières, carré pour les 03 et
-04, 720:1244 pour les 05 et 06, 9:16 pour la 07. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
+04, 720:1244 pour les 05 et 06, 9:16 pour les 07 et 08. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
 pour la bande son, et pour la 01 `FORME` (`"triangle"` comme la vidéo d'origine,
 ou `"sinus"` pour un mouvement physiquement correct).
 
 Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (le
-compteur de la 04, les légendes des 05 à 07) passent par Pango.
+compteur de la 04, les légendes et textes des 05 à 08) passent par Pango.
 
 ## Voir en local
 

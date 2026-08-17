@@ -25,8 +25,11 @@ convertir() {
   # y en avoir plusieurs (rendus d'essai en basse définition). On retient la
   # plus haute définition — et surtout pas le dernier par ordre alphabétique,
   # « 480p24 » passant avant « 1920p60 ».
-  source="$(find "$dossier/media/videos" -name "$scene.mp4" -not -path '*partial*' \
-            2>/dev/null |
+  # « || true » n'est pas décoratif : sous set -e et pipefail, un find sur un
+  # media/ absent — dossier jamais rendu, ou nettoyé — ferait sortir le script
+  # au premier dossier venu, sans convertir les suivants.
+  source="$( { find "$dossier/media/videos" -name "$scene.mp4" \
+                 -not -path '*partial*' 2>/dev/null || true; } |
             while read -r f; do
               h="$(basename "$(dirname "$f")")"
               printf '%s\t%s\n' "${h%%p*}" "$f"
@@ -63,4 +66,5 @@ convertir 4-balle-qui-grossit           GrowingBall          23.7
 convertir 5-plus-grosse-a-chaque-rebond GrowingBounce        55.7
 convertir 6-rayons-de-rebond            BounceRays           55.7
 convertir 7-resonance                   Resonance            10.0
+convertir 8-comprendre-les-tables       Explication          52.0
 echo "Terminé."
