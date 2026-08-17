@@ -49,7 +49,7 @@
 <p>Une balle rebondit dans un cercle. <strong>Chaque rebond joue la note
    suivante</strong> d'une mélodie&nbsp;: le rythme de la musique, c'est la
    physique. Trois pointes tournent sur le bord — les toucher fait éclater la
-   balle en une centaine de billes, qui retombent et s'entassent.</p>
+   balle en une centaine de billes, qui retombent et s'agitent sans fin au fond.</p>
 
 <p class="note">La mélodie est écrite pour cette page et synthétisée dans le
    navigateur, note par note. Le son est coupé par défaut&nbsp;:
@@ -146,39 +146,33 @@ function fracas(pan) {
 // ---------------------------------------------------------------------------
 let bx, by, vx, vy, teinteBalle, note, rebonds, eclatements, tps, eclats, ondes;
 
-//  Les billes posées sont rangées dans une grille : sans elle, tester chaque
-//  bille en vol contre le millier de dormeuses coûterait le carré du nombre.
-//  C'est ce contact bille-contre-bille qui fait les tas ; sans lui, elles se
-//  couchent en une seule épaisseur le long du bord.
-const CASE = 46;
-let grille;
-const cle = (x, y) => ((x / CASE) | 0) + ',' + ((y / CASE) | 0);
+//  Les billes ne s'endorment jamais : mesuré sur la vidéo de référence, la
+//  moitié des pixels du tas change d'une image à la suivante. Elles roulent,
+//  se poussent et se réarrangent sans arrêt. Il faut donc de vraies collisions
+//  entre elles — et une grille, sinon le test coûterait le carré du nombre.
+//
+//  Elles avancent à pas plus grossier que la balle principale : celle-ci a
+//  besoin d'un pas fin pour que l'instant du rebond, donc la note, tombe juste ;
+//  un millier de billes à la même cadence coûterait cent fois trop cher.
+const CASE = 44;
+const COLS = Math.ceil(2 * R / CASE) + 2;
+const DT_BILLES = 1 / 240;
+const REBOND_BORD = 0.74;      // restitution sur le bord
+const REBOND_BILLE = 0.70;     // restitution entre billes
+const FROTTEMENT = 0.9997;     // très léger : le tas doit rester agité,
+                               // c'est ce que montre la vidéo de référence
+let cases = Array.from({ length: COLS * COLS }, () => []);
 
-function coucher(e) {
-  e.dort = true;
-  const k = cle(e.x, e.y);
-  if (!grille.has(k)) grille.set(k, []);
-  grille.get(k).push(e);
-}
-
-function autour(x, y) {
-  const gx = (x / CASE) | 0, gy = (y / CASE) | 0, out = [];
-  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
-    const c = grille.get((gx + i) + ',' + (gy + j));
-    if (c) out.push(...c);
-  }
-  return out;
-}
-
-function refaireGrille() {
-  grille = new Map();
-  for (const e of eclats) if (e.dort) coucher(e);
+function caseDe(x, y) {
+  const gx = Math.min(COLS - 1, Math.max(0, ((x - CX + R) / CASE) | 0));
+  const gy = Math.min(COLS - 1, Math.max(0, ((y - CY + R) / CASE) | 0));
+  return gy * COLS + gx;
 }
 
 function reinitialiser() {
   lancerBalle(0.6);
   teinteBalle = 150; note = 0; rebonds = 0; eclatements = 0; tps = 0;
-  eclats = []; ondes = []; grille = new Map();
+  eclats = []; ondes = [];
 }
 
 function lancerBalle(cap) {
@@ -209,13 +203,9 @@ function eclater(x, y) {
       x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
       r: 5 + Math.random() * 7,
       h: (base + (Math.random() - 0.5) * 160 + 360) % 360,
-      dort: false,
     });
   }
-  if (eclats.length > MAX_ECLATS) {
-    eclats.splice(0, eclats.length - MAX_ECLATS);
-    refaireGrille();                     // la grille pointait sur les effacées
-  }
+  if (eclats.length > MAX_ECLATS) eclats.splice(0, eclats.length - MAX_ECLATS);
   ondes.push({ x, y, r: R_BALLE, vie: 1, h: base });
   fracas((x - CX) / R);
   //  Nouvelle balle au centre, couleur avancée : c'est ce qui fait « évoluer »
@@ -255,38 +245,75 @@ function pas() {
 }
 
 function pasEclats(dt) {
-  for (const e of eclats) {
-    if (e.dort) continue;
-    e.vy += G * dt;
-    e.x += e.vx * dt; e.y += e.vy * dt;
-    const dx = e.x - CX, dy = e.y - CY;
-    const d = Math.sqrt(dx * dx + dy * dy);
-    if (d > R - e.r) {
-      const nx = dx / d, ny = dy / d;
-      e.x = CX + nx * (R - e.r); e.y = CY + ny * (R - e.r);
-      const p = 2 * (e.vx * nx + e.vy * ny);
-      e.vx = (e.vx - p * nx) * 0.34;      // amorti : elles finissent par se poser
-      e.vy = (e.vy - p * ny) * 0.34;
-      if (Math.sqrt(e.vx * e.vx + e.vy * e.vy) < 90 && ny > 0.15) { coucher(e); continue; }
+  let reste = dt, garde = 0;
+  while (reste > 1e-9 && garde++ < 12) {
+    const h = Math.min(DT_BILLES, reste);
+    reste -= h;
+
+    // --- vol libre et contact avec le bord --------------------------------
+    for (const c of cases) c.length = 0;
+    for (let i = 0; i < eclats.length; i++) {
+      const e = eclats[i];
+      e.vy += G * h;
+      e.vx *= FROTTEMENT; e.vy *= FROTTEMENT;
+      e.x += e.vx * h; e.y += e.vy * h;
+      const dx = e.x - CX, dy = e.y - CY;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > R - e.r) {
+        const nx = dx / d, ny = dy / d;
+        e.x = CX + nx * (R - e.r); e.y = CY + ny * (R - e.r);
+        const p = (1 + REBOND_BORD) * (e.vx * nx + e.vy * ny);
+        e.vx -= p * nx; e.vy -= p * ny;
+      }
+      cases[caseDe(e.x, e.y)].push(i);
     }
-    // contact avec les billes déjà posées : c'est ce qui construit les tas
-    for (const o of autour(e.x, e.y)) {
-      const ox = e.x - o.x, oy = e.y - o.y;
-      const dd = Math.sqrt(ox * ox + oy * oy), min = e.r + o.r;
-      if (dd > min || dd < 1e-6) continue;
-      const nx = ox / dd, ny = oy / dd;
-      e.x = o.x + nx * min; e.y = o.y + ny * min;
-      const p = 2 * (e.vx * nx + e.vy * ny);
-      e.vx = (e.vx - p * nx) * 0.22;
-      e.vy = (e.vy - p * ny) * 0.22;
-      if (Math.sqrt(e.vx * e.vx + e.vy * e.vy) < 110) { coucher(e); break; }
+
+    // --- contacts entre billes -------------------------------------------
+    //  Chaque paire n'est examinée qu'une fois : on ne regarde que les cases
+    //  suivantes, et dans la case courante que les indices supérieurs.
+    for (let gy = 0; gy < COLS; gy++) {
+      for (let gx = 0; gx < COLS; gx++) {
+        const ici = cases[gy * COLS + gx];
+        if (!ici.length) continue;
+        for (const [ax, ay] of [[0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
+          const jx = gx + ax, jy = gy + ay;
+          if (jx < 0 || jx >= COLS || jy >= COLS) continue;
+          const la = cases[jy * COLS + jx];
+          for (let m = 0; m < ici.length; m++) {
+            const memeCase = ax === 0 && ay === 0;
+            for (let n = memeCase ? m + 1 : 0; n < la.length; n++) {
+              const a = eclats[ici[m]], b = eclats[la[n]];
+              const dx = b.x - a.x, dy = b.y - a.y;
+              const dd = Math.sqrt(dx * dx + dy * dy), mini = a.r + b.r;
+              if (dd >= mini || dd < 1e-9) continue;
+              const nx = dx / dd, ny = dy / dd;
+              // on les sépare à parts égales, puis on échange la vitesse
+              // normale : c'est ce qui fait rouler le tas au lieu de le figer
+              const corr = (mini - dd) / 2;
+              a.x -= nx * corr; a.y -= ny * corr;
+              b.x += nx * corr; b.y += ny * corr;
+              const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+              if (vn > 0) continue;
+              const j = -(1 + REBOND_BILLE) * vn / 2;
+              a.vx -= j * nx; a.vy -= j * ny;
+              b.vx += j * nx; b.vy += j * ny;
+            }
+          }
+        }
+      }
     }
-    //  Une bille repoussée par sa voisine peut sortir du cercle et s'y
-    //  endormir : on la ramène dedans.
-    const dd = Math.sqrt((e.x - CX) ** 2 + (e.y - CY) ** 2);
-    if (dd > R - e.r) {
-      const k = (R - e.r) / dd;
-      e.x = CX + (e.x - CX) * k; e.y = CY + (e.y - CY) * k;
+
+    //  Une bille poussée par ses voisines peut passer le bord : on la ramène
+    //  dedans en fin de pas, et on annule sa vitesse sortante.
+    for (const e of eclats) {
+      const dx = e.x - CX, dy = e.y - CY;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > R - e.r) {
+        const nx = dx / d, ny = dy / d;
+        e.x = CX + nx * (R - e.r); e.y = CY + ny * (R - e.r);
+        const sortant = e.vx * nx + e.vy * ny;
+        if (sortant > 0) { e.vx -= sortant * nx; e.vy -= sortant * ny; }
+      }
     }
   }
 }
@@ -341,7 +368,7 @@ function dessiner(dt) {
 
   // --- les billes ----------------------------------------------------------
   for (const e of eclats) {
-    ctx.fillStyle = couleur(e.h, 95, e.dort ? 52 : 62);
+    ctx.fillStyle = couleur(e.h, 95, 60);
     ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 6.2832); ctx.fill();
   }
 

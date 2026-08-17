@@ -4,7 +4,7 @@ La balle et les pointes — reproduction Manim, 30 secondes.
 Une balle rebondit dans un cercle ; chaque contact avec le bord joue la note
 suivante d'une mélodie, donc le rythme de la musique est celui de la physique.
 Trois pointes tournent sur le bord : les toucher fait éclater la balle en une
-cinquantaine de billes, qui retombent et s'entassent.
+cinquantaine de billes, qui retombent et s'agitent sans fin au fond.
 
 Rendu (format vertical, YouTube Shorts / TikTok) :
     manim -r 1080,1920 --fps 60 balle_et_pointes.py BalleEtPointes
@@ -54,6 +54,17 @@ N_ECLATS = 55
 MAX_ECLATS = 460
 SEAUX = 6                   # les billes sont groupées par teinte
 
+#  Les billes ne s'endorment jamais : mesuré sur la vidéo de référence, la
+#  moitié des pixels du tas change d'une image à la suivante. Il faut donc de
+#  vraies collisions entre elles. Elles avancent à pas plus grossier que la
+#  balle principale, qui a besoin d'un pas fin pour que l'instant du rebond —
+#  donc la note — tombe juste.
+DT_BILLES = 1 / 240
+REBOND_BORD = 0.74
+REBOND_BILLE = 0.70
+FROTTEMENT = 0.9997
+CASE = 44
+
 MELODIE = [0, 3, 5, 7, 10, 7, 5, 3,
            0, 3, 5, 10, 12, 10, 7, 5,
            0, -2, 3, 5, 7, 12, 10, 7,
@@ -96,23 +107,7 @@ def simuler():
     note = 0
     prochaine = 0.0
 
-    #  Grille des billes posées : sans elle, chaque bille en vol serait testée
-    #  contre toutes les autres. C'est ce contact bille-contre-bille qui fait
-    #  les tas ; sans lui elles se couchent en une seule épaisseur.
-    CASE = 46
-    grille = {}
-
-    def coucher(e):
-        e["dort"] = True
-        grille.setdefault((int(e["x"] // CASE), int(e["y"] // CASE)), []).append(e)
-
-    def autour(x, y):
-        gx, gy = int(x // CASE), int(y // CASE)
-        out = []
-        for i in (-1, 0, 1):
-            for j in (-1, 0, 1):
-                out.extend(grille.get((gx + i, gy + j), ()))
-        return out
+    reste_billes = 0.0
 
     def sur_pointe(angle):
         for i in range(N_POINTES):
@@ -144,14 +139,9 @@ def simuler():
                     eclats.append({"x": bx, "y": by,
                                    "vx": np.cos(a) * v, "vy": np.sin(a) * v,
                                    "r": rng.uniform(5, 12),
-                                   "h": (h_balle + rng.uniform(-80, 80)) % 360,
-                                   "dort": False})
+                                   "h": (h_balle + rng.uniform(-80, 80)) % 360})
                 if len(eclats) > MAX_ECLATS:
                     eclats = eclats[-MAX_ECLATS:]
-                    grille = {}
-                    for e in eclats:
-                        if e["dort"]:
-                            coucher(e)
                 h_balle = (h_balle + 47) % 360
                 bx, by = CX, CY - R * 0.45
                 a = rng.uniform(0, TAU)
@@ -171,45 +161,67 @@ def simuler():
                 note += 1
 
         # --- les billes -------------------------------------------------
-        for e in eclats:
-            if e["dort"]:
-                continue
-            e["vy"] += G * DT
-            e["x"] += e["vx"] * DT
-            e["y"] += e["vy"] * DT
-            ex, ey = e["x"] - CX, e["y"] - CY
-            de = np.sqrt(ex * ex + ey * ey)
-            if de > R - e["r"]:
-                nx, ny = ex / de, ey / de
-                e["x"], e["y"] = CX + nx * (R - e["r"]), CY + ny * (R - e["r"])
-                p = 2 * (e["vx"] * nx + e["vy"] * ny)
-                e["vx"] = (e["vx"] - p * nx) * 0.34
-                e["vy"] = (e["vy"] - p * ny) * 0.34
-                if np.hypot(e["vx"], e["vy"]) < 90 and ny > 0.15:
-                    coucher(e)
-                    continue
-            for o in autour(e["x"], e["y"]):
-                ox, oy = e["x"] - o["x"], e["y"] - o["y"]
-                dd = np.sqrt(ox * ox + oy * oy)
-                mini = e["r"] + o["r"]
-                if dd > mini or dd < 1e-6:
-                    continue
-                nx, ny = ox / dd, oy / dd
-                e["x"], e["y"] = o["x"] + nx * mini, o["y"] + ny * mini
-                p = 2 * (e["vx"] * nx + e["vy"] * ny)
-                e["vx"] = (e["vx"] - p * nx) * 0.22
-                e["vy"] = (e["vy"] - p * ny) * 0.22
-                if np.hypot(e["vx"], e["vy"]) < 110:
-                    coucher(e)
-                    break
-            #  Une bille repoussée par sa voisine peut sortir du cercle et s'y
-            #  endormir : on la ramène dedans avant de la laisser dormir.
-            if not e["dort"] or True:
+        reste_billes += DT
+        while reste_billes >= DT_BILLES:
+            reste_billes -= DT_BILLES
+            h = DT_BILLES
+            cases = {}
+            for i, e in enumerate(eclats):
+                e["vy"] += G * h
+                e["vx"] *= FROTTEMENT
+                e["vy"] *= FROTTEMENT
+                e["x"] += e["vx"] * h
+                e["y"] += e["vy"] * h
                 ex, ey = e["x"] - CX, e["y"] - CY
                 de = np.sqrt(ex * ex + ey * ey)
                 if de > R - e["r"]:
-                    k = (R - e["r"]) / de
-                    e["x"], e["y"] = CX + ex * k, CY + ey * k
+                    nx, ny = ex / de, ey / de
+                    e["x"], e["y"] = CX + nx * (R - e["r"]), CY + ny * (R - e["r"])
+                    p = (1 + REBOND_BORD) * (e["vx"] * nx + e["vy"] * ny)
+                    e["vx"] -= p * nx
+                    e["vy"] -= p * ny
+                cases.setdefault((int(e["x"] // CASE), int(e["y"] // CASE)), []).append(i)
+
+            #  Contacts entre billes. Chaque paire n'est examinée qu'une fois :
+            #  seules les cases suivantes sont visitées, et dans la case
+            #  courante seuls les indices supérieurs.
+            for (gx, gy), ici in cases.items():
+                for ax, ay in ((0, 0), (1, 0), (-1, 1), (0, 1), (1, 1)):
+                    la = cases.get((gx + ax, gy + ay))
+                    if not la:
+                        continue
+                    meme = ax == 0 and ay == 0
+                    for m, ia in enumerate(ici):
+                        for ib in (la[m + 1:] if meme else la):
+                            a, b = eclats[ia], eclats[ib]
+                            dx2, dy2 = b["x"] - a["x"], b["y"] - a["y"]
+                            dd = np.sqrt(dx2 * dx2 + dy2 * dy2)
+                            mini = a["r"] + b["r"]
+                            if dd >= mini or dd < 1e-9:
+                                continue
+                            nx, ny = dx2 / dd, dy2 / dd
+                            corr = (mini - dd) / 2
+                            a["x"] -= nx * corr; a["y"] -= ny * corr
+                            b["x"] += nx * corr; b["y"] += ny * corr
+                            vn = (b["vx"] - a["vx"]) * nx + (b["vy"] - a["vy"]) * ny
+                            if vn > 0:
+                                continue
+                            j = -(1 + REBOND_BILLE) * vn / 2
+                            a["vx"] -= j * nx; a["vy"] -= j * ny
+                            b["vx"] += j * nx; b["vy"] += j * ny
+
+            #  Une bille poussée par ses voisines peut passer le bord : on la
+            #  ramène dedans en fin de pas, et on annule sa vitesse sortante.
+            for e in eclats:
+                ex, ey = e["x"] - CX, e["y"] - CY
+                de = np.sqrt(ex * ex + ey * ey)
+                if de > R - e["r"]:
+                    nx, ny = ex / de, ey / de
+                    e["x"], e["y"] = CX + nx * (R - e["r"]), CY + ny * (R - e["r"])
+                    sortant = e["vx"] * nx + e["vy"] * ny
+                    if sortant > 0:
+                        e["vx"] -= sortant * nx
+                        e["vy"] -= sortant * ny
 
         # --- instantané -------------------------------------------------
         if t >= prochaine:

@@ -142,10 +142,13 @@ pour un rayon de 274. La page en fait 1,07/s.
 
 Deux détails qui font la différence :
 
-- Les billes posées sont rangées dans une **grille**, et une bille en vol teste
-  le contact avec ses voisines endormies. Sans ce contact bille-contre-bille,
-  elles se couchent en une seule épaisseur le long du bord au lieu de former des
-  tas.
+- **Les billes ne s'endorment jamais.** Mesuré sur la référence, la moitié des
+  pixels du tas change d'une image à la suivante : elles roulent et se poussent
+  sans arrêt. Il faut donc de vraies collisions entre elles — rangées dans une
+  **grille**, sinon le test coûterait le carré du nombre. Le tas de la page bouge
+  à 46 % par image, celui du film rendu à 50 %, contre 51 % pour la référence.
+  Les billes avancent à pas plus grossier que la balle principale, qui a besoin
+  d'un pas fin pour que l'instant du rebond — donc la note — tombe juste.
 - La vitesse de la balle est **maintenue constante** après chaque rebond. Sans
   cela elle finit par se traîner au fond, et la mélodie s'éteint avec elle.
 
@@ -179,7 +182,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 07 | Résonance | 10 s | 20 Mo |
 | 08 | Comprendre les tables | 52 s | 6,1 Mo |
 | 09 | Les tables expliquées, avec voix | 39 s | 11,3 Mo |
-| 10 | La balle et les pointes | 30 s | — |
+| 10 | La balle et les pointes | 30 s | 7,6 Mo |
 
 Les animations 03 et 04 sont carrées, les 05 et 06 en 720:1244 : elles sont
 mises à l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
