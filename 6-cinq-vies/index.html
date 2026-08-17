@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cinq vies</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a; background: #04060a;
+    font: 400 15px/1.6 ui-sans-serif, system-ui, sans-serif;
+    padding: 1.25rem 1.25rem 3rem;
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+  }
+  a { color: #49c4b9; }
+  canvas {
+    width: min(92vw, 46vh); aspect-ratio: 1080 / 1920; display: block;
+    background: #000; border-radius: 14px;
+  }
+  .cmd { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center;
+         align-items: center; max-width: 640px; }
+  button, .btn {
+    font: inherit; font-size: 14px; color: #dde4e4; background: #0d1622;
+    border: 1px solid #1d2b3a; border-radius: 999px; padding: .45rem .95rem;
+    cursor: pointer; text-decoration: none;
+  }
+  button:hover, .btn:hover { border-color: #49c4b9; color: #49c4b9; }
+  label { font-size: 13px; display: flex; align-items: center; gap: .4rem; }
+  input[type=range] { width: 110px; accent-color: #49c4b9; }
+  p { max-width: 58ch; margin: 0; }
+  .note { font-size: 13px; color: #5d6a6a; }
+  strong { color: #dde4e4; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<canvas id="c" width="1080" height="1920"></canvas>
+
+<div class="cmd">
+  <a class="btn" href="../">← animations</a>
+  <button id="snd" aria-pressed="false">♪ activer le son</button>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="raz">nouveau duel</button>
+  <label>vitesse <input id="vit" type="range" min="0.5" max="3" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="cinq_vies.py">code Manim</a>
+  <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
+</div>
+
+<p>Deux balles dans une arène hérissée de <strong>pointes tournantes</strong>.
+   Toucher une pointe coûte une vie&nbsp;; la balle réapparaît au centre, brièvement
+   invulnérable. <strong>Cinq vies chacune, la dernière debout gagne.</strong></p>
+
+<p class="note">Les pointes s'élargissent toutes les six secondes&nbsp;: le duel
+   ne peut pas s'éterniser, et les dernières vies tombent vite. Chaque
+   rechargement rejoue un duel différent.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  Cinq vies — deux balles, des pointes qui tournent, cinq vies chacune.
+//
+//  Ce qu'il faut voir à tout instant : combien de vies il reste à qui. Le reste
+//  n'est que décor. Les pastilles du haut sont donc dessinées avant tout et ne
+//  bougent jamais de place.
+//
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+const W = 1080, H = 1920;
+const CX = 540, CY = 1010, R = 452;
+const R_BALLE = 27;
+const V0 = 760;                       // px/s, constante : pas de gravité
+const DT = 1 / 480;
+const VIES = 5;
+const INVULN = 0.8;                   // s d'invulnérabilité après une perte
+
+//  Six pointes : trois dans un sens, trois dans l'autre. Deux sens de rotation
+//  valent bien mieux qu'un — les intervalles sûrs se ferment et se rouvrent au
+//  lieu de défiler régulièrement, et l'œil n'arrive pas à anticiper.
+const POINTES = [
+  { n: 3, vitesse: -42 * Math.PI / 180, phase: 0 },
+  { n: 3, vitesse: +29 * Math.PI / 180, phase: Math.PI / 3 },
+];
+const DEMI_POINTE0 = 4.2 * Math.PI / 180;
+const ELARGIT = 1.6 * Math.PI / 180;  // gagné par palier
+const PALIER = 6;                     // s entre deux élargissements
+const HAUT_POINTE = 52;
+
+const JOUEURS = [
+  { nom: 'ROUGE', h: 352 },
+  { nom: 'CYAN',  h: 186 },
+];
+
+const couleur = (h, s = 100, l = 60, a = 1) => `hsl(${h} ${s}% ${l}% / ${a})`;
+
+// ---------------------------------------------------------------------------
+//  Son : une note par rebond (grave pour l'un, aigu pour l'autre), un fracas
+//  quand une vie tombe, un accord quand le duel se termine.
+// ---------------------------------------------------------------------------
+let audio = null, son = false, sec = null, mouille = null;
+
+function preparerBus() {
+  sec = audio.createGain(); sec.gain.value = 1;
+  sec.connect(audio.destination);
+  const n = Math.floor(audio.sampleRate * 1.6);
+  const ri = audio.createBuffer(2, n, audio.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ri.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const u = i / audio.sampleRate;
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-u * 3.4) * Math.min(1, u / 0.008);
+    }
+  }
+  const conv = audio.createConvolver(); conv.buffer = ri;
+  mouille = audio.createGain(); mouille.gain.value = 0.35;
+  mouille.connect(conv); conv.connect(audio.destination);
+}
+
+function voix(pan, envoi = 1) {
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.connect(sp); sp.connect(sec);
+  if (envoi > 0) {
+    const e = audio.createGain(); e.gain.value = envoi;
+    sp.connect(e); e.connect(mouille);
+  }
+  return g;
+}
+
+//  Les deux balles ont chacune leur registre : on reconnaît qui rebondit sans
+//  regarder. Rouge parle grave, cyan parle aigu.
+const GAMME = [0, 3, 7, 10, 12];
+function note(joueur, rang, pan) {
+  if (!audio || audio.state !== 'running') return;
+  const demi = GAMME[rang % GAMME.length] + (joueur ? 12 : 0);
+  const f = 196 * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  for (const [mult, amp, part] of [[1, 1, 1], [2, 0.32, 0.55], [3, 0.12, 0.35]]) {
+    const g = voix(pan);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.20 * amp, t0 + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.0 * part);
+    const o = audio.createOscillator();
+    o.frequency.value = f * mult; o.connect(g);
+    o.start(t0); o.stop(t0 + 1.0 * part + 0.05);
+  }
+}
+
+function degat(pan) {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime;
+  const g = voix(pan, 0.6);
+  const n = audio.createBufferSource();
+  const buf = audio.createBuffer(1, audio.sampleRate * 0.45, audio.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+  }
+  n.buffer = buf;
+  const f = audio.createBiquadFilter();
+  f.type = 'bandpass'; f.frequency.value = 320; f.Q.value = 0.7;
+  g.gain.setValueAtTime(0.42, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+  n.connect(f); f.connect(g); n.start(t0);
+}
+
+function fanfare(joueur) {
+  if (!audio || audio.state !== 'running') return;
+  [0, 4, 7, 12].forEach((demi, i) => {
+    setTimeout(() => {
+      const f = 196 * Math.pow(2, (demi + (joueur ? 12 : 0)) / 12);
+      const t0 = audio.currentTime, g = voix(0, 1.4);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.24, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.6);
+      const o = audio.createOscillator();
+      o.frequency.value = f; o.connect(g);
+      o.start(t0); o.stop(t0 + 1.7);
+    }, i * 110);
+  });
+}
+
+// ---------------------------------------------------------------------------
+//  État
+// ---------------------------------------------------------------------------
+let balles, tps, fini, vainqueur, ondes, etincelles, flash, rangNote;
+
+function lancer(b, ou, cap) {
+  b.x = CX + Math.cos(ou) * 150;
+  b.y = CY + Math.sin(ou) * 150;
+  b.vx = Math.cos(cap) * V0;
+  b.vy = Math.sin(cap) * V0;
+  b.invuln = INVULN;
+}
+
+function reinitialiser() {
+  balles = JOUEURS.map((j, i) => ({ ...j, i, vies: VIES, x: 0, y: 0, vx: 0, vy: 0,
+                                    invuln: 0 }));
+  //  Départ tiré au sort, et les deux directions indépendantes. Avec un départ
+  //  fixe, tout ce qui précède la première perte de vie est déterminé d'avance :
+  //  c'est toujours la même balle qui encaisse en premier, et elle court après
+  //  son retard tout le reste du duel. Mesuré, cela donnait cinq victoires sur
+  //  cinq pour la même couleur.
+  const a0 = Math.random() * 2 * Math.PI;
+  lancer(balles[0], a0, Math.random() * 2 * Math.PI);
+  lancer(balles[1], a0 + Math.PI, Math.random() * 2 * Math.PI);
+  tps = 0; fini = 0; vainqueur = -1;
+  ondes = []; etincelles = []; flash = 0; rangNote = 0;
+}
+reinitialiser();
+
+const demiPointe = () => DEMI_POINTE0 + ELARGIT * Math.floor(tps / PALIER);
+
+//  Quel groupe de pointes couvre cet angle ? -1 si aucun.
+function surUnePointe(angle) {
+  const dp = demiPointe();
+  for (const g of POINTES) {
+    for (let i = 0; i < g.n; i++) {
+      const a = g.phase + g.vitesse * tps + i * 2 * Math.PI / g.n;
+      let d = (angle - a) % (2 * Math.PI);
+      if (d > Math.PI) d -= 2 * Math.PI;
+      if (d < -Math.PI) d += 2 * Math.PI;
+      if (Math.abs(d) < dp) return true;
+    }
+  }
+  return false;
+}
+
+function perdreUneVie(b) {
+  b.vies--;
+  flash = 1;
+  degat((b.x - CX) / R);
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * 2 * Math.PI, v = 200 + Math.random() * 700;
+    etincelles.push({ x: b.x, y: b.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+                      vie: 1, h: b.h });
+  }
+  ondes.push({ x: b.x, y: b.y, r: R_BALLE, vie: 1, h: b.h });
+  if (b.vies <= 0) {
+    fini = 1;
+    vainqueur = 1 - b.i;
+    fanfare(vainqueur);
+  } else {
+    lancer(b, Math.random() * 2 * Math.PI, Math.random() * 2 * Math.PI);
+  }
+}
+
+function pas() {
+  if (fini) { fini = Math.min(fini + DT, 99); return; }
+  tps += DT;
+
+  for (const b of balles) {
+    if (b.invuln > 0) b.invuln -= DT;
+    b.x += b.vx * DT;
+    b.y += b.vy * DT;
+    const dx = b.x - CX, dy = b.y - CY;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d > R - R_BALLE) {
+      const nx = dx / d, ny = dy / d;
+      const angle = Math.atan2(-ny, nx);
+      if (b.invuln <= 0 && surUnePointe(angle)) { perdreUneVie(b); continue; }
+      b.x = CX + nx * (R - R_BALLE);
+      b.y = CY + ny * (R - R_BALLE);
+      const p = 2 * (b.vx * nx + b.vy * ny);
+      b.vx -= p * nx; b.vy -= p * ny;
+      const s = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+      b.vx *= V0 / s; b.vy *= V0 / s;
+      if (notesCeTour < 4) { note(b.i, rangNote++, (b.x - CX) / R); notesCeTour++; }
+      ondes.push({ x: b.x, y: b.y, r: R_BALLE, vie: 1, h: b.h });
+    }
+  }
+
+  //  Choc entre les deux balles : elles se repoussent, ce qui les envoie vers
+  //  le bord — donc vers les pointes. C'est le seul moment où l'une agit sur
+  //  le sort de l'autre.
+  const [a, b] = balles;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const dd = Math.sqrt(dx * dx + dy * dy);
+  if (dd < 2 * R_BALLE && dd > 1e-9) {
+    const nx = dx / dd, ny = dy / dd, corr = (2 * R_BALLE - dd) / 2;
+    a.x -= nx * corr; a.y -= ny * corr;
+    b.x += nx * corr; b.y += ny * corr;
+    const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+    if (vn < 0) {
+      a.vx += vn * nx; a.vy += vn * ny;
+      b.vx -= vn * nx; b.vy -= vn * ny;
+      for (const m of balles) {
+        const s = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+        if (s > 1e-9) { m.vx *= V0 / s; m.vy *= V0 / s; }
+      }
+      if (notesCeTour < 4) { note(0, rangNote++, 0); notesCeTour++; }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+function redimensionner() {
+  const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(b.width * d) || 1;
+  cv.height = Math.round(b.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+//  Le tableau de bord : deux lignes, un nom et cinq pastilles. C'est la seule
+//  chose qu'on doit pouvoir lire d'un coup d'œil, donc elle est en haut, grande,
+//  et à la même place du début à la fin.
+function tableau() {
+  ctx.textAlign = 'left';
+  for (const b of balles) {
+    const y = 190 + b.i * 96;
+    ctx.font = '700 46px system-ui, sans-serif';
+    ctx.fillStyle = couleur(b.h, 100, 62);
+    ctx.fillText(b.nom, 96, y);
+    for (let k = 0; k < VIES; k++) {
+      const vif = k < b.vies;
+      ctx.beginPath();
+      ctx.arc(700 + k * 62, y - 15, 21, 0, 6.2832);
+      ctx.fillStyle = vif ? couleur(b.h, 100, 60) : 'rgba(255,255,255,0.10)';
+      ctx.fill();
+      if (vif) {
+        ctx.strokeStyle = couleur(b.h, 100, 82, 0.8);
+        ctx.lineWidth = 2; ctx.stroke();
+      }
+    }
+  }
+  ctx.textAlign = 'center';
+}
+
+function dessiner(dt) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H);
+
+  ctx.font = '600 40px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(235,244,248,0.9)';
+  ctx.fillText('qui survivra ?', CX, 96);
+
+  tableau();
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.clip();
+
+  // --- ondes ---------------------------------------------------------------
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = ondes.length - 1; i >= 0; i--) {
+    const o = ondes[i];
+    o.vie -= dt * 2.4; o.r += dt * 520;
+    if (o.vie <= 0) { ondes.splice(i, 1); continue; }
+    ctx.strokeStyle = couleur(o.h, 100, 66);
+    ctx.globalAlpha = 0.45 * o.vie;
+    ctx.lineWidth = 2 + 6 * o.vie;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.2832); ctx.stroke();
+  }
+  for (let i = etincelles.length - 1; i >= 0; i--) {
+    const p = etincelles[i];
+    p.vie -= dt * 1.7;
+    if (p.vie <= 0) { etincelles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.95; p.vy *= 0.95;
+    ctx.globalAlpha = p.vie;
+    ctx.fillStyle = couleur(p.h, 100, 74);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 1.5 + 4 * p.vie, 0, 6.2832); ctx.fill();
+  }
+
+  // --- les balles ----------------------------------------------------------
+  for (const b of balles) {
+    if (b.vies <= 0) continue;
+    //  Une balle invulnérable clignote : sans cela, on croit à un bug quand
+    //  elle traverse une pointe juste après avoir perdu une vie.
+    if (b.invuln > 0 && Math.floor(b.invuln * 12) % 2) continue;
+    for (const [k, al] of [[1.7, 0.14], [2.6, 0.07]]) {
+      ctx.globalAlpha = al;
+      ctx.fillStyle = couleur(b.h, 100, 58);
+      ctx.beginPath(); ctx.arc(b.x, b.y, R_BALLE * k, 0, 6.2832); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    const g = ctx.createRadialGradient(b.x - 9, b.y - 10, 3, b.x, b.y, R_BALLE);
+    g.addColorStop(0, couleur(b.h, 100, 92));
+    g.addColorStop(1, couleur(b.h, 100, 52));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(b.x, b.y, R_BALLE, 0, 6.2832); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.globalCompositeOperation = 'lighter';
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+
+  // --- le bord et les pointes ----------------------------------------------
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = 'rgba(120,150,170,0.35)';
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.stroke();
+
+  const dp = demiPointe();
+  for (const g of POINTES) {
+    for (let i = 0; i < g.n; i++) {
+      const a = g.phase + g.vitesse * tps + i * 2 * Math.PI / g.n;
+      const p = (ang, ray) => [CX + ray * Math.cos(ang), CY - ray * Math.sin(ang)];
+      const g1 = p(a - dp, R + 4), g2 = p(a + dp, R + 4);
+      const s = p(a, R - HAUT_POINTE);
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = '#fff'; ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.moveTo(g1[0], g1[1]); ctx.lineTo(g2[0], g2[1]);
+      ctx.lineTo(s[0], s[1]); ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  if (flash > 0) {
+    flash = Math.max(0, flash - dt / 0.2);
+    ctx.fillStyle = `rgba(255,120,120,${0.34 * flash * flash})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // --- fin de duel ---------------------------------------------------------
+  if (fini) {
+    const v = Math.min(1, fini / 0.4);
+    ctx.fillStyle = `rgba(4,6,10,${0.62 * v})`;
+    ctx.fillRect(0, 0, W, H);
+    const b = balles[vainqueur];
+    ctx.font = '400 44px system-ui, sans-serif';
+    ctx.fillStyle = `rgba(200,215,220,${v})`;
+    ctx.fillText('vainqueur', CX, CY - 120);
+    ctx.font = '800 128px system-ui, sans-serif';
+    ctx.fillStyle = couleur(b.h, 100, 64, v);
+    ctx.fillText(b.nom, CX, CY + 10);
+    ctx.font = '400 40px system-ui, sans-serif';
+    ctx.fillStyle = `rgba(160,180,190,${v})`;
+    ctx.fillText(`${b.vies} vie${b.vies > 1 ? 's' : ''} restante${b.vies > 1 ? 's' : ''}`,
+                 CX, CY + 90);
+  } else {
+    ctx.font = '400 32px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(150,168,178,0.7)';
+    ctx.fillText(`pointes ×${(demiPointe() / DEMI_POINTE0).toFixed(1).replace('.', ',')}`,
+                 CX, H - 120);
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Boucle
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, vitesse = 1, reste = 0, notesCeTour = 0;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+  if (actif) {
+    notesCeTour = 0;
+    reste += brut * vitesse;
+    let n = 0;
+    while (reste >= DT && n++ < 600) { pas(); reste -= DT; }
+    if (fini > 3.2) reinitialiser();      // on relance un duel tout seul
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('raz').onclick = () => reinitialiser();
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre déjà
+  // actif, se fier à audio.state couperait le son dès le premier appui.
+  if (!audio) {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    preparerBus();
+  }
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+  e.target.textContent = son ? '♪ couper le son' : '♪ activer le son';
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>

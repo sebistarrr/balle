@@ -21,6 +21,11 @@
   header p { margin: 0 0 clamp(2rem, 5vw, 3rem); max-width: 52ch; }
   ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid #16202c; }
   li { border-bottom: 1px solid #16202c; }
+  h2 {
+    margin: clamp(2rem, 5vw, 3rem) 0 .35rem; font-size: 1.05rem; font-weight: 500;
+    letter-spacing: .01em; color: #dde4e4;
+  }
+  h2 + p { margin: 0 0 1.1rem; max-width: 52ch; }
   a.item {
     display: flex; align-items: baseline; gap: 1rem; padding: 1.1rem .25rem;
     text-decoration: none; color: #dde4e4;
@@ -41,10 +46,13 @@
 <main>
   <header>
     <h1>Animations</h1>
-    <p>Des mouvements réglés pour se resynchroniser exactement&nbsp;: au bout d'un
-       cycle, chaque figure retrouve sa position de départ. Aucune bibliothèque,
-       tout est calculé image par image.</p>
+    <p>Deux familles&nbsp;: des figures réglées pour se refermer exactement, et des
+       duels dont on ne connaît l'issue qu'à la fin. Aucune bibliothèque, tout
+       est calculé image par image.</p>
   </header>
+
+  <h2>Boucles exactes</h2>
+  <p>Au bout d'un cycle, chaque figure retrouve sa position de départ.</p>
 
   <ul>
     <li><a class="item" href="1-vagues-de-pendule-intense/">
@@ -70,6 +78,64 @@
     <li><a class="item" href="5-balle-et-pointes/">
       <span class="num">05</span>
       <span class="titre">La balle et les pointes</span>
+      <span class="fleche">→</span>
+    </a></li>
+  </ul>
+
+  <h2>Duels — qui va survivre&nbsp;?</h2>
+  <p>Deux concurrentes au moins, une seule à l'arrivée. L'état de chacune est
+     affiché en permanence&nbsp;: vies, avance, terrain. À chaque partie, une
+     issue différente.</p>
+
+  <ul>
+    <li><a class="item" href="6-cinq-vies/">
+      <span class="num">06</span>
+      <span class="titre">Cinq vies</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="7-course-en-spirale/">
+      <span class="num">07</span>
+      <span class="titre">Course en spirale</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="8-sol-qui-s-effrite/">
+      <span class="num">08</span>
+      <span class="titre">Le sol qui s'effrite</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="9-grand-plongeon/">
+      <span class="num">09</span>
+      <span class="titre">Le grand plongeon</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="10-guerre-de-territoire/">
+      <span class="num">10</span>
+      <span class="titre">Guerre de territoire</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="11-pointes-qui-poussent/">
+      <span class="num">11</span>
+      <span class="titre">Les pointes qui poussent</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="12-sumo/">
+      <span class="num">12</span>
+      <span class="titre">Sumo</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="13-les-portes/">
+      <span class="num">13</span>
+      <span class="titre">Les portes</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="14-le-dernier-debout/">
+      <span class="num">14</span>
+      <span class="titre">Le dernier debout</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="15-le-mur-qui-pousse/">
+      <span class="num">15</span>
+      <span class="titre">Le mur qui pousse</span>
       <span class="fleche">→</span>
     </a></li>
   </ul>

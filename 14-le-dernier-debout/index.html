@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le dernier debout</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a; background: #04060a;
+    font: 400 15px/1.6 ui-sans-serif, system-ui, sans-serif;
+    padding: 1.25rem 1.25rem 3rem;
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+  }
+  a { color: #49c4b9; }
+  canvas {
+    width: min(92vw, 46vh); aspect-ratio: 1080 / 1920; display: block;
+    background: #000; border-radius: 14px;
+  }
+  .cmd { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center;
+         align-items: center; max-width: 640px; }
+  button, .btn {
+    font: inherit; font-size: 14px; color: #dde4e4; background: #0d1622;
+    border: 1px solid #1d2b3a; border-radius: 999px; padding: .45rem .95rem;
+    cursor: pointer; text-decoration: none;
+  }
+  button:hover, .btn:hover { border-color: #49c4b9; color: #49c4b9; }
+  label { font-size: 13px; display: flex; align-items: center; gap: .4rem; }
+  input[type=range] { width: 110px; accent-color: #49c4b9; }
+  p { max-width: 58ch; margin: 0; }
+  .note { font-size: 13px; color: #5d6a6a; }
+  strong { color: #dde4e4; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<canvas id="c" width="1080" height="1920"></canvas>
+
+<div class="cmd">
+  <a class="btn" href="../">← animations</a>
+  <button id="snd" aria-pressed="false">♪ activer le son</button>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="raz">nouveau tournoi</button>
+  <label>vitesse <input id="vit" type="range" min="0.5" max="3" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="dernier_debout.py">code Manim</a>
+  <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
+</div>
+
+<p>Huit balles de taille identique dans une arène close.
+   <strong>À chaque contact, la plus grosse arrache un morceau de la plus
+   petite.</strong> Sous un certain rayon, on éclate. <strong>Il n'en restera
+   qu'une.</strong></p>
+
+<p>Au début rien ne les distingue et le moindre choc peut renverser l'ordre.
+   Puis les écarts se creusent, et les grosses deviennent des ogres.</p>
+
+<p class="note">La part transférée grossit avec le temps&nbsp;: sans cela, les deux
+   dernières se rendraient coup pour coup indéfiniment. La rangée du haut donne
+   les huit tailles réelles — c'est le classement, en direct.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  Le dernier debout — huit balles, une seule survit.
+//
+//  À taille égale un choc ne transfère rien : c'est ce qui rend les premières
+//  secondes indécises. Dès qu'un écart se crée il s'amplifie de lui-même, et
+//  l'ordre du classement devient de plus en plus difficile à renverser. Une
+//  part du transfert se perd au passage, sinon les tailles s'envolent.
+//
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+const W = 1080, H = 1920;
+
+// ---------------------------------------------------------------------------
+//  Outils de dessin
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+function redimensionner() {
+  const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(b.width * d) || 1;
+  cv.height = Math.round(b.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+const couleur = (h, s = 100, l = 60, a = 1) => `hsl(${h} ${s}% ${l}% / ${a})`;
+
+//  Fond, accroche du haut. Toutes les pages de duel commencent pareil : la
+//  question posée doit être lisible dès la première image.
+function fond(accroche) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '600 40px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(235,244,248,0.9)';
+  ctx.fillText(accroche, W / 2, 96);
+}
+
+//  Bandeau de fin : voile sombre, nom du vainqueur, et la ligne qui dit de
+//  combien. Sans cette dernière, on ne sait pas si c'était serré.
+function bandeau(nom, h, detail) {
+  const v = Math.min(1, fini / 0.4);
+  ctx.fillStyle = `rgba(4,6,10,${0.66 * v})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '400 44px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(200,215,220,${v})`;
+  ctx.fillText('vainqueur', W / 2, H / 2 - 120);
+  ctx.font = '800 118px system-ui, sans-serif';
+  ctx.fillStyle = couleur(h, 100, 64, v);
+  ctx.fillText(nom, W / 2, H / 2 + 10);
+  ctx.font = '400 40px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(160,180,190,${v})`;
+  ctx.fillText(detail, W / 2, H / 2 + 90);
+}
+
+// ---------------------------------------------------------------------------
+//  Son
+// ---------------------------------------------------------------------------
+let audio = null, son = false, sec = null, mouille = null;
+
+function preparerBus() {
+  sec = audio.createGain(); sec.gain.value = 1;
+  sec.connect(audio.destination);
+  const n = Math.floor(audio.sampleRate * 1.6);
+  const ri = audio.createBuffer(2, n, audio.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ri.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const u = i / audio.sampleRate;
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-u * 3.4) * Math.min(1, u / 0.008);
+    }
+  }
+  const conv = audio.createConvolver(); conv.buffer = ri;
+  mouille = audio.createGain(); mouille.gain.value = 0.35;
+  mouille.connect(conv); conv.connect(audio.destination);
+}
+
+function voix(pan, envoi = 1) {
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.connect(sp); sp.connect(sec);
+  if (envoi > 0) {
+    const e = audio.createGain(); e.gain.value = envoi;
+    sp.connect(e); e.connect(mouille);
+  }
+  return g;
+}
+
+//  Timbre de métal frappé : les harmoniques hautes s'éteignent plus vite que la
+//  fondamentale. Des partiels de même durée donneraient un orgue.
+function cloche(demi, pan, force = 0.20, duree = 1.0, base = 196) {
+  if (!audio || audio.state !== 'running') return;
+  const f = base * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  for (const [mult, amp, part] of [[1, 1, 1], [2, 0.34, 0.55], [3, 0.13, 0.35]]) {
+    const g = voix(pan);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(force * amp, t0 + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree * part);
+    const o = audio.createOscillator();
+    o.frequency.value = f * mult; o.connect(g);
+    o.start(t0); o.stop(t0 + duree * part + 0.05);
+  }
+}
+
+function souffle(pan, force = 0.40, duree = 0.45, coupe = 320, type = 'bandpass') {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime, g = voix(pan, 0.6);
+  const n = audio.createBufferSource();
+  const buf = audio.createBuffer(1, audio.sampleRate * duree, audio.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+  }
+  n.buffer = buf;
+  const f = audio.createBiquadFilter();
+  f.type = type; f.frequency.value = coupe; f.Q.value = 0.7;
+  g.gain.setValueAtTime(force, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
+  n.connect(f); f.connect(g); n.start(t0);
+}
+
+//  Un accord montant à la victoire : c'est le seul moment où le son quitte le
+//  rythme de la physique pour dire quelque chose.
+function fanfare(joueur) {
+  if (!audio || audio.state !== 'running') return;
+  [0, 4, 7, 12].forEach((demi, i) => {
+    setTimeout(() => cloche(demi + (joueur ? 5 : 0), 0, 0.24, 1.7, 220), i * 110);
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+//  Réglages
+// ---------------------------------------------------------------------------
+const CX = 540, CY = 1080, R = 462;
+const N = 8;                      // concurrentes au départ
+const R_DEPART = 34;
+const R_MORT = 13;                // en deçà, la balle éclate
+const V0 = 620;                   // px/s, constante : pas de gravité
+//  Ce qu'un choc transfère : une part du rayon du plus petit passe au plus
+//  gros. La part grandit avec le temps, sinon les dernières survivantes se
+//  rendraient coup pour coup indéfiniment.
+const TRANSFERT0 = 0.07;
+const TRANSFERT_ACCEL = 0.018;    // par seconde
+const DT = 1 / 480;
+const FIN_ECRAN = 3.6;
+
+const TEINTES = [8, 40, 96, 152, 196, 236, 282, 322];
+const NOMS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+
+const transfert = () => TRANSFERT0 + TRANSFERT_ACCEL * tps;
+
+// ---------------------------------------------------------------------------
+//  État
+// ---------------------------------------------------------------------------
+let balles, tps, fini, vainqueur, ondes, eclats, flash;
+
+function reinitialiser() {
+  const a0 = Math.random() * 2 * Math.PI;
+  balles = Array.from({ length: N }, (_, i) => {
+    //  Réparties en cercle à intervalles réguliers, toutes du même rayon :
+    //  aucune ne commence avantagée. Seule la direction est tirée au sort.
+    const ou = a0 + i * 2 * Math.PI / N;
+    const cap = Math.random() * 2 * Math.PI;
+    return {
+      i, h: TEINTES[i], nom: NOMS[i], vivant: 1, r: R_DEPART,
+      x: CX + Math.cos(ou) * R * 0.62,
+      y: CY + Math.sin(ou) * R * 0.62,
+      vx: Math.cos(cap) * V0, vy: Math.sin(cap) * V0,
+    };
+  });
+  tps = 0; fini = 0; vainqueur = -1; ondes = []; eclats = []; flash = 0;
+}
+reinitialiser();
+
+const enLice = () => balles.filter(b => b.vivant).length;
+
+function eclater(b) {
+  b.vivant = 0;
+  flash = Math.max(flash, 0.8);
+  souffle((b.x - CX) / R, 0.42, 0.5, 700, 'highpass');
+  for (let k = 0; k < 34; k++) {
+    const a = Math.random() * 2 * Math.PI, v = 180 + Math.random() * 620;
+    eclats.push({ x: b.x, y: b.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+                  vie: 1, h: b.h });
+  }
+  const reste = balles.filter(m => m.vivant);
+  if (reste.length === 1) {
+    fini = 1;
+    vainqueur = reste[0].i;
+    fanfare(0);
+  }
+}
+
+function pas() {
+  if (fini) { fini = Math.min(fini + DT, 99); return; }
+  tps += DT;
+
+  for (const b of balles) {
+    if (!b.vivant) continue;
+    b.x += b.vx * DT;
+    b.y += b.vy * DT;
+    const dx = b.x - CX, dy = b.y - CY;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d > R - b.r) {
+      const nx = dx / d, ny = dy / d;
+      b.x = CX + nx * (R - b.r);
+      b.y = CY + ny * (R - b.r);
+      const p = 2 * (b.vx * nx + b.vy * ny);
+      b.vx -= p * nx; b.vy -= p * ny;
+      const s = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+      b.vx *= V0 / s; b.vy *= V0 / s;
+      if (notesCeTour < 5) {
+        //  La note dépend de la taille : les grosses parlent grave. On entend
+        //  donc la hiérarchie se faire.
+        const demi = Math.round(24 * (1 - (b.r - R_MORT) / (60 - R_MORT)));
+        cloche(demi, (b.x - CX) / R, 0.13, 0.8);
+        notesCeTour++;
+      }
+      ondes.push({ x: b.x, y: b.y, r: b.r, vie: 1, h: b.h });
+    }
+  }
+
+  //  Les rencontres. Huit balles : on peut examiner toutes les paires sans
+  //  grille, cela fait vingt-huit tests par pas.
+  const part = transfert();
+  for (let i = 0; i < N; i++) {
+    const a = balles[i];
+    if (!a.vivant) continue;
+    for (let j = i + 1; j < N; j++) {
+      const b = balles[j];
+      if (!b.vivant) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dd = Math.sqrt(dx * dx + dy * dy), mini = a.r + b.r;
+      if (dd >= mini || dd < 1e-9) continue;
+      const nx = dx / dd, ny = dy / dd, corr = (mini - dd) / 2;
+      a.x -= nx * corr; a.y -= ny * corr;
+      b.x += nx * corr; b.y += ny * corr;
+      const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+      if (vn > 0) continue;
+      a.vx += vn * nx; a.vy += vn * ny;
+      b.vx -= vn * nx; b.vy -= vn * ny;
+      for (const m of [a, b]) {
+        const s = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+        if (s > 1e-9) { m.vx *= V0 / s; m.vy *= V0 / s; }
+      }
+      //  Le gros prend au petit. À taille égale, rien ne bouge — c'est ce qui
+      //  rend les premiers instants indécis, avant que les écarts ne se creusent.
+      const [gros, petit] = a.r >= b.r ? [a, b] : [b, a];
+      const pris = petit.r * part;
+      petit.r -= pris;
+      gros.r += pris * 0.75;       // une part se perd : les tailles ne s'envolent pas
+      ondes.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2,
+                   r: mini / 2, vie: 1, h: gros.h });
+      if (notesCeTour < 5) { cloche(19, 0, 0.10, 0.5); notesCeTour++; }
+      if (petit.r < R_MORT) { eclater(petit); if (fini) return; }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+//  Huit jauges ne se lisent pas. On montre donc les huit pastilles à leur
+//  taille réelle, dans l'ordre de départ : la hiérarchie se lit d'un coup, et
+//  les éteintes restent en place pour qu'on voie qui est tombé.
+function tableau() {
+  const y = 210;
+  for (const b of balles) {
+    const x = 140 + b.i * 114;
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(5, b.r * 0.62), 0, 6.2832);
+    ctx.fillStyle = b.vivant ? couleur(b.h, 100, 60) : 'rgba(255,255,255,0.08)';
+    ctx.fill();
+    if (b.vivant) {
+      ctx.strokeStyle = couleur(b.h, 100, 80, 0.7);
+      ctx.lineWidth = 2; ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x - 13, y - 13); ctx.lineTo(x + 13, y + 13);
+      ctx.moveTo(x + 13, y - 13); ctx.lineTo(x - 13, y + 13);
+      ctx.stroke();
+    }
+  }
+  ctx.font = '400 32px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(160,180,190,0.8)';
+  ctx.fillText(`${enLice()} en lice`, W / 2, 300);
+}
+
+function dessiner(dt) {
+  fond('laquelle des huit restera ?');
+  tableau();
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.clip();
+
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = ondes.length - 1; i >= 0; i--) {
+    const o = ondes[i];
+    o.vie -= dt * 3.0; o.r += dt * 420;
+    if (o.vie <= 0) { ondes.splice(i, 1); continue; }
+    ctx.globalAlpha = 0.38 * o.vie;
+    ctx.strokeStyle = couleur(o.h, 100, 70);
+    ctx.lineWidth = 2 + 5 * o.vie;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.2832); ctx.stroke();
+  }
+  for (let i = eclats.length - 1; i >= 0; i--) {
+    const p = eclats[i];
+    p.vie -= dt * 1.4;
+    if (p.vie <= 0) { eclats.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.96; p.vy *= 0.96;
+    ctx.globalAlpha = p.vie;
+    ctx.fillStyle = couleur(p.h, 100, 72);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 2 + 5 * p.vie, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  for (const b of balles) {
+    if (!b.vivant) continue;
+    ctx.globalAlpha = 0.13;
+    ctx.fillStyle = couleur(b.h, 100, 58);
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 1.9, 0, 6.2832); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    const g = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.35,
+                                       b.r * 0.1, b.x, b.y, b.r);
+    g.addColorStop(0, couleur(b.h, 100, 92));
+    g.addColorStop(1, couleur(b.h, 100, 52));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.2832); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.globalCompositeOperation = 'lighter';
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+
+  ctx.strokeStyle = 'rgba(120,150,170,0.32)';
+  ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.stroke();
+
+  if (flash > 0) {
+    flash = Math.max(0, flash - dt / 0.18);
+    ctx.fillStyle = `rgba(255,255,255,${0.30 * flash * flash})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.font = '400 30px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(150,168,178,0.7)';
+  ctx.fillText(`chaque choc transfère ${Math.round(transfert() * 100)} % du plus petit`,
+               W / 2, H - 90);
+
+  if (fini) {
+    const b = balles[vainqueur];
+    bandeau(b.nom, b.h, `${Math.round(b.r)} px de rayon, contre ${R_DEPART} au départ`);
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+//  Boucle
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, vitesse = 1, reste = 0, notesCeTour = 0;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+  if (actif) {
+    notesCeTour = 0;
+    reste += brut * vitesse;
+    let n = 0;
+    while (reste >= DT && n++ < 900) { pas(); reste -= DT; }
+    if (fini > FIN_ECRAN) reinitialiser();   // on relance un duel tout seul
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('raz').onclick = () => reinitialiser();
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre déjà
+  // actif, se fier à audio.state couperait le son dès le premier appui.
+  if (!audio) {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    preparerBus();
+  }
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+  e.target.textContent = son ? '♪ couper le son' : '♪ activer le son';
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>

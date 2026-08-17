@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le mur qui pousse</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a; background: #04060a;
+    font: 400 15px/1.6 ui-sans-serif, system-ui, sans-serif;
+    padding: 1.25rem 1.25rem 3rem;
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+  }
+  a { color: #49c4b9; }
+  canvas {
+    width: min(92vw, 46vh); aspect-ratio: 1080 / 1920; display: block;
+    background: #000; border-radius: 14px;
+  }
+  .cmd { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center;
+         align-items: center; max-width: 640px; }
+  button, .btn {
+    font: inherit; font-size: 14px; color: #dde4e4; background: #0d1622;
+    border: 1px solid #1d2b3a; border-radius: 999px; padding: .45rem .95rem;
+    cursor: pointer; text-decoration: none;
+  }
+  button:hover, .btn:hover { border-color: #49c4b9; color: #49c4b9; }
+  label { font-size: 13px; display: flex; align-items: center; gap: .4rem; }
+  input[type=range] { width: 110px; accent-color: #49c4b9; }
+  p { max-width: 58ch; margin: 0; }
+  .note { font-size: 13px; color: #5d6a6a; }
+  strong { color: #dde4e4; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<canvas id="c" width="1080" height="1920"></canvas>
+
+<div class="cmd">
+  <a class="btn" href="../">← animations</a>
+  <button id="snd" aria-pressed="false">♪ activer le son</button>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="raz">nouveau duel</button>
+  <label>vitesse <input id="vit" type="range" min="0.5" max="3" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="mur_qui_pousse.py">code Manim</a>
+  <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
+</div>
+
+<p>Deux chambres, un mur mobile au milieu, une balle de chaque côté.
+   <strong>Chaque coup porté au mur le pousse d'autant vers l'adversaire</strong>
+   — un tir à la corde où l'on gagne du terrain sans jamais voir l'autre.
+   Quand une chambre devient trop étroite, sa balle est écrasée.</p>
+
+<p class="note">Le mur devient de plus en plus mobile&nbsp;: un coup vaut quinze
+   pixels au début, bien davantage à la fin. Les jauges donnent la part de
+   terrain de chacune — c'est exactement la position du mur.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  Le mur qui pousse — un tir à la corde entre deux chambres.
+//
+//  Chaque balle est enfermée chez elle et ne voit jamais l'autre. Le seul lien
+//  entre les deux est le mur du milieu : le frapper le fait reculer vers
+//  l'adversaire. Ce qui rend la chose lisible, c'est qu'on regarde une seule
+//  grandeur — la position du mur — et qu'elle est en même temps le score, la
+//  jauge de vie et le décor.
+//
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+const W = 1080, H = 1920;
+
+// ---------------------------------------------------------------------------
+//  Outils de dessin
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+function redimensionner() {
+  const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(b.width * d) || 1;
+  cv.height = Math.round(b.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+const couleur = (h, s = 100, l = 60, a = 1) => `hsl(${h} ${s}% ${l}% / ${a})`;
+
+//  Fond, accroche du haut. Toutes les pages de duel commencent pareil : la
+//  question posée doit être lisible dès la première image.
+function fond(accroche) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '600 40px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(235,244,248,0.9)';
+  ctx.fillText(accroche, W / 2, 96);
+}
+
+//  Bandeau de fin : voile sombre, nom du vainqueur, et la ligne qui dit de
+//  combien. Sans cette dernière, on ne sait pas si c'était serré.
+function bandeau(nom, h, detail) {
+  const v = Math.min(1, fini / 0.4);
+  ctx.fillStyle = `rgba(4,6,10,${0.66 * v})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '400 44px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(200,215,220,${v})`;
+  ctx.fillText('vainqueur', W / 2, H / 2 - 120);
+  ctx.font = '800 118px system-ui, sans-serif';
+  ctx.fillStyle = couleur(h, 100, 64, v);
+  ctx.fillText(nom, W / 2, H / 2 + 10);
+  ctx.font = '400 40px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(160,180,190,${v})`;
+  ctx.fillText(detail, W / 2, H / 2 + 90);
+}
+
+// ---------------------------------------------------------------------------
+//  Son
+// ---------------------------------------------------------------------------
+let audio = null, son = false, sec = null, mouille = null;
+
+function preparerBus() {
+  sec = audio.createGain(); sec.gain.value = 1;
+  sec.connect(audio.destination);
+  const n = Math.floor(audio.sampleRate * 1.6);
+  const ri = audio.createBuffer(2, n, audio.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ri.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const u = i / audio.sampleRate;
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-u * 3.4) * Math.min(1, u / 0.008);
+    }
+  }
+  const conv = audio.createConvolver(); conv.buffer = ri;
+  mouille = audio.createGain(); mouille.gain.value = 0.35;
+  mouille.connect(conv); conv.connect(audio.destination);
+}
+
+function voix(pan, envoi = 1) {
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.connect(sp); sp.connect(sec);
+  if (envoi > 0) {
+    const e = audio.createGain(); e.gain.value = envoi;
+    sp.connect(e); e.connect(mouille);
+  }
+  return g;
+}
+
+//  Timbre de métal frappé : les harmoniques hautes s'éteignent plus vite que la
+//  fondamentale. Des partiels de même durée donneraient un orgue.
+function cloche(demi, pan, force = 0.20, duree = 1.0, base = 196) {
+  if (!audio || audio.state !== 'running') return;
+  const f = base * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  for (const [mult, amp, part] of [[1, 1, 1], [2, 0.34, 0.55], [3, 0.13, 0.35]]) {
+    const g = voix(pan);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(force * amp, t0 + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree * part);
+    const o = audio.createOscillator();
+    o.frequency.value = f * mult; o.connect(g);
+    o.start(t0); o.stop(t0 + duree * part + 0.05);
+  }
+}
+
+function souffle(pan, force = 0.40, duree = 0.45, coupe = 320, type = 'bandpass') {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime, g = voix(pan, 0.6);
+  const n = audio.createBufferSource();
+  const buf = audio.createBuffer(1, audio.sampleRate * duree, audio.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+  }
+  n.buffer = buf;
+  const f = audio.createBiquadFilter();
+  f.type = type; f.frequency.value = coupe; f.Q.value = 0.7;
+  g.gain.setValueAtTime(force, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
+  n.connect(f); f.connect(g); n.start(t0);
+}
+
+//  Un accord montant à la victoire : c'est le seul moment où le son quitte le
+//  rythme de la physique pour dire quelque chose.
+function fanfare(joueur) {
+  if (!audio || audio.state !== 'running') return;
+  [0, 4, 7, 12].forEach((demi, i) => {
+    setTimeout(() => cloche(demi + (joueur ? 5 : 0), 0, 0.24, 1.7, 220), i * 110);
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+//  Réglages
+// ---------------------------------------------------------------------------
+const X0 = 70, X1 = 1010, Y0 = 540, Y1 = 1700;
+const R_BALLE = 28;
+const V0 = 700;                   // px/s, constante : pas de gravité
+const EP_MUR = 18;                // demi-épaisseur du mur
+const POUSSE0 = 15;               // px gagnés par coup, au départ
+const POUSSE_ACCEL = 1.1;         // px de plus par coup et par seconde : le mur
+                                  // devient de plus en plus mobile
+const ECRASE = 2 * R_BALLE + 14;  // largeur en deçà de laquelle on est écrasé
+//  Passé ce délai, les murs extérieurs se referment eux aussi. L'avantage
+//  creusé par la poussée décide presque toujours, mais pas toujours : sans ce
+//  garde-fou, une partie serrée peut durer six minutes — mesuré.
+const SERRAGE = 16;               // s avant que l'étau ne se referme
+const SERRE_V = 15;               // px/s, de chaque côté
+const DT = 1 / 480;
+const FIN_ECRAN = 3.4;
+
+const JOUEURS = [
+  { nom: 'JADE', h: 156 },
+  { nom: 'RUBIS', h: 344 },
+];
+
+//  La poussée d'un coup dépend de la largeur de la chambre d'où il part : plus
+//  la balle a de place, plus elle prend d'élan, plus elle pousse fort. Et elle
+//  en dépend au carré, ce qui n'est pas un caprice.
+//
+//  Sans lien du tout, le duel ne finit jamais : la balle enfermée dans la
+//  chambre étroite revient plus souvent au mur, puisqu'elle a moins de chemin à
+//  faire, et rend exactement les coups qu'elle prend. Mesuré, une durée médiane
+//  de quatre minutes.
+//
+//  Une poussée simplement proportionnelle à la largeur ne change rien non
+//  plus : la fréquence des coups varie comme l'inverse de la largeur, le
+//  produit des deux est constant, et les poussées se compensent toujours —
+//  mesuré à nouveau, médiane inchangée. Il faut donc un exposant supérieur à
+//  un pour que l'avantage se creuse tout seul.
+const pousseeParCoup = i => (POUSSE0 + POUSSE_ACCEL * tps)
+  * (0.12 + 3.0 * partDe(i) ** 3);
+
+const partDe = i => {
+  const [g, d] = bornes(i);
+  return Math.max(0, (d - g) / (droite() - gauche() - 2 * EP_MUR));
+};
+
+// ---------------------------------------------------------------------------
+//  État
+// ---------------------------------------------------------------------------
+let mur, balles, tps, fini, vainqueur, ondes, secousse, coups;
+
+//  L'étau : de combien les murs extérieurs se sont rapprochés.
+const serrage = () => Math.max(0, (tps - SERRAGE) * SERRE_V);
+const gauche = () => X0 + serrage();
+const droite = () => X1 - serrage();
+
+//  Bornes de la chambre d'une balle : celle de gauche va du mur de gauche au
+//  mur mobile, celle de droite du mur mobile au mur de droite.
+const bornes = i => (i === 0 ? [gauche(), mur - EP_MUR]
+                             : [mur + EP_MUR, droite()]);
+
+function reinitialiser() {
+  //  tps d'abord : les bornes des chambres dépendent de l'étau, donc du temps.
+  //  Le remettre à zéro après avoir placé les balles les envoie en NaN.
+  tps = 0;
+  mur = (X0 + X1) / 2;
+  balles = JOUEURS.map((j, i) => {
+    const [g, d] = bornes(i);
+    const a = Math.random() * 2 * Math.PI;
+    return {
+      ...j, i, vivant: 1,
+      x: (g + d) / 2, y: (Y0 + Y1) / 2 + (i ? -1 : 1) * 200,
+      vx: Math.cos(a) * V0, vy: Math.sin(a) * V0,
+    };
+  });
+  fini = 0; vainqueur = -1; ondes = []; secousse = 0; coups = [0, 0];
+}
+reinitialiser();
+
+function pas() {
+  if (fini) { fini = Math.min(fini + DT, 99); return; }
+  tps += DT;
+  if (secousse > 0) secousse = Math.max(0, secousse - DT / 0.25);
+  if (tps > SERRAGE) { ecraser(); if (fini) return; }
+
+  for (const b of balles) {
+    if (!b.vivant) continue;
+    b.x += b.vx * DT;
+    b.y += b.vy * DT;
+    if (b.y < Y0 + R_BALLE) { b.y = Y0 + R_BALLE; b.vy = Math.abs(b.vy); }
+    if (b.y > Y1 - R_BALLE) { b.y = Y1 - R_BALLE; b.vy = -Math.abs(b.vy); }
+
+    const [g, d] = bornes(b.i);
+    //  Le mur extérieur renvoie sans rien changer ; le mur du milieu, lui,
+    //  recule d'un cran vers l'adversaire. Tout le duel tient là-dedans.
+    if (b.i === 0) {
+      if (b.x < g + R_BALLE) { b.x = g + R_BALLE; b.vx = Math.abs(b.vx); }
+      if (b.x > d - R_BALLE) {
+        b.x = d - R_BALLE; b.vx = -Math.abs(b.vx);
+        frapper(b);
+      }
+    } else {
+      if (b.x > d - R_BALLE) { b.x = d - R_BALLE; b.vx = -Math.abs(b.vx); }
+      if (b.x < g + R_BALLE) {
+        b.x = g + R_BALLE; b.vx = Math.abs(b.vx);
+        frapper(b);
+      }
+    }
+    //  L'étau peut avoir dépassé la balle : on la ramène dedans, sinon elle
+    //  reste bloquée dehors et ne frappe plus jamais.
+    const [g2, d2] = bornes(b.i);
+    b.x = Math.min(Math.max(b.x, g2 + R_BALLE), d2 - R_BALLE);
+
+    //  Une balle plus lente s'immobiliserait à force de rebonds verticaux :
+    //  la vitesse est tenue constante, seule la direction change.
+    const s = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+    if (s > 1e-9) { b.vx *= V0 / s; b.vy *= V0 / s; }
+  }
+}
+
+function frapper(b) {
+  //  Le mur part du côté de l'adversaire : frapper, c'est gagner du terrain.
+  const sens = b.i === 0 ? +1 : -1;
+  mur += sens * pousseeParCoup(b.i);
+  coups[b.i]++;
+  secousse = Math.max(secousse, 0.6);
+  cloche([0, 5, 7, 12][coups[b.i] % 4] + (b.i ? 12 : 0),
+         (b.x - W / 2) / (W / 2), 0.22, 0.9);
+  ondes.push({ x: mur, y: b.y, r: 10, vie: 1, h: b.h });
+
+  ecraser();
+}
+
+//  Écrasement : une chambre est devenue trop étroite pour sa balle.
+function ecraser() {
+  const perdant = bornes(0)[1] - bornes(0)[0] < bornes(1)[1] - bornes(1)[0] ? 0 : 1;
+  const b = balles[1 - perdant];
+  const [g, d] = bornes(perdant);
+  if (d - g < ECRASE) {
+    balles[perdant].vivant = 0;
+    fini = 1;
+    vainqueur = b.i;
+    secousse = 1;
+    souffle(0, 0.55, 0.9, 170, 'lowpass');
+    fanfare(b.i);
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+function tableau() {
+  ctx.textAlign = 'left';
+  const total = droite() - gauche() - 2 * EP_MUR;
+  for (const b of balles) {
+    const y = 186 + b.i * 92;
+    const [g, d] = bornes(b.i);
+    const part = Math.max(0, (d - g) / total);
+    ctx.font = '700 42px system-ui, sans-serif';
+    ctx.fillStyle = couleur(b.h, 100, 62, b.vivant ? 1 : 0.35);
+    ctx.fillText(b.nom, 92, y + 8);
+    const x0 = 400, larg = 500;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath(); ctx.roundRect(x0, y - 18, larg, 26, 13); ctx.fill();
+    ctx.fillStyle = couleur(part < 0.2 ? 8 : b.h, 100, 58);
+    ctx.beginPath();
+    ctx.roundRect(x0, y - 18, Math.max(8, larg * part), 26, 13);
+    ctx.fill();
+    ctx.textAlign = 'right';
+    ctx.font = '600 30px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(220,232,238,0.85)';
+    ctx.fillText(Math.round(part * 100) + ' %', 1005, y + 8);
+    ctx.textAlign = 'left';
+  }
+  ctx.textAlign = 'center';
+}
+
+function dessiner(dt) {
+  fond('qui va se faire écraser ?');
+  tableau();
+
+  ctx.save();
+  if (secousse > 0) {
+    ctx.translate((Math.random() - 0.5) * 14 * secousse,
+                  (Math.random() - 0.5) * 14 * secousse);
+  }
+
+  // --- les deux chambres ----------------------------------------------------
+  for (const b of balles) {
+    const [g, d] = bornes(b.i);
+    ctx.fillStyle = couleur(b.h, 60, 12);
+    ctx.fillRect(g, Y0, Math.max(0, d - g), Y1 - Y0);
+  }
+  ctx.strokeStyle = 'rgba(150,180,200,0.30)';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(gauche(), Y0, droite() - gauche(), Y1 - Y0);
+
+  // --- le mur ---------------------------------------------------------------
+  const gm = ctx.createLinearGradient(mur - EP_MUR, 0, mur + EP_MUR, 0);
+  gm.addColorStop(0, '#93a7b6');
+  gm.addColorStop(0.5, '#eef5fa');
+  gm.addColorStop(1, '#93a7b6');
+  ctx.fillStyle = gm;
+  ctx.fillRect(mur - EP_MUR, Y0, 2 * EP_MUR, Y1 - Y0);
+
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = ondes.length - 1; i >= 0; i--) {
+    const o = ondes[i];
+    o.vie -= dt * 2.6; o.r += dt * 500;
+    if (o.vie <= 0) { ondes.splice(i, 1); continue; }
+    ctx.globalAlpha = 0.42 * o.vie;
+    ctx.strokeStyle = couleur(o.h, 100, 70);
+    ctx.lineWidth = 3 + 7 * o.vie;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.2832); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  for (const b of balles) {
+    if (!b.vivant) continue;
+    for (const [k, a] of [[1.8, 0.14], [2.7, 0.07]]) {
+      ctx.globalAlpha = a;
+      ctx.fillStyle = couleur(b.h, 100, 58);
+      ctx.beginPath(); ctx.arc(b.x, b.y, R_BALLE * k, 0, 6.2832); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    const g = ctx.createRadialGradient(b.x - 10, b.y - 11, 3, b.x, b.y, R_BALLE);
+    g.addColorStop(0, couleur(b.h, 100, 92));
+    g.addColorStop(1, couleur(b.h, 100, 52));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(b.x, b.y, R_BALLE, 0, 6.2832); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.globalCompositeOperation = 'lighter';
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+
+  ctx.font = '400 32px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(150,168,178,0.7)';
+  ctx.fillStyle = tps > SERRAGE ? 'hsl(8 100% 66%)' : 'rgba(150,168,178,0.7)';
+  ctx.fillText(tps > SERRAGE ? "L'ÉTAU SE REFERME"
+                             : 'plus la chambre est large, plus le coup porte loin',
+               W / 2, H - 100);
+
+  if (fini) {
+    const b = balles[vainqueur];
+    bandeau(b.nom, b.h, `${coups[b.i]} coups au mur`);
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+//  Boucle
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, vitesse = 1, reste = 0, notesCeTour = 0;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+  if (actif) {
+    notesCeTour = 0;
+    reste += brut * vitesse;
+    let n = 0;
+    while (reste >= DT && n++ < 900) { pas(); reste -= DT; }
+    if (fini > FIN_ECRAN) reinitialiser();   // on relance un duel tout seul
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('raz').onclick = () => reinitialiser();
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre déjà
+  // actif, se fier à audio.state couperait le son dès le premier appui.
+  if (!audio) {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    preparerBus();
+  }
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+  e.target.textContent = son ? '♪ couper le son' : '♪ activer le son';
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>
