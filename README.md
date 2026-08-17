@@ -132,7 +132,7 @@ phrases à l'identique. Les fichiers sont versionnés dans
 genre « ball simulator ». Une balle rebondit dans un cercle et **chaque rebond
 joue la note suivante d'une mélodie** : le rythme de la musique, c'est la
 physique. Trois pointes tournent sur le bord ; les toucher fait éclater la balle
-en billes, qui retombent, s'entassent, et restent là.
+en billes, qui retombent, s'entassent, et continuent de s'agiter au fond.
 
 Relevé sur la vidéo de référence, puis ramené d'un cadre de 576 × 1024 au nôtre
 (facteur 1,875) : trois pointes espacées de **120°** tournant à **−52 °/s** (un
@@ -152,10 +152,31 @@ Deux détails qui font la différence :
 - La vitesse de la balle est **maintenue constante** après chaque rebond. Sans
   cela elle finit par se traîner au fond, et la mélodie s'éteint avec elle.
 
-La mélodie est écrite pour cette animation. Celle de la vidéo de référence est
-un morceau du commerce — la vidéo demande d'ailleurs aux spectateurs de le
-reconnaître — et ne peut être ni extraite ni rediffusée. Le principe est le même
-et fonctionne avec n'importe quelle mélodie.
+**La musique est écrite pour cette animation.** Celle de la vidéo de référence
+est un morceau du commerce — la vidéo demande d'ailleurs aux spectateurs de le
+reconnaître — et ne peut être ni extraite ni rediffusée. Le principe, lui, est
+le même et fonctionne avec n'importe quelle musique.
+
+Ce qui la fait sonner comme de la musique et non comme une gamme&nbsp;:
+
+- **Une suite d'accords**, Am – F – C – G, deux fois, quatre notes de mélodie par
+  accord. L'accord change donc tous les quatre rebonds, et c'est la physique qui
+  décide *quand*. Les quatre premiers accords montent, les quatre suivants
+  redescendent : sur trente secondes cela dessine une arche.
+- **Trois couches** : la note du rebond, une basse sur la fondamentale, une
+  nappe tenue sur la triade. Les deux dernières ne sonnent qu'au changement
+  d'accord.
+- **Un timbre de métal frappé** : quatre partiels dont les aigus s'éteignent plus
+  vite que la fondamentale, le dernier inharmonique (× 4,17) pour le « ping ».
+  Des partiels de même durée donneraient un orgue.
+- **Une réverbération**, par convolution avec un bruit qui décroît sur deux
+  secondes, différent pour chaque oreille. C'est le seul écart le plus net entre
+  « un jouet » et « un instrument ».
+
+Les trois niveaux sont réglés à la mesure et non à l'oreille : sur le mélange,
+la bande 300 Hz – 1 kHz, celle de la mélodie, porte **59 %** de l'énergie, et
+seuls **21 %** passent sous 300 Hz. Une basse plus forte noie la mélodie sur un
+haut-parleur de téléphone, qui ne descend guère plus bas.
 
 Le script Manim ne met que 55 billes par éclatement contre 110 sur la page :
 Manim dessine du vectoriel. Pour que le rendu reste faisable, les billes y sont

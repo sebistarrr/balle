@@ -51,9 +51,11 @@
    physique. Trois pointes tournent sur le bord — les toucher fait éclater la
    balle en une centaine de billes, qui retombent et s'agitent sans fin au fond.</p>
 
-<p class="note">La mélodie est écrite pour cette page et synthétisée dans le
-   navigateur, note par note. Le son est coupé par défaut&nbsp;:
-   <em>cliquez « activer le son »</em>.</p>
+<p class="note">La musique est écrite pour cette page et synthétisée dans le
+   navigateur&nbsp;: une suite d'accords de la mineur — Am, F, C, G — où chaque
+   rebond joue une note, une basse et une nappe tenue marquant les changements
+   d'accord tous les quatre rebonds. Rien n'est emprunté à un enregistrement.
+   Le son est coupé par défaut&nbsp;: <em>cliquez « activer le son »</em>.</p>
 
 <script>
 // ---------------------------------------------------------------------------
@@ -83,13 +85,39 @@ const ROTATION = -52 * Math.PI / 180;    // rad/s
 const N_ECLATS = 110;                    // billes libérées par éclatement
 const MAX_ECLATS = 1400;                 // au-delà, les plus vieilles s'effacent
 
-//  Mélodie écrite pour cette page : demi-tons au-dessus d'un la. Elle avance
-//  d'un cran par rebond, donc c'est la physique qui en donne le rythme.
-const MELODIE = [0, 3, 5, 7, 10, 7, 5, 3,
-                 0, 3, 5, 10, 12, 10, 7, 5,
-                 0, -2, 3, 5, 7, 12, 10, 7,
-                 5, 3, 0, 3, 7, 10, 12, 15];
+//  La musique, écrite pour cette page. Les demi-tons sont comptés depuis un la
+//  à 220 Hz : 0 = la, 3 = do, 7 = mi, 12 = le la du dessus.
+//
+//  Une suite d'accords de la mineur — Am, F, C, G, deux fois — avec quatre
+//  notes de mélodie par accord. L'accord change donc tous les quatre rebonds,
+//  et c'est la physique qui décide *quand*. Les quatre premiers accords
+//  montent, les quatre suivants redescendent : cela donne une arche, au lieu
+//  d'une gamme qui tourne en rond.
+//
+//  « basse » est la fondamentale, une à deux octaves plus bas ; « nappe » est
+//  la triade tenue. Les deux ne sonnent qu'au changement d'accord.
+const ACCORDS = [
+  //        basse  mélodie (4 notes)   triade tenue
+  /* Am */ [-12, [12, 15, 19, 24], [12, 15, 19]],
+  /* F  */ [-16, [8, 12, 15, 20], [8, 12, 15]],
+  /* C  */ [-9, [15, 19, 22, 27], [15, 19, 22]],
+  /* G  */ [-14, [10, 14, 17, 22], [10, 14, 17]],
+  /* Am */ [-12, [24, 19, 15, 12], [12, 15, 19]],
+  /* F  */ [-16, [20, 15, 12, 8], [8, 12, 15]],
+  /* C  */ [-9, [27, 22, 19, 15], [15, 19, 22]],
+  /* G  */ [-14, [22, 17, 14, 10], [10, 14, 17]],
+];
+const PAR_ACCORD = 4;                    // rebonds par accord
 const LA = 220;
+
+//  Timbre : rapport à la fondamentale, amplitude, durée. Les harmoniques
+//  hautes s'éteignent plus vite que la fondamentale — c'est ce qui fait
+//  entendre un métal frappé plutôt qu'un orgue. La dernière, inharmonique,
+//  donne le « ping » de l'attaque.
+const PARTIELS = [[1, 1, 1], [2, 0.38, 0.60],
+                  [3, 0.17, 0.40], [4.17, 0.11, 0.24]];
+
+const accordDe = i => ACCORDS[Math.floor(i / PAR_ACCORD) % ACCORDS.length];
 
 const teinteAngle = a => ((a * 180 / Math.PI) % 360 + 360) % 360;
 const couleur = (h, s = 100, l = 60) => `hsl(${h} ${s}% ${l}%)`;
@@ -97,35 +125,108 @@ const couleur = (h, s = 100, l = 60) => `hsl(${h} ${s}% ${l}%)`;
 // ---------------------------------------------------------------------------
 //  Son : une cloche par rebond, un fracas par pointe touchée
 // ---------------------------------------------------------------------------
-let audio = null, son = false;
+let audio = null, son = false, sec = null, mouille = null;
 
-function cloche(demi, pan, force = 0.20, duree = 1.1) {
-  if (!audio || audio.state !== 'running') return;
-  const f = LA * Math.pow(2, demi / 12), t0 = audio.currentTime;
+//  Deux bus : le son direct, et un départ vers une réverbération. La même note
+//  sèche sonne comme un jouet, et dans une salle comme un instrument. Faute de
+//  salle, on convolue par un bruit qui décroît sur deux secondes — un canal par
+//  oreille, pour que la salle ait une largeur.
+function preparerBus() {
+  sec = audio.createGain(); sec.gain.value = 1;
+  sec.connect(audio.destination);
+
+  const duree = 1.9, n = Math.floor(audio.sampleRate * duree);
+  const ri = audio.createBuffer(2, n, audio.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ri.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const u = i / audio.sampleRate;
+      // les huit premières millisecondes montent, sinon la queue claque
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-u * 3.1)
+             * Math.min(1, u / 0.008);
+    }
+  }
+  const conv = audio.createConvolver(); conv.buffer = ri;
+  mouille = audio.createGain(); mouille.gain.value = 0.42;
+  mouille.connect(conv); conv.connect(audio.destination);
+}
+
+//  Une voix = une enveloppe + un panoramique, branchée sur les deux bus.
+function voix(pan, envoi = 1) {
   const g = audio.createGain(), sp = audio.createStereoPanner();
   sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.connect(sp);
+  sp.connect(sec);
+  if (envoi > 0) {
+    const e = audio.createGain(); e.gain.value = envoi;
+    sp.connect(e); e.connect(mouille);
+  }
+  return g;
+}
+
+function cloche(demi, pan, force = 0.26, duree = 1.4) {
+  if (!audio || audio.state !== 'running') return;
+  const f = LA * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  for (const [mult, amp, part] of PARTIELS) {
+    const g = voix(pan);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(force * amp, t0 + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree * part);
+    const o = audio.createOscillator();
+    o.frequency.value = f * mult;
+    o.connect(g);
+    o.start(t0); o.stop(t0 + duree * part + 0.05);
+  }
+}
+
+function basse(demi, pan, force = 0.16, duree = 2.8) {
+  if (!audio || audio.state !== 'running') return;
+  const f = LA * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  const g = voix(pan, 0.35);
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.linearRampToValueAtTime(force, t0 + 0.004);
+  g.gain.linearRampToValueAtTime(force, t0 + 0.012);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
-  g.connect(sp); sp.connect(audio.destination);
-  // fondamentale plus deux harmoniques : le timbre d'un métallophone
-  for (const [mult, amp, det] of [[1, 1, 0], [2, 0.32, 4], [3, 0.12, -5]]) {
+  for (const [mult, amp] of [[1, 1], [2, 0.45], [3, 0.16]]) {
     const o = audio.createOscillator(), gg = audio.createGain();
-    o.frequency.value = f * mult; o.detune.value = det; gg.gain.value = amp;
+    o.frequency.value = f * mult; gg.gain.value = amp;
     o.connect(gg); gg.connect(g);
     o.start(t0); o.stop(t0 + duree + 0.05);
   }
 }
 
-function fracas(pan) {
+function nappe(triade, pan, force = 0.055, duree = 3.2) {
   if (!audio || audio.state !== 'running') return;
   const t0 = audio.currentTime;
-  // une grappe aiguë : on entend tout de suite que ce n'est pas un rebond
-  for (const [i, demi] of [12, 15, 19, 22, 24].entries()) {
-    setTimeout(() => cloche(demi, pan, 0.11, 1.6), i * 18);
+  const g = voix(pan, 1.2);
+  // entrée et sortie en cloche : une nappe qui démarre net s'entend comme un
+  // événement, et c'est le rebond qui doit tenir ce rôle
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(force, t0 + duree * 0.4);
+  g.gain.linearRampToValueAtTime(0.0001, t0 + duree);
+  for (const demi of triade) {
+    const f = LA * Math.pow(2, (demi - 12) / 12);
+    // deux voix par note, légèrement désaccordées : le battement lent épaissit
+    // le son sans ajouter de note
+    for (const det of [0, 5]) {
+      const o = audio.createOscillator(), gg = audio.createGain();
+      o.frequency.value = f; o.detune.value = det;
+      gg.gain.value = (det ? 0.7 : 1) / triade.length;
+      o.connect(gg); gg.connect(g);
+      o.start(t0); o.stop(t0 + duree + 0.05);
+    }
   }
-  const g = audio.createGain(), sp = audio.createStereoPanner();
-  sp.pan.value = pan;
+}
+
+//  L'éclatement doit s'entendre comme un accident, mais rester dans le ton : on
+//  prend la triade en cours montée de deux octaves, plus un souffle.
+function fracas(pan, triade) {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime;
+  const grappe = [...triade].sort((a, b) => a - b).concat(triade[0] + 12);
+  grappe.forEach((demi, i) => {
+    setTimeout(() => cloche(demi + 12, pan, 0.11, 1.8), i * 16);
+  });
+  const g = voix(pan, 0.8);
   const n = audio.createBufferSource();
   const buf = audio.createBuffer(1, audio.sampleRate * 0.5, audio.sampleRate);
   const d = buf.getChannelData(0);
@@ -135,9 +236,9 @@ function fracas(pan) {
   n.buffer = buf;
   const filtre = audio.createBiquadFilter();
   filtre.type = 'highpass'; filtre.frequency.value = 1400;
-  g.gain.setValueAtTime(0.16, t0);
+  g.gain.setValueAtTime(0.15, t0);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
-  n.connect(filtre); filtre.connect(g); g.connect(sp); sp.connect(audio.destination);
+  n.connect(filtre); filtre.connect(g);
   n.start(t0);
 }
 
@@ -207,7 +308,7 @@ function eclater(x, y) {
   }
   if (eclats.length > MAX_ECLATS) eclats.splice(0, eclats.length - MAX_ECLATS);
   ondes.push({ x, y, r: R_BALLE, vie: 1, h: base });
-  fracas((x - CX) / R);
+  fracas((x - CX) / R, accordDe(note)[2]);
   //  Nouvelle balle au centre, couleur avancée : c'est ce qui fait « évoluer »
   //  la partie plutôt que la remettre à zéro.
   teinteBalle = (teinteBalle + 47) % 360;
@@ -236,7 +337,13 @@ function pas() {
     vx *= V0 / s; vy *= V0 / s;
     rebonds++;
     if (notesCeTour < 3) {
-      cloche(MELODIE[note % MELODIE.length], (bx - CX) / R);
+      const pan = (bx - CX) / R;
+      const [graveDemi, melodie, triade] = accordDe(note);
+      cloche(melodie[note % PAR_ACCORD], pan);
+      if (note % PAR_ACCORD === 0) {      // changement d'accord
+        basse(graveDemi, pan * 0.25);
+        nappe(triade, -pan * 0.5);
+      }
       notesCeTour++;
     }
     note++;
@@ -440,7 +547,10 @@ document.getElementById('raz').onclick = () => reinitialiser();
 document.getElementById('snd').onclick = e => {
   // On suit l'état voulu à part : un contexte créé pendant un clic démarre
   // déjà actif, se fier à audio.state couperait le son dès le 1er appui.
-  if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audio) {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    preparerBus();
+  }
   son = !son;
   if (son) audio.resume(); else audio.suspend();
   e.target.setAttribute('aria-pressed', son);

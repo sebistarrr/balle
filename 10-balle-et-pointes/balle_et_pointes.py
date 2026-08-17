@@ -65,11 +65,43 @@ REBOND_BILLE = 0.70
 FROTTEMENT = 0.9997
 CASE = 44
 
-MELODIE = [0, 3, 5, 7, 10, 7, 5, 3,
-           0, 3, 5, 10, 12, 10, 7, 5,
-           0, -2, 3, 5, 7, 12, 10, 7,
-           5, 3, 0, 3, 7, 10, 12, 15]
+#  La musique. Les demi-tons sont comptés depuis un la à 220 Hz : 0 = la,
+#  3 = do, 7 = mi, 12 = le la du dessus.
+#
+#  Une suite d'accords de la mineur — Am, F, C, G, deux fois — avec quatre
+#  notes de mélodie par accord. L'accord change donc tous les quatre rebonds,
+#  et c'est la physique qui décide *quand*. Les quatre premiers accords montent,
+#  les quatre suivants redescendent : sur trente secondes cela donne une arche
+#  au lieu d'une gamme qui tourne en rond.
+#
+#  « basse » est la fondamentale, une à deux octaves plus bas ; « nappe » est
+#  la triade tenue. Les deux ne sonnent qu'au changement d'accord.
+ACCORDS = [
+    # nom  basse  mélodie (4 notes)      triade tenue
+    ("Am", -12, (12, 15, 19, 24), (12, 15, 19)),
+    ("F",  -16, (8, 12, 15, 20),  (8, 12, 15)),
+    ("C",   -9, (15, 19, 22, 27), (15, 19, 22)),
+    ("G",  -14, (10, 14, 17, 22), (10, 14, 17)),
+    ("Am", -12, (24, 19, 15, 12), (12, 15, 19)),
+    ("F",  -16, (20, 15, 12, 8),  (8, 12, 15)),
+    ("C",   -9, (27, 22, 19, 15), (15, 19, 22)),
+    ("G",  -14, (22, 17, 14, 10), (10, 14, 17)),
+]
+PAR_ACCORD = 4              # rebonds par accord
 LA = 220.0
+
+#  Timbre : rapport à la fondamentale, amplitude, vitesse d'extinction. Les
+#  harmoniques hautes s'éteignent plus vite que la fondamentale — c'est ce qui
+#  fait entendre un métal frappé plutôt qu'un orgue. La dernière, inharmonique,
+#  donne le « ping » de l'attaque.
+PARTIELS = ((1.0, 1.00, 2.6), (2.0, 0.38, 4.4),
+            (3.0, 0.17, 6.5), (4.17, 0.11, 11.0))
+
+
+def accord_de(i_note):
+    """Accord et note de mélodie du i-ème rebond."""
+    _, basse, melodie, triade = ACCORDS[(i_note // PAR_ACCORD) % len(ACCORDS)]
+    return basse, melodie[i_note % PAR_ACCORD], triade
 
 AVEC_SON = True
 
@@ -156,8 +188,9 @@ def simuler():
                 s = np.sqrt(vx * vx + vy * vy)
                 vx *= V0 / s
                 vy *= V0 / s
-                rebonds.append((t, bx, by, MELODIE[note % len(MELODIE)],
-                                np.degrees(angle) % 360))
+                #  On garde le rang de la note, pas sa hauteur : c'est la
+                #  bande son qui traduit ce rang en accord.
+                rebonds.append((t, bx, by, note, np.degrees(angle) % 360))
                 note += 1
 
         # --- les billes -------------------------------------------------
@@ -398,7 +431,7 @@ class BalleEtPointes(Scene):
 def generer_bande_son(chemin="rebonds.wav", sr=44100):
     import wave
 
-    n = int((DUREE + 2.0) * sr)
+    n = int((DUREE + 2.5) * sr)
     gauche, droite = np.zeros(n), np.zeros(n)
     rng = np.random.default_rng(9)
 
@@ -410,26 +443,78 @@ def generer_bande_son(chemin="rebonds.wav", sr=44100):
             gauche[i0:fin] += g * onde[: fin - i0]
             droite[i0:fin] += (1 - g) * onde[: fin - i0]
 
-    def cloche(demi, duree=1.1, force=0.34):
+    def secondes(duree):
+        return np.arange(int(duree * sr)) / sr
+
+    def cloche(demi, duree=1.4, force=0.32):
         f = LA * 2 ** (demi / 12)
-        d = int(duree * sr)
-        tt = np.arange(d) / sr
-        env = np.exp(-tt * 3.6) * (1 - np.exp(-tt / 0.003))
+        tt = secondes(duree)
+        s = np.zeros_like(tt)
+        for mult, amp, chute in PARTIELS:
+            s += amp * np.exp(-tt * chute) * np.sin(TAU * f * mult * tt)
+        #  Attaque de deux millisecondes : plus court claque, plus long mollit.
+        return force * (1 - np.exp(-tt / 0.002)) * s
+
+    #  Les trois forces sont réglées ensemble : mesurée sur le mélange, la bande
+    #  400 Hz – 1 kHz, celle de la mélodie, porte 59 % de l'énergie, et seuls
+    #  21 % passent sous 300 Hz. Une basse plus forte noie la mélodie sur un
+    #  haut-parleur de téléphone, qui ne descend guère plus bas.
+    def basse(demi, duree=2.8, force=0.19):
+        f = LA * 2 ** (demi / 12)
+        tt = secondes(duree)
+        env = np.exp(-tt * 1.15) * (1 - np.exp(-tt / 0.012))
         return force * env * (np.sin(TAU * f * tt)
-                              + 0.32 * np.sin(TAU * 2 * f * 1.002 * tt)
-                              + 0.12 * np.sin(TAU * 3 * f * tt))
+                              + 0.45 * np.sin(TAU * 2 * f * tt)
+                              + 0.16 * np.sin(TAU * 3 * f * tt))
 
-    for instant, x, _, demi, _ in REBONDS:
-        poser(instant, cloche(demi), pan=(x - CX) / R)
+    def nappe(triade, duree=3.2, force=0.070):
+        tt = secondes(duree)
+        #  Entrée et sortie en cloche : la nappe ne doit jamais commencer ni
+        #  s'arrêter net, sinon on l'entend comme un événement.
+        env = np.sin(np.pi * tt / duree) ** 1.4
+        s = np.zeros_like(tt)
+        for k, demi in enumerate(triade):
+            f = LA * 2 ** ((demi - 12) / 12)
+            #  Deux voix légèrement désaccordées : le battement lent épaissit
+            #  le son sans ajouter de note.
+            s += np.sin(TAU * f * tt + k) + 0.7 * np.sin(TAU * f * 1.003 * tt)
+        return force * env * s / len(triade)
 
+    for instant, x, _, i_note, _ in REBONDS:
+        pan = (x - CX) / R
+        basse_demi, demi, triade = accord_de(i_note)
+        poser(instant, cloche(demi), pan)
+        if i_note % PAR_ACCORD == 0:      # changement d'accord
+            poser(instant, basse(basse_demi), pan * 0.25)
+            poser(instant, nappe(triade), -pan * 0.5)
+
+    #  L'éclatement doit s'entendre comme un accident, mais rester dans le ton :
+    #  on prend la triade en cours, montée de deux octaves, plus un souffle.
     for instant, x, _, _ in ECLATEMENTS:
         pan = (x - CX) / R
-        for j, demi in enumerate((12, 15, 19, 22, 24)):
-            poser(instant + j * 0.018, cloche(demi, 1.6, 0.16), pan)
-        d = int(0.5 * sr)
-        tt = np.arange(d) / sr
-        souffle = rng.normal(0, 1, d) * (1 - tt / tt[-1]) ** 3 * 0.20
+        rang = sum(1 for r in REBONDS if r[0] <= instant)
+        _, _, triade = accord_de(rang)
+        for j, demi in enumerate(sorted(triade) + [triade[0] + 12]):
+            poser(instant + j * 0.016, cloche(demi + 12, 1.8, 0.13), pan)
+        tt = secondes(0.5)
+        souffle = rng.normal(0, 1, len(tt)) * (1 - tt / tt[-1]) ** 3 * 0.18
         poser(instant, souffle, pan)
+
+    #  Réverbération : la même note sèche sonne comme un jouet, et dans une
+    #  salle comme un instrument. Faute de salle, on convolue par un bruit qui
+    #  décroît — un canal par oreille, pour que la salle ait une largeur.
+    def reverbe(sec, ir):
+        taille = 1 << (len(sec) + len(ir) - 2).bit_length()
+        produit = np.fft.rfft(sec, taille) * np.fft.rfft(ir, taille)
+        return np.fft.irfft(produit, taille)[: len(sec)]
+
+    tt = secondes(1.9)
+    lissage = np.ones(24) / 24            # adoucit le grain du bruit
+    for canal in (gauche, droite):
+        ir = rng.normal(0, 1, len(tt)) * np.exp(-tt * 3.1)
+        ir[: int(0.008 * sr)] *= np.linspace(0, 1, int(0.008 * sr))
+        ir = np.convolve(ir, lissage, mode="same")
+        canal += 0.42 * reverbe(canal, ir / np.abs(ir).sum() * 6.0)
 
     stereo = np.stack([np.tanh(gauche * 1.1), np.tanh(droite * 1.1)], axis=1)
     pcm = (stereo / max(1e-9, np.abs(stereo).max()) * 0.92 * 32767).astype("<i2")
