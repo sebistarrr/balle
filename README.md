@@ -128,29 +128,48 @@ phrases à l'identique. Les fichiers sont versionnés dans
 `9-tables-expliquees/voix/` : 1,5 Mo, et sans eux le film ne se rend qu'en muet
 — le minutage étant conservé par des durées de repli.
 
-**10 — La balle et les pointes.** Reproduction d'une animation existante, du
-genre « ball simulator ». Une balle rebondit dans un cercle et **chaque rebond
-joue la note suivante d'une mélodie** : le rythme de la musique, c'est la
-physique. Trois pointes tournent sur le bord ; les toucher fait éclater la balle
-en billes, qui retombent, s'entassent, et continuent de s'agiter au fond.
+**10 — La balle et les pointes.** Partie d'une reproduction d'animation du genre
+« ball simulator », puis emmenée ailleurs. Une balle file **en ligne droite**
+dans un cercle — pas de gravité, elle atteint donc tout le bord. **Chaque rebond
+joue la note suivante d'une mélodie et la fait grossir**, jusqu'à ce qu'elle
+éclate en billes qui **gardent sa couleur**. Une nouvelle balle repart à la
+taille de départ, dans une autre teinte. Trois pointes tournent sur le bord et
+peuvent l'attraper avant.
 
-Relevé sur la vidéo de référence, puis ramené d'un cadre de 576 × 1024 au nôtre
-(facteur 1,875) : trois pointes espacées de **120°** tournant à **−52 °/s** (un
-tour en 6,94 s), teinte du bord **égale à l'angle**, rebonds élastiques à vitesse
-à peu près constante (~780 px/s), **1,12 rebond par seconde**, bille de 16 px
-pour un rayon de 274. La page en fait 1,07/s.
+Le décor vient de mesures sur la vidéo de référence, ramenées d'un cadre de
+576 × 1024 au nôtre (facteur 1,875) : trois pointes espacées de **120°** tournant
+à **−52 °/s** (un tour en 6,94 s), teinte du bord **égale à l'angle**, rebonds
+élastiques à vitesse constante.
 
-Deux détails qui font la différence :
+Ce qui fait la différence :
 
-- **Les billes ne s'endorment jamais.** Mesuré sur la référence, la moitié des
-  pixels du tas change d'une image à la suivante : elles roulent et se poussent
-  sans arrêt. Il faut donc de vraies collisions entre elles — rangées dans une
-  **grille**, sinon le test coûterait le carré du nombre. Le tas de la page bouge
-  à 46 % par image, celui du film rendu à 50 %, contre 51 % pour la référence.
-  Les billes avancent à pas plus grossier que la balle principale, qui a besoin
-  d'un pas fin pour que l'instant du rebond — donc la note — tombe juste.
-- La vitesse de la balle est **maintenue constante** après chaque rebond. Sans
-  cela elle finit par se traîner au fond, et la mélodie s'éteint avec elle.
+- **La croissance n'est pas qu'un effet.** En grossissant, la balle laisse moins
+  de place : ses trajets raccourcissent et les rebonds se rapprochent. La
+  musique accélère donc toute seule à mesure que l'éclatement approche. De 24 px
+  à 112 px par pas de 11, cela fait **huit rebonds entre deux éclatements**.
+  On grossit *avant* de repositionner la balle sur le bord : dans l'autre ordre
+  elle mord encore le bord et déclenche un second rebond au pas suivant.
+- **Les billes ne s'endorment jamais** : de vraies collisions entre elles,
+  rangées dans une **grille**, sinon le test coûterait le carré du nombre. Sans
+  gravité elles n'ont plus de fond où s'entasser et occupent tout le disque —
+  d'où une restitution montée à 0,92 et un frottement quasi nul, faute de quoi
+  tout s'immobiliserait au milieu.
+- **La balle et les billes se bousculent.** Même échange qu'entre billes, mais
+  avec un rapport de masse de **quarante** : la bille part, la balle n'est que
+  déviée. Sa vitesse est ensuite ramenée à V₀, seule sa direction retient le
+  choc. Sans ce rapport elle serait ballottée par le nuage, n'atteindrait plus
+  le bord, et la musique s'arrêterait.
+- **Le débordement est repris en fin de pas.** Une bille poussée par ses
+  voisines ou par la balle peut franchir le bord : on la ramène dedans et on
+  annule sa vitesse sortante. Mesuré, le dépassement maximal tombe à 1 × 10⁻¹³ px.
+
+L'habillage suit la même idée : tout s'accroche à la **tension**, qui va de 0
+juste après un éclatement à 1 juste avant le suivant. Halo qui enfle, anneau de
+charge qui se referme autour de la balle, traînée, gerbe d'étincelles au rebond,
+éclair blanc à l'éclatement. Le halo et la traînée débordent largement du cercle
+— sur la page on découpe au disque, et comme Manim n'a pas de découpage, le film
+pose par-dessus un **anneau noir** qui va du bord jusqu'au-delà du cadre, avant
+de redessiner le bord dessus.
 
 **La musique est écrite pour cette animation.** Celle de la vidéo de référence
 est un morceau du commerce — la vidéo demande d'ailleurs aux spectateurs de le
@@ -180,8 +199,12 @@ haut-parleur de téléphone, qui ne descend guère plus bas.
 
 Le script Manim ne met que 55 billes par éclatement contre 110 sur la page :
 Manim dessine du vectoriel. Pour que le rendu reste faisable, les billes y sont
-groupées par teinte dans **six objets seulement**, chacune dessinée comme quatre
-cubiques — les sous-chemins se séparant d'eux-mêmes entre deux disques.
+groupées, chacune dessinée comme quatre cubiques — les sous-chemins se séparant
+d'eux-mêmes entre deux disques. Le groupement se fait par **teinte exacte**, et
+non plus par tranche de 60° : les billes d'un même éclatement partageant
+précisément la couleur de la balle qui les a produites, une tranche large
+fondrait deux éclatements voisins dans une seule couleur — exactement ce que
+l'animation doit montrer.
 
 Toutes ont un son facultatif : une note par impact, pentatonique mineure, grave
 pour les éléments lents ou gros.

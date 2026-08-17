@@ -46,10 +46,16 @@
   <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
 </div>
 
-<p>Une balle rebondit dans un cercle. <strong>Chaque rebond joue la note
-   suivante</strong> d'une mélodie&nbsp;: le rythme de la musique, c'est la
-   physique. Trois pointes tournent sur le bord — les toucher fait éclater la
-   balle en une centaine de billes, qui retombent et s'agitent sans fin au fond.</p>
+<p>Une balle file en ligne droite dans un cercle — <strong>pas de gravité</strong>,
+   elle atteint donc tout le bord. <strong>Chaque rebond joue la note
+   suivante</strong> d'une mélodie et <strong>la fait grossir</strong>, jusqu'à
+   ce qu'elle éclate en une centaine de billes qui gardent sa couleur. Une
+   nouvelle balle repart alors à la taille de départ, dans une autre teinte.
+   Trois pointes tournent sur le bord et peuvent l'attraper avant.</p>
+
+<p>Les billes se poussent entre elles et bousculent la balle au passage&nbsp;:
+   elle pèse quarante fois plus qu'une bille, chaque contact la dévie d'un rien
+   et projette la bille au loin.</p>
 
 <p class="note">La musique est écrite pour cette page et synthétisée dans le
    navigateur&nbsp;: une suite d'accords de la mineur — Am, F, C, G — où chaque
@@ -71,11 +77,21 @@
 // ---------------------------------------------------------------------------
 const W = 1080, H = 1920;
 const CX = 540, CY = 976, R = 514;      // le cercle
-const R_BALLE = 30;
-const G = 1350;                          // gravité, px/s²
-const V0 = 1120;                         // vitesse de la balle, px/s
-                                         // (donne ~1,2 rebond/s, comme la référence)
+
+//  Pas de gravité : la balle va tout droit, donc elle atteint tout le cercle
+//  au lieu de retomber toujours au même endroit.
+const V0 = 1000;                         // vitesse de la balle, px/s
 const DT = 1 / 480;                      // pas de temps fixe de la simulation
+
+//  Elle grossit à chaque rebond et finit par éclater. Huit rebonds séparent
+//  donc deux éclatements — sauf si une pointe l'attrape avant.
+//
+//  Ce n'est pas qu'un effet : en grossissant elle laisse moins de place, ses
+//  trajets raccourcissent, et les rebonds se rapprochent. La musique accélère
+//  toute seule à mesure que l'éclatement approche.
+const R0 = 24;                           // rayon au départ
+const PAS_RAYON = 11;                    // gain par rebond
+const R_MAX = 112;                       // au-delà, elle éclate
 
 const N_POINTES = 3;
 const DEMI_POINTE = 4.6 * Math.PI / 180; // demi-largeur angulaire d'une pointe
@@ -120,7 +136,7 @@ const PARTIELS = [[1, 1, 1], [2, 0.38, 0.60],
 const accordDe = i => ACCORDS[Math.floor(i / PAR_ACCORD) % ACCORDS.length];
 
 const teinteAngle = a => ((a * 180 / Math.PI) % 360 + 360) % 360;
-const couleur = (h, s = 100, l = 60) => `hsl(${h} ${s}% ${l}%)`;
+const couleur = (h, s = 100, l = 60, a = 1) => `hsl(${h} ${s}% ${l}% / ${a})`;
 
 // ---------------------------------------------------------------------------
 //  Son : une cloche par rebond, un fracas par pointe touchée
@@ -245,12 +261,16 @@ function fracas(pan, triade) {
 // ---------------------------------------------------------------------------
 //  État
 // ---------------------------------------------------------------------------
-let bx, by, vx, vy, teinteBalle, note, rebonds, eclatements, tps, eclats, ondes;
+let bx, by, vx, vy, rBalle, teinteBalle, note, rebonds, eclatements, tps;
+let eclats, ondes, trace, etincelles, flash;
 
-//  Les billes ne s'endorment jamais : mesuré sur la vidéo de référence, la
-//  moitié des pixels du tas change d'une image à la suivante. Elles roulent,
-//  se poussent et se réarrangent sans arrêt. Il faut donc de vraies collisions
-//  entre elles — et une grille, sinon le test coûterait le carré du nombre.
+//  Les billes ne s'endorment jamais : elles roulent, se poussent et se
+//  réarrangent sans arrêt. Il faut donc de vraies collisions entre elles — et
+//  une grille, sinon le test coûterait le carré du nombre.
+//
+//  Sans gravité elles ne s'entassent plus au fond : elles occupent tout le
+//  disque. D'où une restitution bien plus haute qu'avant et un frottement
+//  presque nul — sinon tout s'immobiliserait au milieu du cercle.
 //
 //  Elles avancent à pas plus grossier que la balle principale : celle-ci a
 //  besoin d'un pas fin pour que l'instant du rebond, donc la note, tombe juste ;
@@ -258,11 +278,15 @@ let bx, by, vx, vy, teinteBalle, note, rebonds, eclatements, tps, eclats, ondes;
 const CASE = 44;
 const COLS = Math.ceil(2 * R / CASE) + 2;
 const DT_BILLES = 1 / 240;
-const REBOND_BORD = 0.74;      // restitution sur le bord
-const REBOND_BILLE = 0.70;     // restitution entre billes
-const FROTTEMENT = 0.9997;     // très léger : le tas doit rester agité,
-                               // c'est ce que montre la vidéo de référence
+const REBOND_BORD = 0.94;      // restitution sur le bord
+const REBOND_BILLE = 0.92;     // restitution entre billes
+const FROTTEMENT = 0.99985;
+//  La balle principale pèse quarante billes : chaque contact projette la bille
+//  et ne dévie la balle qu'un peu. Sans ce rapport, elle serait ballottée par
+//  le nuage, n'atteindrait plus le bord, et la musique s'arrêterait.
+const MASSE_BALLE = 40;
 let cases = Array.from({ length: COLS * COLS }, () => []);
+let resteBilles = 0;
 
 function caseDe(x, y) {
   const gx = Math.min(COLS - 1, Math.max(0, ((x - CX + R) / CASE) | 0));
@@ -271,14 +295,17 @@ function caseDe(x, y) {
 }
 
 function reinitialiser() {
+  teinteBalle = 150;
   lancerBalle(0.6);
-  teinteBalle = 150; note = 0; rebonds = 0; eclatements = 0; tps = 0;
-  eclats = []; ondes = [];
+  note = 0; rebonds = 0; eclatements = 0; tps = 0; resteBilles = 0;
+  eclats = []; ondes = []; trace = []; etincelles = []; flash = 0;
 }
 
 function lancerBalle(cap) {
   bx = CX; by = CY - R * 0.45;
   vx = Math.cos(cap) * V0; vy = Math.sin(cap) * V0;
+  rBalle = R0;                 // la nouvelle balle repart à la taille de départ
+  trace = [];
 }
 reinitialiser();
 
@@ -296,43 +323,54 @@ function surUnePointe(angle) {
 
 function eclater(x, y) {
   eclatements++;
-  const base = teinteBalle;
+  const base = teinteBalle, rayon = rBalle;
   for (let i = 0; i < N_ECLATS; i++) {
     const a = Math.random() * 2 * Math.PI;
-    const v = 250 + Math.random() * 900;
+    const v = 260 + Math.random() * 900;
     eclats.push({
-      x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+      //  Elles partent de la surface de la balle, pas de son centre : sur une
+      //  balle devenue large, un jet issu d'un point serait un artifice visible.
+      x: x + Math.cos(a) * rayon * 0.85,
+      y: y + Math.sin(a) * rayon * 0.85,
+      vx: Math.cos(a) * v, vy: Math.sin(a) * v,
       r: 5 + Math.random() * 7,
-      h: (base + (Math.random() - 0.5) * 160 + 360) % 360,
+      //  Chaque bille garde la teinte de la balle éclatée. Seule la clarté
+      //  varie un peu, sinon le nuage serait un aplat.
+      h: base, l: 48 + Math.random() * 26,
     });
   }
   if (eclats.length > MAX_ECLATS) eclats.splice(0, eclats.length - MAX_ECLATS);
-  ondes.push({ x, y, r: R_BALLE, vie: 1, h: base });
+  ondes.push({ x, y, r: rayon, vie: 1, h: base });
+  flash = 1;
   fracas((x - CX) / R, accordDe(note)[2]);
-  //  Nouvelle balle au centre, couleur avancée : c'est ce qui fait « évoluer »
-  //  la partie plutôt que la remettre à zéro.
+  //  Nouvelle balle au centre, couleur avancée, taille de départ : c'est ce qui
+  //  fait « évoluer » la partie plutôt que la remettre à zéro.
   teinteBalle = (teinteBalle + 47) % 360;
   lancerBalle(Math.random() * 2 * Math.PI);
 }
 
 function pas() {
   tps += DT;
-  vy += G * DT;
   bx += vx * DT;
   by += vy * DT;
 
   const dx = bx - CX, dy = by - CY;
   const d = Math.sqrt(dx * dx + dy * dy);
-  if (d > R - R_BALLE) {
+  if (d > R - rBalle) {
     const nx = dx / d, ny = dy / d;
     const angle = Math.atan2(-ny, nx);
     if (surUnePointe(angle)) { eclater(bx, by); return; }
-    bx = CX + nx * (R - R_BALLE);
-    by = CY + ny * (R - R_BALLE);
+
+    //  On grossit d'abord, on repositionne ensuite : replacée à l'ancien
+    //  rayon puis grossie, la balle mordrait encore le bord et déclencherait
+    //  un second rebond au pas suivant.
+    rBalle += PAS_RAYON;
+    bx = CX + nx * (R - rBalle);
+    by = CY + ny * (R - rBalle);
     const p = 2 * (vx * nx + vy * ny);
     vx -= p * nx; vy -= p * ny;          // rebond élastique
-    //  La vitesse est maintenue : sans cela la balle finit par se traîner au
-    //  fond, et la mélodie s'éteint avec elle.
+    //  La vitesse est maintenue : sans cela la balle se traîne et la mélodie
+    //  s'éteint avec elle.
     const s = Math.sqrt(vx * vx + vy * vy);
     vx *= V0 / s; vy *= V0 / s;
     rebonds++;
@@ -347,21 +385,30 @@ function pas() {
       notesCeTour++;
     }
     note++;
-    ondes.push({ x: bx, y: by, r: R_BALLE, vie: 1, h: teinteAngle(angle) });
+    ondes.push({ x: bx, y: by, r: rBalle, vie: 1, h: teinteAngle(angle) });
+    for (let i = 0; i < 14; i++) {        // gerbe d'étincelles au point d'impact
+      const a = Math.atan2(vy, vx) + (Math.random() - 0.5) * 2.4;
+      const v = 240 + Math.random() * 620;
+      etincelles.push({ x: bx, y: by, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+                        vie: 1, h: teinteBalle });
+    }
+    if (rBalle >= R_MAX) { eclater(bx, by); return; }
   }
+
+  //  Les billes avancent dans la même horloge que la balle, mais deux fois
+  //  moins souvent.
+  resteBilles += DT;
+  while (resteBilles >= DT_BILLES) { resteBilles -= DT_BILLES; pasEclats(); }
 }
 
-function pasEclats(dt) {
-  let reste = dt, garde = 0;
-  while (reste > 1e-9 && garde++ < 12) {
-    const h = Math.min(DT_BILLES, reste);
-    reste -= h;
+function pasEclats() {
+  {
+    const h = DT_BILLES;
 
     // --- vol libre et contact avec le bord --------------------------------
     for (const c of cases) c.length = 0;
     for (let i = 0; i < eclats.length; i++) {
       const e = eclats[i];
-      e.vy += G * h;
       e.vx *= FROTTEMENT; e.vy *= FROTTEMENT;
       e.x += e.vx * h; e.y += e.vy * h;
       const dx = e.x - CX, dy = e.y - CY;
@@ -410,8 +457,27 @@ function pasEclats(dt) {
       }
     }
 
-    //  Une bille poussée par ses voisines peut passer le bord : on la ramène
-    //  dedans en fin de pas, et on annule sa vitesse sortante.
+    // --- contact avec la balle principale ---------------------------------
+    //  Même échange qu'entre billes, mais avec un rapport de masse : la bille
+    //  part, la balle n'est que déviée. Sa vitesse est ensuite ramenée à V0,
+    //  seule sa direction retient le choc.
+    for (const e of eclats) {
+      const dx = e.x - bx, dy = e.y - by;
+      const dd = Math.sqrt(dx * dx + dy * dy), mini = rBalle + e.r;
+      if (dd >= mini || dd < 1e-9) continue;
+      const nx = dx / dd, ny = dy / dd;
+      e.x = bx + nx * mini; e.y = by + ny * mini;
+      const vn = (e.vx - vx) * nx + (e.vy - vy) * ny;
+      if (vn > 0) continue;
+      const j = -(1 + REBOND_BILLE) * vn / (1 + 1 / MASSE_BALLE);
+      e.vx += j * nx; e.vy += j * ny;
+      vx -= j * nx / MASSE_BALLE; vy -= j * ny / MASSE_BALLE;
+    }
+    const s = Math.sqrt(vx * vx + vy * vy);
+    if (s > 1e-9) { vx *= V0 / s; vy *= V0 / s; }
+
+    //  Une bille poussée par ses voisines ou par la balle peut passer le bord :
+    //  on la ramène dedans en fin de pas, et on annule sa vitesse sortante.
     for (const e of eclats) {
       const dx = e.x - CX, dy = e.y - CY;
       const d = Math.sqrt(dx * dx + dy * dy);
@@ -473,9 +539,15 @@ function dessiner(dt) {
     ctx.shadowBlur = 0;
   }
 
+  //  Tout ce qui suit est découpé au disque : le halo de la balle, sa traînée
+  //  et les ondes débordent largement de son rayon, et une lueur qui bave
+  //  hors du cercle défait le décor.
+  ctx.save();
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.clip();
+
   // --- les billes ----------------------------------------------------------
   for (const e of eclats) {
-    ctx.fillStyle = couleur(e.h, 95, 60);
+    ctx.fillStyle = couleur(e.h, 95, e.l);
     ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 6.2832); ctx.fill();
   }
 
@@ -493,21 +565,96 @@ function dessiner(dt) {
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
 
   // --- la balle ------------------------------------------------------------
-  ctx.shadowColor = couleur(teinteBalle); ctx.shadowBlur = 38;
-  const g = ctx.createRadialGradient(bx - R_BALLE * 0.3, by - R_BALLE * 0.35,
-                                     R_BALLE * 0.1, bx, by, R_BALLE);
+  //  « tension » va de 0 juste après un éclatement à 1 juste avant le suivant.
+  //  Tout l'habillage s'y accroche : plus elle est grosse, plus elle est prête
+  //  à céder, et plus elle le montre.
+  const tension = Math.min(1, (rBalle - R0) / (R_MAX - R0));
+
+  //  Traînée : les positions récentes. Sans gravité la trajectoire est
+  //  rectiligne, elle se lit comme un trait de lumière.
+  //
+  //  Un disque par position perlait — les disques se recomposent en « lighter »
+  //  et on compte les grains. On trace donc un seul trait continu, et c'est un
+  //  dégradé le long du parcours qui fait l'estompe : trois épaisseurs
+  //  superposées tiennent lieu du flou que Canvas n'a pas.
+  trace.push([bx, by]);
+  if (trace.length > 22) trace.shift();
+  ctx.globalCompositeOperation = 'lighter';
+  if (trace.length > 3) {
+    const [x0, y0] = trace[0], [x1, y1] = trace[trace.length - 1];
+    const chemin = new Path2D();
+    chemin.moveTo(x0, y0);
+    for (let i = 1; i < trace.length; i++) chemin.lineTo(trace[i][0], trace[i][1]);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    for (const [k, a] of [[1.35, 0.10], [0.85, 0.16], [0.42, 0.30]]) {
+      const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+      grad.addColorStop(0, couleur(teinteBalle, 100, 60, 0));
+      grad.addColorStop(1, couleur(teinteBalle, 100, 66));
+      ctx.strokeStyle = grad;
+      ctx.globalAlpha = a;
+      ctx.lineWidth = rBalle * 2 * k;
+      ctx.stroke(chemin);
+    }
+    ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+  }
+
+  //  Étincelles du dernier rebond.
+  for (let i = etincelles.length - 1; i >= 0; i--) {
+    const p = etincelles[i];
+    p.vie -= dt * 1.9;
+    if (p.vie <= 0) { etincelles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.94; p.vy *= 0.94;
+    ctx.globalAlpha = p.vie;
+    ctx.fillStyle = couleur(p.h, 100, 72);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 1.5 + 4 * p.vie, 0, 6.2832); ctx.fill();
+  }
+
+  //  Halo : trois cercles de plus en plus larges et pâles. Canvas n'a pas de
+  //  flou, on le fabrique en superposant — et il enfle avec la tension.
+  for (const [k, a] of [[1.55, 0.16], [2.25, 0.09], [3.2, 0.05]]) {
+    ctx.globalAlpha = a * (0.45 + 0.85 * tension);
+    ctx.fillStyle = couleur(teinteBalle, 100, 58);
+    ctx.beginPath(); ctx.arc(bx, by, rBalle * k, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  ctx.shadowColor = couleur(teinteBalle); ctx.shadowBlur = 38 + 46 * tension;
+  const g = ctx.createRadialGradient(bx - rBalle * 0.3, by - rBalle * 0.35,
+                                     rBalle * 0.1, bx, by, rBalle);
   g.addColorStop(0, couleur(teinteBalle, 100, 92));
   g.addColorStop(1, couleur(teinteBalle, 100, 52));
   ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(bx, by, R_BALLE, 0, 6.2832); ctx.fill();
+  ctx.beginPath(); ctx.arc(bx, by, rBalle, 0, 6.2832); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2.5; ctx.stroke();
+
+  //  Anneau de charge : la part du tour parcourue dit ce qu'il reste avant
+  //  l'éclatement. On voit venir, et c'est ce qui fait tenir jusqu'au bout.
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 3 + 5 * tension;
+  ctx.beginPath();
+  ctx.arc(bx, by, rBalle + 15, -Math.PI / 2, -Math.PI / 2 + tension * 6.2832);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();                       // fin du découpage au disque
+
+  //  Éclair : une nappe blanche au moment de l'éclatement, qui s'efface vite.
+  //  Court et sec : plus long, il délave l'image au lieu de la ponctuer.
+  if (flash > 0) {
+    flash = Math.max(0, flash - dt / 0.18);
+    ctx.fillStyle = `rgba(255,255,255,${0.42 * flash * flash})`;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   // --- compteurs -----------------------------------------------------------
   ctx.textAlign = 'center';
   ctx.font = '600 44px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(240,248,252,0.92)';
-  ctx.fillText('la balle survivra-t-elle aux pointes ?', CX, 250);
+  ctx.fillText('elle grossit à chaque rebond', CX, 250);
   ctx.font = '400 34px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(190,205,210,0.65)';
   ctx.fillText(`${rebonds} notes   ·   ${eclatements} éclatements`, CX, H - 200);
@@ -529,7 +676,6 @@ function boucle(now) {
     reste += brut * vitesse;
     let n = 0;
     while (reste >= DT && n++ < 600) { pas(); reste -= DT; }
-    pasEclats(brut * vitesse);
   }
   dessiner(brut);
 }

@@ -36,10 +36,20 @@ config.background_color = "#000000"
 # --------------------------------------------------------------------------
 W, H = 1080, 1920
 CX, CY, R = 540, 976, 514
-R_BALLE = 30
-G = 1350.0                  # gravité, px/s²
-V0 = 1120.0                 # vitesse de la balle, px/s
+#  Pas de gravité : la balle va tout droit, donc elle atteint tout le cercle
+#  au lieu de retomber toujours au même endroit.
+V0 = 1000.0                 # vitesse de la balle, px/s
 DT = 1 / 480                # pas de simulation, fixe
+
+#  Elle grossit à chaque rebond et finit par éclater. Huit rebonds séparent donc
+#  deux éclatements — sauf si une pointe l'attrape avant.
+#
+#  Ce n'est pas qu'un effet : en grossissant elle laisse moins de place, ses
+#  trajets raccourcissent, et les rebonds se rapprochent. La musique accélère
+#  toute seule à mesure que l'éclatement approche.
+R0 = 24.0                   # rayon au départ
+PAS_RAYON = 11.0            # gain par rebond
+R_MAX = 112.0               # au-delà, elle éclate
 DUREE = 30.0
 FPS_ECH = 60                # un instantané par image de la vidéo
 
@@ -52,18 +62,28 @@ ROTATION = -52 * DEGREES    # rad/s
 #  que le rendu reste faisable. Le tas se lit tout aussi bien.
 N_ECLATS = 55
 MAX_ECLATS = 460
-SEAUX = 6                   # les billes sont groupées par teinte
+#  Un objet de dessin par (teinte, bande de clarté). Sept à huit éclatements
+#  tiennent dans les trente secondes, deux bandes chacun : vingt suffisent, et
+#  les objets en trop restent vides.
+SEAUX = 20
 
 #  Les billes ne s'endorment jamais : mesuré sur la vidéo de référence, la
 #  moitié des pixels du tas change d'une image à la suivante. Il faut donc de
 #  vraies collisions entre elles. Elles avancent à pas plus grossier que la
 #  balle principale, qui a besoin d'un pas fin pour que l'instant du rebond —
 #  donc la note — tombe juste.
+#  Sans gravité les billes ne s'entassent plus au fond : elles occupent tout le
+#  disque. D'où une restitution bien plus haute qu'avant et un frottement
+#  presque nul — sinon tout s'immobiliserait au milieu du cercle.
 DT_BILLES = 1 / 240
-REBOND_BORD = 0.74
-REBOND_BILLE = 0.70
-FROTTEMENT = 0.9997
+REBOND_BORD = 0.94
+REBOND_BILLE = 0.92
+FROTTEMENT = 0.99985
 CASE = 44
+#  La balle principale pèse quarante billes : chaque contact projette la bille
+#  et ne dévie la balle qu'un peu. Sans ce rapport, elle serait ballottée par le
+#  nuage, n'atteindrait plus le bord, et la musique s'arrêterait.
+MASSE_BALLE = 40.0
 
 #  La musique. Les demi-tons sont comptés depuis un la à 220 Hz : 0 = la,
 #  3 = do, 7 = mi, 12 = le la du dessus.
@@ -132,9 +152,10 @@ def simuler():
     rng = np.random.default_rng(4)
     bx, by = CX, CY - R * 0.45
     vx, vy = np.cos(0.6) * V0, np.sin(0.6) * V0
+    r_balle = R0
     h_balle = 150.0
     t = 0.0
-    eclats = []                     # dictionnaires : x, y, vx, vy, r, h, dort
+    eclats = []                     # dictionnaires : x, y, vx, vy, r, h, l
     images, rebonds, eclatements = [], [], []
     note = 0
     prochaine = 0.0
@@ -151,47 +172,64 @@ def simuler():
                 return True
         return False
 
+    def eclater(x, y):
+        """Éclate la balle et en relance une neuve, plus petite et d'une autre
+        teinte. Renvoie le nouvel état (bx, by, vx, vy, r, teinte)."""
+        nonlocal eclats
+        eclatements.append((t, x, y, h_balle, r_balle))
+        for _ in range(N_ECLATS):
+            a = rng.uniform(0, TAU)
+            v = rng.uniform(260, 1160)
+            eclats.append({
+                #  Elles partent de la surface de la balle, pas de son centre :
+                #  sur une balle devenue large, un jet issu d'un point serait
+                #  un artifice visible.
+                "x": x + np.cos(a) * r_balle * 0.85,
+                "y": y + np.sin(a) * r_balle * 0.85,
+                "vx": np.cos(a) * v, "vy": np.sin(a) * v,
+                "r": rng.uniform(5, 12),
+                #  Chaque bille garde la teinte de la balle éclatée. Seule la
+                #  clarté varie un peu, sinon le nuage serait un aplat.
+                "h": h_balle, "l": rng.uniform(0.48, 0.74)})
+        if len(eclats) > MAX_ECLATS:
+            eclats = eclats[-MAX_ECLATS:]
+        a = rng.uniform(0, TAU)
+        return (CX, CY - R * 0.45, np.cos(a) * V0, np.sin(a) * V0,
+                R0, (h_balle + 47) % 360)
+
     while t < DUREE:
         # --- la balle ---------------------------------------------------
-        vy += G * DT
         bx += vx * DT
         by += vy * DT
         t += DT
 
         dx, dy = bx - CX, by - CY
         d = np.sqrt(dx * dx + dy * dy)
-        if d > R - R_BALLE:
+        if d > R - r_balle:
             nx, ny = dx / d, dy / d
             angle = np.arctan2(-ny, nx)
             if sur_pointe(angle):
-                eclatements.append((t, bx, by, h_balle))
-                for _ in range(N_ECLATS):
-                    a = rng.uniform(0, TAU)
-                    v = rng.uniform(250, 1150)
-                    eclats.append({"x": bx, "y": by,
-                                   "vx": np.cos(a) * v, "vy": np.sin(a) * v,
-                                   "r": rng.uniform(5, 12),
-                                   "h": (h_balle + rng.uniform(-80, 80)) % 360})
-                if len(eclats) > MAX_ECLATS:
-                    eclats = eclats[-MAX_ECLATS:]
-                h_balle = (h_balle + 47) % 360
-                bx, by = CX, CY - R * 0.45
-                a = rng.uniform(0, TAU)
-                vx, vy = np.cos(a) * V0, np.sin(a) * V0
+                bx, by, vx, vy, r_balle, h_balle = eclater(bx, by)
             else:
-                bx, by = CX + nx * (R - R_BALLE), CY + ny * (R - R_BALLE)
+                #  On grossit d'abord, on repositionne ensuite : replacée à
+                #  l'ancien rayon puis grossie, la balle mordrait encore le bord
+                #  et déclencherait un second rebond au pas suivant.
+                r_balle += PAS_RAYON
+                bx, by = CX + nx * (R - r_balle), CY + ny * (R - r_balle)
                 p = 2 * (vx * nx + vy * ny)
                 vx -= p * nx
                 vy -= p * ny
-                #  Vitesse maintenue : sans cela la balle se traîne au fond et
-                #  la mélodie s'éteint avec elle.
+                #  Vitesse maintenue : sans cela la balle se traîne et la
+                #  mélodie s'éteint avec elle.
                 s = np.sqrt(vx * vx + vy * vy)
                 vx *= V0 / s
                 vy *= V0 / s
                 #  On garde le rang de la note, pas sa hauteur : c'est la
                 #  bande son qui traduit ce rang en accord.
-                rebonds.append((t, bx, by, note, np.degrees(angle) % 360))
+                rebonds.append((t, bx, by, note, np.degrees(angle) % 360, r_balle))
                 note += 1
+                if r_balle >= R_MAX:
+                    bx, by, vx, vy, r_balle, h_balle = eclater(bx, by)
 
         # --- les billes -------------------------------------------------
         reste_billes += DT
@@ -200,7 +238,6 @@ def simuler():
             h = DT_BILLES
             cases = {}
             for i, e in enumerate(eclats):
-                e["vy"] += G * h
                 e["vx"] *= FROTTEMENT
                 e["vy"] *= FROTTEMENT
                 e["x"] += e["vx"] * h
@@ -243,8 +280,34 @@ def simuler():
                             a["vx"] -= j * nx; a["vy"] -= j * ny
                             b["vx"] += j * nx; b["vy"] += j * ny
 
-            #  Une bille poussée par ses voisines peut passer le bord : on la
-            #  ramène dedans en fin de pas, et on annule sa vitesse sortante.
+            #  Contact avec la balle principale. Même échange qu'entre billes,
+            #  mais avec un rapport de masse : la bille part, la balle n'est
+            #  que déviée. Sa vitesse est ensuite ramenée à V0, seule sa
+            #  direction retient le choc.
+            for e in eclats:
+                dx2, dy2 = e["x"] - bx, e["y"] - by
+                dd = np.sqrt(dx2 * dx2 + dy2 * dy2)
+                mini = r_balle + e["r"]
+                if dd >= mini or dd < 1e-9:
+                    continue
+                nx, ny = dx2 / dd, dy2 / dd
+                e["x"], e["y"] = bx + nx * mini, by + ny * mini
+                vn = (e["vx"] - vx) * nx + (e["vy"] - vy) * ny
+                if vn > 0:
+                    continue
+                j = -(1 + REBOND_BILLE) * vn / (1 + 1 / MASSE_BALLE)
+                e["vx"] += j * nx
+                e["vy"] += j * ny
+                vx -= j * nx / MASSE_BALLE
+                vy -= j * ny / MASSE_BALLE
+            s = np.sqrt(vx * vx + vy * vy)
+            if s > 1e-9:
+                vx *= V0 / s
+                vy *= V0 / s
+
+            #  Une bille poussée par ses voisines ou par la balle peut passer le
+            #  bord : on la ramène dedans en fin de pas, et on annule sa vitesse
+            #  sortante.
             for e in eclats:
                 ex, ey = e["x"] - CX, e["y"] - CY
                 de = np.sqrt(ex * ex + ey * ey)
@@ -258,9 +321,9 @@ def simuler():
 
         # --- instantané -------------------------------------------------
         if t >= prochaine:
-            billes = np.array([[e["x"], e["y"], e["r"], e["h"]] for e in eclats],
-                              dtype=float).reshape(-1, 4)
-            images.append(((bx, by), h_balle, ROTATION * t, billes))
+            billes = np.array([[e["x"], e["y"], e["r"], e["h"], e["l"]]
+                               for e in eclats], dtype=float).reshape(-1, 5)
+            images.append(((bx, by), r_balle, h_balle, ROTATION * t, billes))
             prochaine += 1 / FPS_ECH
 
     return images, rebonds, eclatements
@@ -283,7 +346,7 @@ def disques(billes):
     if n == 0:
         return np.zeros((0, 3))
     pts = np.empty((16 * n, 3))
-    for i, (x, y, r, _) in enumerate(billes):
+    for i, (x, y, r, _, _) in enumerate(billes):
         c = vers_scene(x, y)
         rr = r * ECHELLE
         k = K_ARC * rr
@@ -324,7 +387,7 @@ class BalleEtPointes(Scene):
                     stroke_width=0) for _ in range(N_POINTES)])
 
         def maj_pointes(g):
-            base = instantane(t.get_value())[2]
+            base = instantane(t.get_value())[3]
             for i, tri in enumerate(g):
                 a = base + i * TAU / N_POINTES
                 def p(ang, ray):
@@ -336,35 +399,48 @@ class BalleEtPointes(Scene):
         pointes.add_updater(maj_pointes)
 
         # --- les billes, groupées par teinte --------------------------------
+        #  Un seul objet par (teinte, bande de clarté) : Manim ne sait remplir
+        #  un VMobject que d'une couleur, et les billes d'un même éclatement
+        #  partagent exactement la teinte de la balle qui les a produites.
+        #  Les grouper par tranche de 60° comme avant fondrait deux
+        #  éclatements voisins dans une seule couleur — précisément ce que
+        #  l'animation doit montrer.
         seaux = VGroup(*[VMobject(stroke_width=0, fill_opacity=1)
                          for _ in range(SEAUX)])
 
         def maj_seaux(g):
-            billes = instantane(t.get_value())[3]
+            billes = instantane(t.get_value())[4]
+            lots = []
+            if len(billes):
+                for h in np.unique(billes[:, 3]):
+                    meme = billes[:, 3] == h
+                    for bas, haut in ((0.0, 0.61), (0.61, 1.01)):
+                        k = meme & (billes[:, 4] >= bas) & (billes[:, 4] < haut)
+                        if k.any():
+                            lots.append((billes[k], h, (bas + haut) / 2))
             for i, seau in enumerate(g):
-                if len(billes):
-                    k = (billes[:, 3] // (360 / SEAUX)).astype(int) % SEAUX == i
-                    lot = billes[k]
+                if i < len(lots):
+                    lot, h, l = lots[i]
+                    seau.set_points(disques(lot))
+                    seau.set_fill(teinte(h, min(0.74, l)), opacity=1)
                 else:
-                    lot = billes
-                seau.set_points(disques(lot))
-                seau.set_fill(teinte((i + 0.5) * 360 / SEAUX, 0.56), opacity=1)
+                    seau.set_points(np.zeros((0, 3)))
 
         seaux.add_updater(maj_seaux)
 
         # --- ondes de contact ------------------------------------------------
         ondes = VGroup()
-        for instant, x, y, _, ang in REBONDS:
+        for instant, x, y, _, ang, r_choc in REBONDS:
             o = Circle(radius=1.0, stroke_width=5, fill_opacity=0)
             o.move_to(vers_scene(x, y))
 
-            def souffle(m, t0=instant, c=vers_scene(x, y), h=ang):
+            def souffle(m, t0=instant, c=vers_scene(x, y), h=ang, r0=r_choc):
                 age = t.get_value() - t0
                 if age < 0 or age > 0.45:
                     m.set_stroke(opacity=0)
                     return
                 v = 1 - age / 0.45
-                m.width = 2 * (R_BALLE + 700 * age) * ECHELLE
+                m.width = 2 * (r0 + 700 * age) * ECHELLE
                 m.move_to(c)
                 m.set_stroke(color=teinte(h, 0.66), opacity=0.5 * v,
                              width=2 + 6 * v)
@@ -372,29 +448,111 @@ class BalleEtPointes(Scene):
             o.add_updater(souffle)
             ondes.add(o)
 
-        # --- la balle --------------------------------------------------------
-        balle = Circle(radius=R_BALLE * ECHELLE, stroke_color="#FFFFFF",
+        # --- la balle et son habillage ---------------------------------------
+        #  « tension » va de 0 juste après un éclatement à 1 juste avant le
+        #  suivant. Halo, anneau et traînée s'y accrochent : plus la balle est
+        #  grosse, plus elle est prête à céder, et plus elle le montre.
+        def etat(u):
+            (bx, by), r, h, _, _ = instantane(u)
+            return bx, by, r, h, min(1.0, (r - R0) / (R_MAX - R0))
+
+        #  Traînée : un ruban qui s'affine vers l'arrière. Une suite de segments
+        #  d'opacité décroissante laisserait voir les raccords ; un polygone
+        #  unique, non.
+        MEMOIRE = 20            # instantanés conservés, soit un tiers de seconde
+        ruban = VMobject(stroke_width=0, fill_opacity=0.30)
+        coeur = VMobject(stroke_width=0, fill_opacity=0.45)
+
+        def maj_ruban(_):
+            u = t.get_value()
+            bx, by, r, h, _ = etat(u)
+            pts = []
+            for k in range(MEMOIRE, -1, -1):
+                v = u - k / FPS_ECH
+                if v < 0:
+                    continue
+                px, py, pr, _, _ = etat(v)
+                pts.append((px, py, pr))
+            #  Un éclatement remet la balle au centre : le saut de position
+            #  ferait traverser tout le cercle au ruban. On coupe dès qu'un
+            #  écart dépasse ce qu'un pas de temps permet.
+            garde = [pts[-1]]
+            for a, b in zip(pts[-1:0:-1], pts[-2::-1]):
+                if np.hypot(b[0] - a[0], b[1] - a[1]) > V0 / FPS_ECH * 2.5:
+                    break
+                garde.append(b)
+            garde.reverse()
+            n = len(garde)
+            for m, large, opac in ((ruban, 1.0, 0.30), (coeur, 0.42, 0.45)):
+                if n < 3:
+                    m.set_points(np.zeros((0, 3)))
+                    continue
+                gauche, droite = [], []
+                for i in range(n):
+                    px, py, pr = garde[i]
+                    #  Direction locale par différence centrée, sauf aux bouts.
+                    ax, ay, _ = garde[max(i - 1, 0)]
+                    bx2, by2, _ = garde[min(i + 1, n - 1)]
+                    dx, dy = bx2 - ax, by2 - ay
+                    d = np.hypot(dx, dy) or 1.0
+                    nx, ny = -dy / d, dx / d
+                    w = pr * large * (0.12 + 0.88 * i / (n - 1))
+                    gauche.append(vers_scene(px + nx * w, py + ny * w))
+                    droite.append(vers_scene(px - nx * w, py - ny * w))
+                m.set_points_as_corners(gauche + droite[::-1] + [gauche[0]])
+                m.set_fill(teinte(h, 0.64), opacity=opac)
+
+        ruban.add_updater(maj_ruban)
+
+        balle = Circle(radius=R0 * ECHELLE, stroke_color="#FFFFFF",
                        stroke_width=2, fill_opacity=1)
-        halo = VGroup(*[Circle(radius=R_BALLE * ECHELLE * f, stroke_width=0,
-                               fill_opacity=o) for f, o in ((1.7, 0.12), (2.4, 0.06))])
+        halo = VGroup(*[Circle(radius=R0 * ECHELLE, stroke_width=0,
+                               fill_opacity=1) for _ in range(3)])
+        #  Anneau de charge : la part du tour parcourue dit ce qu'il reste avant
+        #  l'éclatement. On voit venir, et c'est ce qui fait tenir jusqu'au bout.
+        anneau = Arc(radius=R0 * ECHELLE, start_angle=PI / 2, angle=0.01,
+                     stroke_color="#FFFFFF", stroke_width=4)
 
         def maj_balle(_):
-            (bx, by), h, _, _ = instantane(t.get_value())
+            bx, by, r, h, tension = etat(t.get_value())
             c = vers_scene(bx, by)
-            balle.move_to(c)
+            balle.set(width=2 * r * ECHELLE).move_to(c)
             balle.set_fill(teinte(h, 0.62))
-            for anneau in halo:
-                anneau.move_to(c)
-                anneau.set_fill(teinte(h, 0.62))
+            for anne, (f, o) in zip(halo, ((1.55, 0.16), (2.25, 0.09), (3.2, 0.05))):
+                anne.set(width=2 * r * f * ECHELLE).move_to(c)
+                anne.set_fill(teinte(h, 0.58),
+                              opacity=o * (0.45 + 0.85 * tension))
+            anneau.become(Arc(radius=(r + 15) * ECHELLE, start_angle=PI / 2,
+                              angle=-max(0.01, tension * TAU),
+                              stroke_color="#FFFFFF",
+                              stroke_width=3 + 5 * tension).move_to(c))
 
         balle.add_updater(maj_balle)
+
+        #  Éclair : une nappe blanche au moment de l'éclatement, qui s'efface
+        #  vite. C'est ce qui fait ressentir la rupture plutôt que la constater.
+        eclair = Rectangle(width=config.frame_width, height=config.frame_height,
+                           stroke_width=0, fill_color="#FFFFFF", fill_opacity=0)
+
+        def maj_eclair(m):
+            u = t.get_value()
+            v = 0.0
+            #  Court et sec : à 0,30 s l'éclair délavait une vingtaine d'images,
+            #  et tout le film paraissait voilé au hasard des captures.
+            for instant, *_ in ECLATEMENTS:
+                age = u - instant
+                if 0 <= age < 0.18:
+                    v = max(v, (1 - age / 0.18) ** 2)
+            m.set_fill(opacity=0.42 * v)
+
+        eclair.add_updater(maj_eclair)
 
         # --- textes -----------------------------------------------------------
         #  Deux lignes posées explicitement : une phrase longue laissée à
         #  scale_to_fit_width se replie toute seule, et mal alignée.
         titre = VGroup(*[
             Text(l, weight=BOLD, color="#F0F8FC").scale_to_fit_height(0.40)
-            for l in ("la balle survivra-t-elle", "aux pointes ?")
+            for l in ("elle grossit", "à chaque rebond")
         ]).arrange(DOWN, buff=0.16)
         titre.move_to(vers_scene(CX, 250))
 
@@ -416,7 +574,16 @@ class BalleEtPointes(Scene):
 
         compte.add_updater(maj_compte)
 
-        self.add(bord, pointes, seaux, ondes, halo, balle, titre, compte)
+        #  Le halo de la balle, sa traînée et les ondes débordent largement du
+        #  cercle, et une lueur qui bave hors du décor le défait. Manim n'a pas
+        #  de découpage : on pose par-dessus un anneau noir qui va du bord du
+        #  cercle jusqu'au-delà du cadre, puis on redessine le bord dessus.
+        masque = Annulus(inner_radius=R * ECHELLE, outer_radius=20,
+                         fill_color="#000000", fill_opacity=1, stroke_width=0)
+        masque.move_to(vers_scene(CX, CY))
+
+        self.add(seaux, ondes, ruban, coeur, halo, balle, anneau,
+                 masque, bord, pointes, eclair, titre, compte)
 
         if AVEC_SON:
             self.add_sound(generer_bande_son())
@@ -480,7 +647,7 @@ def generer_bande_son(chemin="rebonds.wav", sr=44100):
             s += np.sin(TAU * f * tt + k) + 0.7 * np.sin(TAU * f * 1.003 * tt)
         return force * env * s / len(triade)
 
-    for instant, x, _, i_note, _ in REBONDS:
+    for instant, x, _, i_note, _, _ in REBONDS:
         pan = (x - CX) / R
         basse_demi, demi, triade = accord_de(i_note)
         poser(instant, cloche(demi), pan)
@@ -490,7 +657,7 @@ def generer_bande_son(chemin="rebonds.wav", sr=44100):
 
     #  L'éclatement doit s'entendre comme un accident, mais rester dans le ton :
     #  on prend la triade en cours, montée de deux octaves, plus un souffle.
-    for instant, x, _, _ in ECLATEMENTS:
+    for instant, x, _, _, _ in ECLATEMENTS:
         pan = (x - CX) / R
         rang = sum(1 for r in REBONDS if r[0] <= instant)
         _, _, triade = accord_de(rang)
