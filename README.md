@@ -14,6 +14,7 @@ En ligne : <https://sebistarrr.github.io/balle/>
 | 04 | La balle qui grossit | [`4-balle-qui-grossit/`](4-balle-qui-grossit/) | `growing_ball.py` |
 | 05 | Plus grosse à chaque rebond | [`5-plus-grosse-a-chaque-rebond/`](5-plus-grosse-a-chaque-rebond/) | `growing_bounce.py` |
 | 06 | Rayons de rebond | [`6-rayons-de-rebond/`](6-rayons-de-rebond/) | `bounce_rays.py` |
+| 07 | Résonance *(film)* | [`7-resonance/`](7-resonance/) | `resonance.py` |
 
 `index.html` à la racine est la page d'accueil : la liste des titres, qui sert
 de menu.
@@ -79,6 +80,22 @@ L'éventail balaie l'espace à mesure qu'elle se déplace, et les traits sont
 rigoureusement droits. C'est ce tracé-là, et non la trajectoire, qui donne
 l'aspect en rayons de l'animation d'origine.
 
+**07 — Résonance.** Celle-ci n'est pas une page interactive mais un **film de
+10 s au format vertical**, rendu par Manim et destiné à être publié tel quel.
+Sur un cercle de 240 points, on relie le point *k* au point *m·k* ; le
+multiplicateur monte de 2 à 10 par paliers rythmés, traversant la cardioïde
+(m = 2), la néphroïde (m = 3), puis des rosaces de plus en plus fines.
+
+Trois temps : une détonation qui déploie le cercle, huit paliers scandés par
+des ondes de choc, un effondrement vers le centre. Faute de flou dans Manim,
+la lueur est obtenue en superposant le même tracé en trois épaisseurs, aux
+teintes légèrement décalées.
+
+Tout boucle exactement : la teinte fait deux tours entiers du spectre, les
+poussières de fond dérivent sur des périodes entières, et la dernière image est
+au pixel près la première. La bande son est synthétisée par le script — coup
+grave et note montante à chaque palier, montée de bruit sur la fin.
+
 Toutes ont un son facultatif : une note par impact, pentatonique mineure, grave
 pour les éléments lents ou gros.
 
@@ -93,15 +110,16 @@ manim -r 1080,1080 --fps 60 3-billard-en-boucle/billiard_loop.py BilliardLoop
 manim -r 1080,1080 --fps 60 4-balle-qui-grossit/growing_ball.py GrowingBall
 manim -r 720,1244  --fps 60 5-plus-grosse-a-chaque-rebond/growing_bounce.py GrowingBounce
 manim -r 720,1244  --fps 60 6-rayons-de-rebond/bounce_rays.py BounceRays
+manim -r 1080,1920 --fps 60 7-resonance/resonance.py Resonance
 ```
 
 Garder le format indiqué : 9:16 pour les deux premières, carré pour les 03 et
-04, 720:1244 pour les 05 et 06. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
+04, 720:1244 pour les 05 et 06, 9:16 pour la 07. Les réglages sont en tête de chaque script — durée, vitesse, `AVEC_SON`
 pour la bande son, et pour la 01 `FORME` (`"triangle"` comme la vidéo d'origine,
 ou `"sinus"` pour un mouvement physiquement correct).
 
 Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (le
-compteur de la 04, les légendes des 05 et 06) passent par Pango.
+compteur de la 04, les légendes des 05 à 07) passent par Pango.
 
 ## Voir en local
 
