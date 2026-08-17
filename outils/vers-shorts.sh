@@ -64,4 +64,15 @@ convertir 2-billard-en-boucle           BilliardLoop         24.5
 convertir 3-balle-qui-grossit           GrowingBall          23.7
 convertir 4-rayons-de-rebond            BounceRays           55.7
 convertir 5-balle-et-pointes            BalleEtPointes       30.0
+#            les duels
+convertir 6-cinq-vies                   CinqVies             24.5
+convertir 7-course-en-spirale           CourseSpirale        14.5
+convertir 8-sol-qui-s-effrite           SolEffrite           23.2
+convertir 9-grand-plongeon              GrandPlongeon        17.3
+convertir 10-guerre-de-territoire       GuerreTerritoire     21.4
+convertir 11-pointes-qui-poussent       PointesPoussent      17.3
+convertir 12-sumo                       Sumo                 21.1
+convertir 13-les-portes                 LesPortes            25.1
+convertir 14-le-dernier-debout          DernierDebout        25.3
+convertir 15-le-mur-qui-pousse          MurQuiPousse         24.4
 echo "Terminé."

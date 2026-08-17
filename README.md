@@ -1,8 +1,8 @@
 # Animations
 
-Des mouvements réglés pour se resynchroniser exactement : au bout d'un cycle,
-chaque figure retrouve sa position de départ. Aucune bibliothèque, tout est
-calculé image par image sur un `<canvas>`.
+Deux familles : des figures réglées pour se refermer exactement, et des duels
+dont on ne connaît l'issue qu'à la fin. Aucune bibliothèque, tout est calculé
+image par image sur un `<canvas>`.
 
 En ligne : <https://sebistarrr.github.io/balle/>
 
@@ -13,6 +13,22 @@ En ligne : <https://sebistarrr.github.io/balle/>
 | 03 | La balle qui grossit | [`3-balle-qui-grossit/`](3-balle-qui-grossit/) | `growing_ball.py` |
 | 04 | Rayons de rebond | [`4-rayons-de-rebond/`](4-rayons-de-rebond/) | `bounce_rays.py` |
 | 05 | La balle et les pointes | [`5-balle-et-pointes/`](5-balle-et-pointes/) | `balle_et_pointes.py` |
+
+Et dix **duels**, où deux concurrentes au moins s'affrontent et où l'on ne
+connaît l'issue qu'à la fin :
+
+| | Duel | Dossier | Script Manim |
+|---|---|---|---|
+| 06 | Cinq vies | [`6-cinq-vies/`](6-cinq-vies/) | `cinq_vies.py` |
+| 07 | Course en spirale | [`7-course-en-spirale/`](7-course-en-spirale/) | `course_spirale.py` |
+| 08 | Le sol qui s'effrite | [`8-sol-qui-s-effrite/`](8-sol-qui-s-effrite/) | `sol_effrite.py` |
+| 09 | Le grand plongeon | [`9-grand-plongeon/`](9-grand-plongeon/) | `grand_plongeon.py` |
+| 10 | Guerre de territoire | [`10-guerre-de-territoire/`](10-guerre-de-territoire/) | `guerre_territoire.py` |
+| 11 | Les pointes qui poussent | [`11-pointes-qui-poussent/`](11-pointes-qui-poussent/) | `pointes_poussent.py` |
+| 12 | Sumo | [`12-sumo/`](12-sumo/) | `sumo.py` |
+| 13 | Les portes | [`13-les-portes/`](13-les-portes/) | `les_portes.py` |
+| 14 | Le dernier debout | [`14-le-dernier-debout/`](14-le-dernier-debout/) | `dernier_debout.py` |
+| 15 | Le mur qui pousse | [`15-le-mur-qui-pousse/`](15-le-mur-qui-pousse/) | `mur_qui_pousse.py` |
 
 `index.html` à la racine est la page d'accueil : la liste des titres, qui sert
 de menu.
@@ -138,6 +154,130 @@ non plus par tranche de 60° : les billes d'un même éclatement partageant
 précisément la couleur de la balle qui les a produites, une tranche large
 fondrait deux éclatements voisins dans une seule couleur — exactement ce que
 l'animation doit montrer.
+
+## Les duels
+
+Même règle pour les dix : au moins deux concurrentes, une seule à l'arrivée, et
+l'issue doit rester indécise le plus longtemps possible. Trois principes s'en
+déduisent, et ils ont dicté à peu près tous les réglages.
+
+1. **L'enjeu est lisible dès la première image.** Une accroche en haut pose la
+   question, et un tableau de bord donne l'état de chaque concurrente — vies,
+   avance, terrain, marge. Sans lui il n'y a rien à deviner, donc rien à
+   regarder.
+2. **L'écart se voit à tout instant**, et il est fait de la même matière que le
+   jeu : la jauge de la 15 *est* la position du mur, les pastilles de la 14
+   *sont* les tailles réelles des balles.
+3. **Ça s'emballe.** Chaque duel a une escalade qui garantit une fin — pointes
+   qui s'élargissent, gravité qui monte, marée qui ronge le camp en retard.
+
+Un mot sur la méthode : chaque duel a été passé au banc d'essai avant d'être
+gardé — trente parties simulées à toute vitesse, sans affichage, pour vérifier
+deux choses. Que les deux camps gagnent à peu près autant, et que la durée
+tombe dans la bonne fourchette. Cinq des dix ont dû être repensés à cause de ce
+banc, et c'est ce qui suit.
+
+**06 — Cinq vies.** Deux balles, six pointes tournant en sens contraires, cinq
+vies chacune. Les pointes s'élargissent d'un cran toutes les six secondes.
+
+Le départ est **tiré au sort**. Avec des positions fixes, tout ce qui précède la
+première perte de vie est déterminé d'avance : c'est toujours la même balle qui
+encaisse en premier, et elle court après son retard tout le reste du duel —
+mesuré, cinq victoires sur cinq pour la même couleur. Après correction :
+19 – 21 sur quarante duels, durée médiane 23 s.
+
+**07 — Course en spirale.** La gravité est dirigée **vers le centre**, comme dans
+un entonnoir à pièces. Sous une gravité verticale, un toboggan en spirale monte
+autant qu'il descend et la balle oscille au fond du premier creux venu.
+
+Deux pièges y sont tombés l'un après l'autre. D'abord la réaction des parois,
+prise **radialement** : à 5° près ce n'est pas la normale à la spirale, et
+l'erreur annule à chaque pas la composante par laquelle la balle glisse vers
+l'intérieur — c'est-à-dire exactement le travail moteur de la gravité. Mesuré :
+250 px/s au départ, 3 px/s après vingt secondes, aucune arrivée sur trente
+essais. Ensuite le **couloir partagé** : trop étroit pour doubler, celle qui part
+devant gagne les trente courses. D'où deux couloirs entrelacés, comme les deux
+départs d'une vis à double filet — la même piste à un demi-tour près, donc de
+même longueur exactement. 14 – 16 sur trente, 10 à 12 s.
+
+**08 — Le sol qui s'effrite.** Seize dalles, trois coups chacune, et le vide en
+dessous. Le rebond sur une dalle est **parfaitement élastique** : la balle
+remonte toujours à la même hauteur, la cadence des coups reste régulière, et le
+duel ne s'éteint pas de lui-même. Ce qui le termine, c'est le sol. Le tableau du
+haut ne compte pas les dalles restantes mais l'état de celle qu'a chaque balle
+*sous les pieds* : c'est là qu'est le danger. 17 – 13 sur trente, médiane 19 s.
+
+**09 — Le grand plongeon.** Champ de clous en quinconce, première au fond.
+Chaque ligne est **symétrique par rapport à l'axe** du puits : neuf clous sur les
+lignes paires, huit sur les impaires. Décaler simplement d'un demi-pas en
+gardant neuf clous fait sortir le dernier du cadre, la ligne penche à gauche, et
+le puits favorise un côté — mesuré, 21 victoires sur 30 pour la balle de droite.
+Gravité faible et clous très élastiques, sinon la descente se règle en trois
+secondes. 19 – 21 sur quarante, 6 à 15 s.
+
+**10 — Guerre de territoire.** Chaque balle repeint le camp adverse, case par
+case. Trois corrections, chacune tirée d'une mesure :
+
+- Les balles ne changeaient que le **signe** de leurs composantes : leur
+  direction restait coincée sur quatre valeurs, elles parcouraient un damier
+  fixe, et les dernières cases d'un coin n'étaient jamais atteintes. D'où une
+  petite déviation tirée au sort à chaque case prise.
+- Et aussi **sur les murs** : une balle rentrée dans son propre camp n'y trouve
+  plus rien à conquérir, donc plus rien qui la dévie, et repart sur un circuit
+  fermé. Les parties se figeaient à 276 cases contre 204.
+- Même avec cela, la partie ne se décide jamais : les deux camps s'équilibrent
+  autour de 50 % et y restent — aucune partie tranchée en sept minutes de
+  simulation. D'où la **marée** : passé douze secondes, le camp en retard perd du
+  terrain tout seul, de plus en plus vite. Un équilibre sans fin devient un
+  compte à rebours. 18 – 12 sur trente, 15 à 20 s.
+
+**11 — Les pointes qui poussent.** Sept pointes qui s'allongent vers le centre,
+trois vies chacune. Sept pointes de 3,2° couvrent 12 % du bord ; à dix-huit
+pointes de 5,2°, elles en couvraient **52 %**, et la balle mourait au premier ou
+au deuxième rebond — les trente duels réglés en moins de deux secondes. La
+couronne tourne pendant qu'elle pousse, ce qui déplace les intervalles sûrs.
+16 – 14 sur trente, médiane 11 s.
+
+**12 — Sumo.** Une plateforme, pas de mur, une cuvette harmonique qui ramène les
+balles vers le centre. Deux corrections :
+
+- Les deux balles étaient lancées **dans le même sens** ; diamétralement
+  opposées, la symétrie centrale les maintenait éternellement aux antipodes
+  l'une de l'autre. Aucun choc n'avait lieu de tout le duel, et c'est l'anneau
+  qui tranchait à heure fixe — trente duels réglés entre 34 et 41 secondes.
+  Elles tournent maintenant en sens contraires et se croisent deux fois par tour.
+- La restitution des chocs est **supérieure à 1** : chaque contact ajoute de
+  l'élan, comme deux lutteurs qui se poussent. À restitution 1 l'énergie totale
+  ne bouge pas, les orbites restent sages, et rien n'éjecte jamais personne.
+  15 – 9 sur vingt-quatre, 4 à 18 s.
+
+**13 — Les portes.** Deux puits, des portes qui montent, chacune donne ou retire
+une vie. Ce ne sont pas les balles qui tombent, c'est le décor qui monte : elles
+restent à hauteur fixe, ce qui tient le regard au même endroit et permet de
+garnir le haut du puits sans jamais bouger la caméra. Chaque puits a son propre
+chapelet de portes — avec le même, les deux balles subiraient exactement le même
+sort. 15 – 15 sur trente, médiane 23 s.
+
+**14 — Le dernier debout.** Huit balles, et à chaque contact la plus grosse
+arrache un morceau de la plus petite. À taille égale un choc ne transfère rien :
+c'est ce qui rend les premières secondes indécises, avant que les écarts ne
+s'amplifient d'eux-mêmes. Une part du transfert se perd au passage, sinon les
+tailles s'envolent. Huit jauges seraient illisibles : la rangée du haut montre
+les huit **tailles réelles**, et c'est le classement en direct. Les huit balles
+gagnent au moins une fois sur vingt-quatre parties, médiane 24 s.
+
+**15 — Le mur qui pousse.** Deux chambres, un mur mobile, et chaque coup le
+pousse vers l'adversaire. C'est le duel qui a demandé le plus de tâtonnements.
+
+Sans lien entre la poussée et la largeur, il ne finit jamais : la balle enfermée
+dans la chambre étroite revient plus souvent au mur, puisqu'elle a moins de
+chemin à faire, et rend exactement les coups qu'elle prend. Médiane mesurée :
+quatre minutes. Une poussée **proportionnelle** à la largeur ne change rien non
+plus — la fréquence des coups variant comme l'inverse de la largeur, le produit
+est constant et les deux camps se compensent toujours. Il faut un exposant
+supérieur à un : c'est le **cube** de la largeur qui est retenu, et un étau qui
+se referme après seize secondes pour les parties encore serrées. 13 – 17 sur
+trente, médiane 26 s.
 
 Toutes ont un son facultatif : une note par impact, grave pour les éléments
 lents ou gros. Les quatre premières jouent une gamme pentatonique mineure ; la
