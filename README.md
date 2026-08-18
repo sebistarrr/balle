@@ -30,11 +30,13 @@ connaît l'issue qu'à la fin :
 | 14 | Le dernier debout | [`14-le-dernier-debout/`](14-le-dernier-debout/) | `dernier_debout.py` |
 | 15 | Le mur qui pousse | [`15-le-mur-qui-pousse/`](15-le-mur-qui-pousse/) | `mur_qui_pousse.py` |
 
-Et une **course à cinq**, sur un parcours d'obstacles plus long que l'écran :
+Et deux **courses à cinq**, sur des parcours d'obstacles plus longs que
+l'écran :
 
 | | Animation | Dossier | Script Manim |
 |---|---|---|---|
 | 17 | Le parcours | [`17-le-parcours/`](17-le-parcours/) | `parcours.py` |
+| 18 | Les deux épreuves | [`18-les-deux-epreuves/`](18-les-deux-epreuves/) | `deux_epreuves.py` |
 
 Et une **évasion**, seule de son espèce — c'est aussi la seule dont la vidéo
 n'est pas rendue par Manim, pour une raison mesurée plus bas :
@@ -292,7 +294,7 @@ supérieur à un : c'est le **cube** de la largeur qui est retenu, et un étau q
 se referme après seize secondes pour les parties encore serrées. 13 – 17 sur
 trente, médiane 26 s.
 
-## La course
+## Les courses
 
 **17 — Le parcours.** Reprise de la 09, mais à cinq balles et sur un vrai
 parcours : **sept mille six cents pixels**, huit fois la hauteur de l'écran, que
@@ -326,6 +328,51 @@ Deux réglages tirés des captures de contrôle :
 
 Le tableau du haut n'est pas une liste de jauges mais **le classement lui-même** :
 les lignes s'y échangent en direct, et il suffit de regarder l'ordre.
+
+**18 — Les deux épreuves.** Même principe, mais réglé pour une arrivée serrée.
+Le problème est là dès l'énoncé : **un parcours ordinaire étale le peloton**.
+Chaque obstacle ajoute du hasard, les écarts s'additionnent, et à la fin la
+première a deux écrans d'avance. Pour une course serrée il faut des obstacles
+qui *rassemblent* — donc qui **font attendre les premiers arrivés**. Il y en a
+deux, et le second donne directement sur la ligne droite finale.
+
+**La herse** barre toute la largeur : une seule fenêtre, qui va et vient. Les
+battants descendent vers cette fenêtre, et cette pente n'est pas décorative :
+sur une barre horizontale une balle se pose et n'en repart plus — rien ne la
+déséquilibre. Pire, l'entraînement latéral de la barre la déplace *avec* la
+fenêtre, si bien qu'elle ne la rencontre jamais. Mesuré sur douze courses avant
+correction : cinquante-huit blocages sur la herse, contre une poignée partout
+ailleurs. Avec la pente, une balle posée roule vers l'ouverture et finit par
+tomber.
+
+**Le sas** est un entonnoir fermé par une trappe. Première version, une trappe à
+cycle fixe — 3,6 s, ouverte 0,85 s. Elle ne rassemble rien : elle **découpe le
+temps en tranches**. Les instants de passage mesurés se rangent sur la grille
+17,9 / 21,1 / 24,7 / 28,3, et deux balles séparées d'une seconde repartent
+souvent à une tranche entière d'écart. L'écart au sas valait 3,5 s — exactement
+la période. La trappe **attend donc le peloton au lieu de compter** : elle
+s'ouvre dès que quatre balles patientent dessus, ou au bout de neuf secondes si
+elles ne viennent pas. Écart au sas après correction : **0,3 s**. Une seule
+ouverture par course, cinq secondes d'attente en médiane — et c'est le meilleur
+moment du film, tout le monde entassé derrière une trappe qui verdit.
+
+**Toute fente plus étroite qu'une balle est un piège.** C'est la troisième leçon,
+et la plus coûteuse : une course sur vingt-quatre durait **833 secondes**. Les
+positions d'arrêt relevées étaient toujours les mêmes — x = 986, soit la paroi
+moins un rayon, au contact du dernier clou de la rangée. Entre ce clou et la
+paroi il restait 39 px pour une balle qui en fait 48 : elle s'y coinçait, à
+l'arrêt, définitivement. Les rangées se construisent donc sous contrainte — jeu
+minimal de trois rayons partout, et les clous des rangées paires plantés *sur*
+les parois pour qu'il n'y subsiste aucune fente. Un garde-fou secoue en dernier
+recours une balle qui n'avance plus, avec plus de patience devant la herse et le
+sas où l'attente fait partie du jeu.
+
+Mesuré sur quarante courses après ces trois corrections : durées 27 à 45 s,
+médiane 31 s, les cinq balles gagnent entre 5 et 13 fois, et **l'écart entre la
+première et la deuxième est inférieur à une seconde une fois sur deux**. Le
+chiffre affiché sous le classement est l'écart au sein du trio de tête — pas des
+cinq, car la course s'arrête à la troisième arrivée et une traînarde à
+mi-parcours ne dit rien de ce qui se joue devant.
 
 ## La prison, et le choix de la bibliothèque
 
@@ -419,6 +466,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 15 | Le mur qui pousse | 24 s | 1,3 Mo |
 | 16 | La prison | 39 s | 7,4 Mo |
 | 17 | Le parcours | 38 s | 4,7 Mo |
+| 18 | Les deux épreuves | 33 s | 4,4 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
 l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
@@ -456,14 +504,16 @@ manim -r 1080,1920 --fps 60 13-les-portes/les_portes.py LesPortes
 manim -r 1080,1920 --fps 60 14-le-dernier-debout/dernier_debout.py DernierDebout
 manim -r 1080,1920 --fps 60 15-le-mur-qui-pousse/mur_qui_pousse.py MurQuiPousse
 manim -r 1080,1920 --fps 60 17-le-parcours/parcours.py LeParcours
+manim -r 1080,1920 --fps 60 18-les-deux-epreuves/deux_epreuves.py DeuxEpreuves
 ```
 
-Les dix duels sont tous en 9:16. Chacun accepte `--graines`, qui simule une
-série de tirages et affiche pour chacun la durée et le vainqueur : de quoi
-choisir un autre duel que celui retenu, sans toucher au reste.
+Les dix duels et les deux courses sont tous en 9:16. Chacun accepte
+`--graines`, qui simule une série de tirages et affiche pour chacun la durée et
+le vainqueur : de quoi choisir un autre duel que celui retenu, sans toucher au
+reste.
 
 Garder le format indiqué : carré pour les 02 et 03, 720:1244 pour la 04, 9:16
-pour la 01, la 05 et les dix duels. Les réglages sont en tête de chaque script — durée, vitesse,
+pour la 01, la 05, les dix duels et les deux courses. Les réglages sont en tête de chaque script — durée, vitesse,
 `AVEC_SON` pour la bande son, et pour la 01 `FORME` (`"triangle"` comme la vidéo
 d'origine, ou `"sinus"` pour un mouvement physiquement correct).
 

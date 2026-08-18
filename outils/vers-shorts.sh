@@ -75,6 +75,7 @@ convertir 12-sumo                       Sumo                 21.1
 convertir 13-les-portes                 LesPortes            25.1
 convertir 14-le-dernier-debout          DernierDebout        25.3
 convertir 15-le-mur-qui-pousse          MurQuiPousse         24.4
-#            la course à cinq
+#            les courses à cinq
 convertir 17-le-parcours                LeParcours           37.9
+convertir 18-les-deux-epreuves          DeuxEpreuves         33.4
 echo "Terminé."
