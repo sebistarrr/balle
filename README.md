@@ -14,7 +14,7 @@ En ligne : <https://sebistarrr.github.io/balle/>
 | 04 | Rayons de rebond | [`4-rayons-de-rebond/`](4-rayons-de-rebond/) | `bounce_rays.py` |
 | 05 | La balle et les pointes | [`5-balle-et-pointes/`](5-balle-et-pointes/) | `balle_et_pointes.py` |
 
-Et dix **duels**, où deux concurrentes au moins s'affrontent et où l'on ne
+Et neuf **duels**, où deux concurrentes au moins s'affrontent et où l'on ne
 connaît l'issue qu'à la fin :
 
 | | Duel | Dossier | Script Manim |
@@ -23,12 +23,18 @@ connaît l'issue qu'à la fin :
 | 07 | Course en spirale | [`7-course-en-spirale/`](7-course-en-spirale/) | `course_spirale.py` |
 | 08 | Le sol qui s'effrite | [`8-sol-qui-s-effrite/`](8-sol-qui-s-effrite/) | `sol_effrite.py` |
 | 09 | Le grand plongeon | [`9-grand-plongeon/`](9-grand-plongeon/) | `grand_plongeon.py` |
-| 10 | Guerre de territoire | [`10-guerre-de-territoire/`](10-guerre-de-territoire/) | `guerre_territoire.py` |
 | 11 | Les pointes qui poussent | [`11-pointes-qui-poussent/`](11-pointes-qui-poussent/) | `pointes_poussent.py` |
 | 12 | Sumo | [`12-sumo/`](12-sumo/) | `sumo.py` |
 | 13 | Les portes | [`13-les-portes/`](13-les-portes/) | `les_portes.py` |
 | 14 | Le dernier debout | [`14-le-dernier-debout/`](14-le-dernier-debout/) | `dernier_debout.py` |
 | 15 | Le mur qui pousse | [`15-le-mur-qui-pousse/`](15-le-mur-qui-pousse/) | `mur_qui_pousse.py` |
+
+Deux **conquêtes**, où le terrain lui-même est l'enjeu :
+
+| | Animation | Dossier | Script Manim |
+|---|---|---|---|
+| 10 | Guerre de territoire | [`10-guerre-de-territoire/`](10-guerre-de-territoire/) | `guerre_territoire.py` |
+| 19 | Quatre royaumes | [`19-quatre-royaumes/`](19-quatre-royaumes/) | `quatre_royaumes.py` |
 
 Et deux **courses à cinq**, sur des parcours d'obstacles plus longs que
 l'écran :
@@ -230,22 +236,6 @@ le puits favorise un côté — mesuré, 21 victoires sur 30 pour la balle de dr
 Gravité faible et clous très élastiques, sinon la descente se règle en trois
 secondes. 19 – 21 sur quarante, 6 à 15 s.
 
-**10 — Guerre de territoire.** Chaque balle repeint le camp adverse, case par
-case. Trois corrections, chacune tirée d'une mesure :
-
-- Les balles ne changeaient que le **signe** de leurs composantes : leur
-  direction restait coincée sur quatre valeurs, elles parcouraient un damier
-  fixe, et les dernières cases d'un coin n'étaient jamais atteintes. D'où une
-  petite déviation tirée au sort à chaque case prise.
-- Et aussi **sur les murs** : une balle rentrée dans son propre camp n'y trouve
-  plus rien à conquérir, donc plus rien qui la dévie, et repart sur un circuit
-  fermé. Les parties se figeaient à 276 cases contre 204.
-- Même avec cela, la partie ne se décide jamais : les deux camps s'équilibrent
-  autour de 50 % et y restent — aucune partie tranchée en sept minutes de
-  simulation. D'où la **marée** : passé douze secondes, le camp en retard perd du
-  terrain tout seul, de plus en plus vite. Un équilibre sans fin devient un
-  compte à rebours. 18 – 12 sur trente, 15 à 20 s.
-
 **11 — Les pointes qui poussent.** Sept pointes qui s'allongent vers le centre,
 trois vies chacune. Sept pointes de 3,2° couvrent 12 % du bord ; à dix-huit
 pointes de 5,2°, elles en couvraient **52 %**, et la balle mourait au premier ou
@@ -293,6 +283,64 @@ est constant et les deux camps se compensent toujours. Il faut un exposant
 supérieur à un : c'est le **cube** de la largeur qui est retenu, et un étau qui
 se referme après seize secondes pour les parties encore serrées. 13 – 17 sur
 trente, médiane 26 s.
+
+## Les conquêtes
+
+**10 — Guerre de territoire.** Chaque balle repeint le camp adverse, case par
+case. Trois corrections, chacune tirée d'une mesure :
+
+- Les balles ne changeaient que le **signe** de leurs composantes : leur
+  direction restait coincée sur quatre valeurs, elles parcouraient un damier
+  fixe, et les dernières cases d'un coin n'étaient jamais atteintes. D'où une
+  petite déviation tirée au sort à chaque case prise.
+- Et aussi **sur les murs** : une balle rentrée dans son propre camp n'y trouve
+  plus rien à conquérir, donc plus rien qui la dévie, et repart sur un circuit
+  fermé. Les parties se figeaient à 276 cases contre 204.
+- Même avec cela, la partie ne se décide jamais : les deux camps s'équilibrent
+  autour de 50 % et y restent — aucune partie tranchée en sept minutes de
+  simulation. D'où la **marée** : passé douze secondes, le camp en retard perd du
+  terrain tout seul, de plus en plus vite. Un équilibre sans fin devient un
+  compte à rebours. 18 – 12 sur trente, 15 à 20 s.
+
+**19 — Quatre royaumes.** Même mécanique, à quatre camps : le plateau est coupé
+en quatre quarts égaux, une balle par quart, et toute case qui n'est pas à elle
+change de camp au contact. Trois choses ont dû être ajoutées ou corrigées, et
+les trois viennent de mesures.
+
+**Toute dissymétrie de code devient une dissymétrie de jeu.** Sur un plateau
+parfaitement symétrique, deux biais d'implémentation se sont vus tout de suite
+dans les statistiques de victoire. Le premier : les balles étaient mises à jour
+dans l'ordre du tableau, or deux balles qui visent la même case au même instant,
+la première servie l'emporte — 12 victoires sur 30 pour le premier royaume
+contre 4 pour le troisième. L'ordre de passage est maintenant tiré au sort à
+chaque pas. Le second, plus discret : la balle sonde quatre points, et le rebond
+était appliqué sonde par sonde, si bien qu'une balle touchée des deux côtés
+repartait toujours dans la direction de la *dernière sonde testée* — onze
+victoires d'écart sur soixante parties. Les quatre sondes sont désormais
+dépouillées ensemble et les contributions opposées s'annulent : une balle
+coincée poursuit son chemin au lieu d'être expulsée vers un coin fixe. Après
+correction, 17 / 22 / 20 / 21 sur quatre-vingts parties.
+
+**Un contact, une case, c'est trop peu.** Avec la règle nue, la balle prend une
+case et repart aussitôt : mesuré sur une manche entière, les quatre camps
+restaient à 180 cases ± 5, les fronts ne bougeaient pas, et l'élimination du
+plus petit paraissait tirée au sort. Les voisines de la case touchée tombent
+donc avec elle. Le front avance pour de bon, en dents de scie, et l'on voit qui
+grignote qui : à la première chute, l'écart entre le plus gros et le plus petit
+royaume est de sept points en médiane.
+
+**Quatre camps s'équilibrent encore mieux que deux** — chacun perd d'un côté ce
+qu'il gagne de l'autre. La marée de la 10 est ici remplacée par des **manches**
+de plus en plus courtes, 10,5 s puis 8,5 s puis 7 s : à la fin de chacune, le
+plus petit royaume tombe. Ses cases ne passent pas d'un bloc au vainqueur, elles
+deviennent grises et sont reprises une à une en partant des bords — et rien
+n'empêche une autre balle de venir se servir avant. La partie dure 33,6 s, la
+même à chaque fois, ce qui est voulu : c'est un format court.
+
+**Le lever de rideau** est la seule partie du film qui ne soit pas de la
+physique. Deux secondes huit pour choisir une couleur — les quatre pastilles
+arrivent une à une —, puis un décompte 3, 2, 1, GO. Sans lui, le spectateur
+découvre les quatre camps alors que la partie est déjà jouée à un quart.
 
 ## Les courses
 
@@ -484,6 +532,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 15 | Le mur qui pousse | 24 s | 1,3 Mo |
 | 16 | La prison | 39 s | 7,4 Mo |
 | 17 | Le parcours | 38 s | 4,7 Mo |
+| 19 | Quatre royaumes | 37 s | 4,3 Mo |
 | 18 | Les deux épreuves | 38 s | 4,1 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
@@ -523,6 +572,7 @@ manim -r 1080,1920 --fps 60 14-le-dernier-debout/dernier_debout.py DernierDebout
 manim -r 1080,1920 --fps 60 15-le-mur-qui-pousse/mur_qui_pousse.py MurQuiPousse
 manim -r 1080,1920 --fps 60 17-le-parcours/parcours.py LeParcours
 manim -r 1080,1920 --fps 60 18-les-deux-epreuves/deux_epreuves.py DeuxEpreuves
+manim -r 1080,1920 --fps 60 19-quatre-royaumes/quatre_royaumes.py QuatreRoyaumes
 ```
 
 Les dix duels et les deux courses sont tous en 9:16. Chacun accepte
