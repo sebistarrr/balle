@@ -55,17 +55,19 @@
    <strong>sas</strong> attend le peloton — il ne s'ouvre que lorsque quatre
    balles patientent dessus, ou au bout de neuf secondes.</p>
 
-<p>Le sas donne sur la ligne droite finale, qui se termine par un
+<p>Le sas donne sur la ligne droite finale, où <strong>la pesanteur tombe à
+   42&nbsp;%</strong>&nbsp;: tout s'y joue au ralenti. Elle se termine par un
    <strong>goulet de cent quarante pixels</strong> — deux balles et demie de
-   large. C'est le dernier endroit où la course change de mains&nbsp;: quatre
-   balles y arrivent groupées, et il n'en passe qu'une à la fois. Sur trente
-   courses, l'écart entre la première et la deuxième est inférieur à sept
-   dixièmes de seconde une fois sur deux.</p>
+   large — le dernier endroit où la course change de mains&nbsp;: quatre balles
+   y arrivent groupées, et il n'en passe qu'une à la fois.</p>
 
-<p class="note">Le chiffre sous le classement donne l'écart au sein du trio de tête,
-   en pourcentage du parcours&nbsp;; il passe à l'or sous les dix pour cent. On
-   le voit fondre au sas — c'est la mesure de ce que ces obstacles servent à
-   faire.</p>
+<p>Sur quarante courses, cette dernière ligne droite dure dix secondes en
+   médiane, presque un tiers du film, et l'écart entre la première et la
+   deuxième à la ligne vaut deux cents pixels — quatre balles.</p>
+
+<p class="note">Il n'y a ni classement ni compteur&nbsp;: le pari est de désigner
+   une couleur avant le départ, et un tableau qui donne l'ordre à chaque instant
+   y répondrait à votre place.</p>
 
 <script>
 // ---------------------------------------------------------------------------
@@ -83,6 +85,10 @@
 //  relançait les balles à une tranche entière d'écart. Et les battants de la
 //  herse sont en pente : sur une barre horizontale une balle se pose et n'en
 //  repart jamais.
+//
+//  Sous le sas, la pesanteur tombe à 42 % : la dernière ligne droite se joue au
+//  ralenti, parce que c'est là que tout se décide et qu'il faut avoir le temps
+//  de le voir.
 //
 //  Page autonome : rien n'est partagé avec les autres animations.
 // ---------------------------------------------------------------------------
@@ -226,7 +232,7 @@ const FIN_ECRAN = 4.2;
 
 const CAM_ANCRE = 0.38;
 const CAM_SUIVI = 6.0;
-const VUE_HAUT = 258;             // le monde est découpé sous cette hauteur
+const VUE_HAUT = 215;             // le monde est découpé sous cette hauteur
 
 const JOUEURS = [
   { nom: 'ROUGE',  h: 354 },
@@ -277,6 +283,14 @@ const SAS_G = 400, SAS_D = 680;   // largeur de la trappe
 const SAS_QUORUM = 4;             // balles qui déclenchent l'ouverture
 const SAS_DELAI = 9;              // s d'attente maximale
 const SAS_OUVERT = 1.3;           // s d'ouverture
+
+//  3. Le ralenti. Sous le sas, la pesanteur tombe à un peu moins de la moitié
+//     et la vitesse est plafonnée plus bas : la dernière ligne droite se joue
+//     donc au ralenti. C'est là que tout se décide, et il faut avoir le temps
+//     de le voir — à pleine pesanteur, les mille sept cents derniers pixels
+//     passaient en cinq secondes.
+const RALENTI = 0.42;             // part de pesanteur conservée sous le sas
+const RALENTI_V = 0.55;           // part de vitesse maximale conservée
 
 // ---------------------------------------------------------------------------
 //  Le parcours
@@ -415,12 +429,14 @@ function pas() {
 
   for (const b of balles) {
     if (b.arrive) continue;
-    b.vy += g * DT;
+    const lent = b.y > SAS_Y;
+    b.vy += g * (lent ? RALENTI : 1) * DT;
     b.vx *= FROTTE_X;
     b.x += b.vx * DT;
     b.y += b.vy * DT;
+    const vmax = lent ? V_MAX * RALENTI_V : V_MAX;
     const s = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-    if (s > V_MAX) { b.vx *= V_MAX / s; b.vy *= V_MAX / s; }
+    if (s > vmax) { b.vx *= vmax / s; b.vy *= vmax / s; }
 
     if (b.x < X0 + R_BALLE) { b.x = X0 + R_BALLE; b.vx = Math.abs(b.vx) * REBOND; }
     if (b.x > X1 - R_BALLE) { b.x = X1 - R_BALLE; b.vx = -Math.abs(b.vx) * REBOND; }
@@ -542,54 +558,21 @@ function pas() {
 // ---------------------------------------------------------------------------
 //  Rendu
 // ---------------------------------------------------------------------------
-//  Le classement tient sur une seule ligne, sans jauges. Les jauges disaient
-//  la même chose que l'ordre des noms, et coûtaient trois cents pixels de
-//  hauteur — soit un sixième du parcours visible. L'ordre de gauche à droite
-//  est le classement ; c'est tout ce qu'il y a à lire.
-function tableau() {
-  const ordre = [...balles].sort((a, b) => (b.arrive ? 1e9 - b.rang : b.y)
-                                         - (a.arrive ? 1e9 - a.rang : a.y));
-  //  Largeurs mesurées puis réparties : à noms de longueurs inégales, un pas
-  //  fixe laisserait des trous.
-  ctx.font = '700 32px system-ui, sans-serif';
-  const larg = ordre.map(b => 30 + ctx.measureText(b.nom).width);
-  const ECART = 26;
-  const total = larg.reduce((a, b) => a + b, 0) + ECART * (ordre.length - 1);
-  let x = W / 2 - total / 2;
-  ctx.textAlign = 'left';
-  for (const [k, b] of ordre.entries()) {
-    ctx.font = '700 26px system-ui, sans-serif';
-    ctx.fillStyle = k === 0 ? 'rgba(255,214,90,0.95)' : 'rgba(140,160,172,0.7)';
-    ctx.fillText(`${k + 1}`, x, 168);
-    ctx.font = '700 32px system-ui, sans-serif';
-    ctx.fillStyle = couleur(b.h, 100, b.arrive ? 42 : 64);
-    ctx.fillText(b.nom, x + 30, 168);
-    if (k === 0) {
-      //  Un soulignement pour la tête de course : sur une ligne, le rang 1 ne
-      //  se distingue pas assez du seul fait d'être à gauche.
-      ctx.fillStyle = couleur(b.h, 100, 56, 0.75);
-      ctx.fillRect(x + 30, 180, larg[k] - 30, 4);
-    }
-    x += larg[k] + ECART;
-  }
-  //  L'écart au sein du trio de tête, en pourcentage du parcours : c'est la
-  //  mesure de la tension, et le chiffre qu'on regarde tomber à chaque épreuve.
-  //  On le calcule sur les trois premières et non sur les cinq, parce que la
-  //  course s'arrête à la troisième arrivée : une traînarde à mi-parcours ne
-  //  dit rien de ce qui se joue devant.
-  if (balles.some(b => !b.arrive)) {
-    const av = ordre.slice(0, 3).map(avance);
-    ctx.textAlign = 'center';
-    ctx.font = '400 27px system-ui, sans-serif';
-    const ecart = Math.round((Math.max(...av) - Math.min(...av)) * 100);
-    ctx.fillStyle = ecart < 10 ? 'rgba(255,214,90,0.9)' : 'rgba(150,168,178,0.7)';
-    ctx.fillText(`${ecart} % entre les trois premières`, W / 2, 228);
-  }
+//  L'en-tête ne porte plus qu'une question. Il n'y a ni classement ni chiffre
+//  d'écart : le pari du spectateur est de désigner une couleur avant le départ,
+//  et un tableau qui donne l'ordre à chaque instant y répond à sa place. Ce que
+//  l'en-tête perd en information, le parcours le gagne en hauteur — le monde
+//  commence maintenant à 215 px au lieu de 450.
+function entete() {
   ctx.textAlign = 'center';
+  ctx.font = '700 56px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(235,244,248,0.95)';
+  ctx.fillText('choisis la couleur', W / 2, 104);
+  ctx.fillText('qui finira première', W / 2, 172);
 }
 
 function dessiner(dt) {
-  fond('qui franchira la ligne en premier ?');
+  fond('');
 
   ctx.save();
   ctx.beginPath();
@@ -748,7 +731,7 @@ function dessiner(dt) {
   ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(0, VUE_HAUT); ctx.lineTo(W, VUE_HAUT); ctx.stroke();
 
-  tableau();
+  entete();
 
   if (fini) {
     const b = balles[vainqueur];

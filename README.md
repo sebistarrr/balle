@@ -373,19 +373,24 @@ endroit où la course change de mains — quatre balles y arrivent groupées et 
 n'en passe qu'une à la fois. Le resserrer de 220 à 140 px a fait tomber l'écart
 médian entre la première et la deuxième de 0,90 s à 0,69 s.
 
-**Le classement tient sur une ligne, sans jauges.** Les barres de progression
-disaient la même chose que l'ordre des noms et coûtaient trois cents pixels de
-hauteur — un sixième du parcours visible. Le bandeau du haut est passé de 450 à
-258 px, et l'ordre de gauche à droite est le classement, la tête de course
-soulignée.
+**La dernière ligne droite se joue au ralenti.** Sous le sas la pesanteur tombe
+à 42 % et la vitesse est plafonnée à 55 %. C'est le seul endroit du dépôt où la
+physique est truquée, et c'est assumé : à pleine pesanteur les mille sept cents
+derniers pixels passaient en cinq secondes, alors que c'est là que tout se
+décide. Ils en prennent maintenant dix — presque un tiers du film.
 
-Mesuré sur trente courses après ces corrections : durées 27 à 38 s,
-médiane 32 s, les cinq balles gagnent entre 3 et 8 fois, et **l'écart entre la
-première et la deuxième est inférieur à sept dixièmes de seconde une fois sur
-deux**. Le
-chiffre affiché sous le classement est l'écart au sein du trio de tête — pas des
-cinq, car la course s'arrête à la troisième arrivée et une traînarde à
-mi-parcours ne dit rien de ce qui se joue devant.
+**L'en-tête ne porte qu'une question** : *choisis la couleur qui finira
+première*. Ni classement, ni compteur d'écart — le pari est de désigner une
+couleur avant le départ, et un tableau qui donne l'ordre à chaque instant y
+répond à la place du spectateur. Les barres de progression, elles, disaient
+déjà la même chose que l'ordre des noms tout en coûtant trois cents pixels de
+hauteur. Le bandeau du haut est ainsi passé de 450 à 215 px, soit un quart de
+parcours visible en plus.
+
+Mesuré sur quarante courses après ces corrections : durées 28 à 38 s, médiane
+34 s dont **dix secondes de ligne droite finale**, les cinq balles gagnent entre
+5 et 9 fois, et l'écart entre la première et la deuxième à la ligne vaut deux
+cents pixels en médiane — quatre balles.
 
 ## La prison, et le choix de la bibliothèque
 
@@ -479,7 +484,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 15 | Le mur qui pousse | 24 s | 1,3 Mo |
 | 16 | La prison | 39 s | 7,4 Mo |
 | 17 | Le parcours | 38 s | 4,7 Mo |
-| 18 | Les deux épreuves | 33 s | 4,5 Mo |
+| 18 | Les deux épreuves | 38 s | 4,1 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
 l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.

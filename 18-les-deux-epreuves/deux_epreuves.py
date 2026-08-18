@@ -198,19 +198,21 @@ DT = 1 / 480
 
 CAM_ANCRE = 0.38
 CAM_SUIVI = 6.0
-#  Le monde est masqué au-dessus de cette hauteur : au-dessus il n'y a que le
-#  titre et le classement. Le classement tenant sur une ligne, il ne mange plus
-#  que deux cent cinquante pixels au lieu de quatre cent cinquante.
-VUE_HAUT = 258
+#  Le monde est masqué au-dessus de cette hauteur : au-dessus il n'y a que la
+#  question posée au spectateur. Plus de classement ni de chiffre d'écart — le
+#  pari est de désigner une couleur avant le départ, et un tableau qui donne
+#  l'ordre à chaque instant y répondrait à sa place.
+VUE_HAUT = 215
 
 NOMS = ("ROUGE", "JAUNE", "VERT", "BLEU", "VIOLET")
 TEINTES = (354.0, 38.0, 104.0, 190.0, 280.0)
 N = len(NOMS)
 
-#  Graine 0, la plus serrée des vingt-six essayées : 29,7 s, et VIOLET franchit
-#  la ligne sept centièmes de seconde devant JAUNE — le trio de tête tient dans
-#  1,7 % du parcours à l'instant de l'arrivée.
-GRAINE = 0
+#  Graine 6, choisie sur vingt-six : 34,6 s, dont 9,6 s dans la dernière ligne
+#  droite au ralenti, et JAUNE franchit la ligne 81 px devant ROUGE — moins de
+#  deux balles d'écart. Deux graines finissaient plus serré encore, mais sur un
+#  film plus court : c'est le temps passé au ralenti qui fait le suspens.
+GRAINE = 6
 
 # --------------------------------------------------------------------------
 #  Les deux épreuves
@@ -260,6 +262,14 @@ SAS_G, SAS_D = 400, 680     # largeur de la trappe
 SAS_QUORUM = 4              # balles qui déclenchent l'ouverture
 SAS_DELAI = 9.0             # s d'attente maximale
 SAS_OUVERT = 1.3            # s d'ouverture
+
+#  3. Le ralenti. Sous le sas, la pesanteur tombe à un peu moins de la moitié
+#     et la vitesse est plafonnée plus bas : la dernière ligne droite se joue
+#     donc au ralenti. C'est là que tout se décide, et il faut avoir le temps
+#     de le voir — à pleine pesanteur, les mille sept cents derniers pixels
+#     passaient en cinq secondes ; ils en prennent maintenant dix.
+RALENTI = 0.42              # part de pesanteur conservée sous le sas
+RALENTI_V = 0.55            # part de vitesse maximale conservée
 
 # --------------------------------------------------------------------------
 #  Le parcours. Tout obstacle est une capsule — un segment doté d'une
@@ -416,14 +426,16 @@ def simuler(graine):
         for b in balles:
             if b["arrive"]:
                 continue
-            b["vy"] += g * DT
+            lent = b["y"] > SAS_Y
+            b["vy"] += g * (RALENTI if lent else 1.0) * DT
             b["vx"] *= FROTTE_X
             b["x"] += b["vx"] * DT
             b["y"] += b["vy"] * DT
+            vmax = V_MAX * RALENTI_V if lent else V_MAX
             s = np.sqrt(b["vx"] ** 2 + b["vy"] ** 2)
-            if s > V_MAX:
-                b["vx"] *= V_MAX / s
-                b["vy"] *= V_MAX / s
+            if s > vmax:
+                b["vx"] *= vmax / s
+                b["vy"] *= vmax / s
             if b["x"] < X0 + R_BALLE:
                 b["x"] = X0 + R_BALLE
                 b["vx"] = abs(b["vx"]) * REBOND
@@ -677,74 +689,16 @@ class DeuxEpreuves(Scene):
         liseré = Line(vers_scene(0, VUE_HAUT), vers_scene(W, VUE_HAUT),
                       stroke_color="#7896AF", stroke_width=3, stroke_opacity=0.22)
 
-        # --- le classement, sur une seule ligne -------------------------------
-        #  Les jauges de progression ont sauté : elles disaient la même chose
-        #  que l'ordre des noms, et coûtaient trois cents pixels de hauteur —
-        #  soit un sixième du parcours visible. L'ordre de gauche à droite est
-        #  le classement, c'est tout ce qu'il y a à lire.
-        #
-        #  Les mobjects sont construits une fois pour toutes et seulement
-        #  déplacés : les reconstruire à chaque image doublerait le rendu.
-        noms_m = [Text(NOMS[i], weight=BOLD, color=teinte(TEINTES[i], 0.64)
-                       ).scale_to_fit_height(0.215) for i in range(N)]
-        rangs_m = [Text(str(k + 1), weight=BOLD,
-                        color="#FFD65A" if k == 0 else "#8CA0AC"
-                        ).scale_to_fit_height(0.155) for k in range(N)]
-        souligne = Line(ORIGIN, RIGHT, stroke_width=5)
-        CENTRE = vers_scene(W / 2, 168)
-        ECART_M = 0.26
-
-        #  L'écart au sein du trio de tête, en pourcentage du parcours : c'est
-        #  la mesure de la tension, et le chiffre qu'on regarde tomber au sas.
-        #  On le calcule sur les trois premières et non sur les cinq, parce que
-        #  la course s'arrête à la troisième arrivée : une traînarde à
-        #  mi-parcours ne dit rien de ce qui se joue devant.
-        ecart = Text("0 % entre les trois premières",
-                     color="#96A8B2").scale_to_fit_height(0.185)
-        ecart.move_to(vers_scene(W / 2, 228))
-
-        tableau = VGroup(*noms_m, *rangs_m, souligne, ecart)
-
-        def maj_tableau(_):
-            etats, _, _, _, _, _ = instantane(t.get_value())
-            #  L'ordre est celui de la course : arrivées d'abord, puis les
-            #  autres par distance parcourue.
-            ordre = sorted(range(N),
-                           key=lambda i: -(1e9 - etats[i][3] if etats[i][2]
-                                           else etats[i][1]))
-            #  Les noms n'ont pas la même longueur : un pas fixe laisserait des
-            #  trous. On mesure, on somme, on centre.
-            larg = [rangs_m[k].width + 0.10 + noms_m[i].width
-                    for k, i in enumerate(ordre)]
-            x = CENTRE[0] - (sum(larg) + ECART_M * (N - 1)) / 2
-            for k, i in enumerate(ordre):
-                nom = noms_m[i]
-                nom.set_color(teinte(TEINTES[i], 0.42 if etats[i][2] else 0.64))
-                nom.move_to([x + larg[k] - nom.width / 2, CENTRE[1], 0])
-                rangs_m[k].next_to(nom, LEFT, buff=0.10)
-                rangs_m[k].align_to(nom, DOWN)
-                if k == 0:
-                    #  Un soulignement pour la tête de course : sur une ligne,
-                    #  le rang 1 ne se distingue pas assez d'être à gauche.
-                    souligne.put_start_and_end_on(
-                        nom.get_corner(DL) + DOWN * 0.07,
-                        nom.get_corner(DR) + DOWN * 0.07)
-                    souligne.set_stroke(color=teinte(TEINTES[i], 0.56),
-                                        opacity=0.75)
-                x += larg[k] + ECART_M
-
-            trio = [float(np.clip((etats[i][1] - DEPART) / (ARRIVEE - DEPART),
-                                  0, 1)) for i in ordre[:3]]
-            e = round((max(trio) - min(trio)) * 100)
-            if ecart.vu_ecart != e:
-                n = Text("%d %% entre les trois premières" % e,
-                         color="#FFD65A" if e < 10 else "#96A8B2")
-                n.scale_to_fit_height(0.185).move_to(vers_scene(W / 2, 228))
-                ecart.become(n)
-                ecart.vu_ecart = e
-
-        ecart.vu_ecart = None
-        tableau.add_updater(maj_tableau)
+        # --- l'en-tête ---------------------------------------------------------
+        #  Une question, en grand, et rien d'autre. Ce que l'en-tête perd en
+        #  information, le parcours le gagne en hauteur.
+        #  Les deux lignes forment un seul Text : mises à l'échelle séparément
+        #  elles n'auraient pas le même corps, « qui finira première » ayant des
+        #  jambages et pas « choisis la couleur » — à hauteur égale, ses
+        #  majuscules seraient plus petites.
+        entete = Text("choisis la couleur" "\n" "qui finira première",
+                      weight=BOLD, color="#EBF4F8", line_spacing=0.75)
+        entete.scale_to_fit_width(6.6).move_to(vers_scene(W / 2, 128))
 
         # --- bandeau de fin ---------------------------------------------------
         voile = Rectangle(width=config.frame_width, height=config.frame_height,
@@ -769,8 +723,7 @@ class DeuxEpreuves(Scene):
         voile.add_updater(maj_fin)
 
         self.add(statique, herse, trappe, pales, moyeux, balles, masque, liseré,
-                 accroche("qui franchira la ligne en premier ?"), tableau,
-                 voile, podium)
+                 entete, voile, podium)
 
         if AVEC_SON:
             gamme = (0, 3, 7, 10, 12)
