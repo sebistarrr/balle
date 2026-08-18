@@ -30,6 +30,13 @@ connaît l'issue qu'à la fin :
 | 14 | Le dernier debout | [`14-le-dernier-debout/`](14-le-dernier-debout/) | `dernier_debout.py` |
 | 15 | Le mur qui pousse | [`15-le-mur-qui-pousse/`](15-le-mur-qui-pousse/) | `mur_qui_pousse.py` |
 
+Et une **évasion**, seule de son espèce — c'est aussi la seule dont la vidéo
+n'est pas rendue par Manim, pour une raison mesurée plus bas :
+
+| | Animation | Dossier | Script |
+|---|---|---|---|
+| 16 | La prison | [`16-la-prison/`](16-la-prison/) | `prison.py` *(Cairo)* |
+
 `index.html` à la racine est la page d'accueil : la liste des titres, qui sert
 de menu.
 
@@ -41,9 +48,9 @@ produit la version vidéo. Rien n'est mis en commun : modifier ou refondre une
 animation ne peut pas altérer les autres. Ajouter une animation = créer un
 dossier `N-nom/` et ajouter une ligne sur la page d'accueil.
 
-La page web et le script Manim d'une même animation partagent les mêmes
-constantes, converties d'un repère à l'autre. La page est l'aperçu ; le script
-Manim est la référence.
+La page web et le script d'une même animation partagent les mêmes constantes,
+converties d'un repère à l'autre. La page est l'aperçu ; le script est la
+référence.
 
 ## Les animations
 
@@ -279,6 +286,69 @@ supérieur à un : c'est le **cube** de la largeur qui est retenu, et un étau q
 se referme après seize secondes pour les parties encore serrées. 13 – 17 sur
 trente, médiane 26 s.
 
+## La prison, et le choix de la bibliothèque
+
+**16 — La prison.** Une balle au centre, quarante murs concentriques autour
+d'elle, aucune porte. Chaque choc pulvérise le morceau de mur touché ; les
+débris tombent et s'entassent en bas ; le compteur du milieu dit combien de
+briques tiennent encore. Reproduction d'une vidéo existante, sur laquelle le
+pas radial des anneaux a été mesuré — 5,8 px dans un cadre de 576, soit 10,9 px
+ramené au nôtre — et le compte de départ relevé : 1 773 briques, contre 1 759
+ici.
+
+Un anneau de rayon *r* est découpé en briques d'environ soixante-dix pixels : les
+anneaux extérieurs en comptent donc davantage, et les briques gardent la même
+taille apparente d'un bout à l'autre du dessin.
+
+Trois corrections, chacune tirée d'une mesure :
+
+- **La balle ne part pas du centre exact.** De là, elle n'a aucun moment
+  angulaire — et le rebond sur un anneau, dont la normale est radiale, le
+  conserve. Elle fait l'aller-retour dans un couloir pour l'éternité : mesuré,
+  5 à 10 briques abattues par anneau, les mêmes tout du long, et 1 497 briques
+  encore debout sur 1 759 au bout de 85 secondes.
+- **Le rebond dévie au hasard.** Même décalée du départ, la balle garde son
+  moment angulaire d'un rebond à l'autre : elle reste prisonnière d'une couronne
+  étroite, n'effleure les murs qu'à ses points de rebroussement, et n'en abat
+  que 370. Casser cette conservation, c'est lui rendre tout le disque.
+- **Le contact se teste sur toute la largeur de la balle**, et non sur la seule
+  brique qui est sous son centre. Sinon une brique abattue suffit à la laisser
+  passer quelle que soit sa taille : elle perce un tunnel radial et sort en
+  n'ayant rien détruit.
+
+Le jeu entre deux briques vaut trois pixels, donc un angle qui décroît avec le
+rayon. Un jeu angulaire constant paraît anodin et ne l'est pas : sur les anneaux
+extérieurs, où le pas angulaire est petit, l'arc restant devient négatif, ses
+extrémités s'inversent, et Canvas comme Cairo dessinent alors presque le tour
+complet. Les anneaux du bord semblaient intacts quel que soit le nombre de
+briques abattues.
+
+### Manim ou autre chose ?
+
+C'est la seule animation du dépôt dont la vidéo n'est pas rendue par Manim, et
+le choix a été tranché par une mesure. Sur exactement ce contenu — deux mille
+arcs et deux mille grains en 1080 × 1920 :
+
+| | Par seconde de film | Pour 30 s |
+|---|---|---|
+| Manim | 33 s | ~16 min |
+| **Cairo** | **1,4 s** | **~42 s** |
+
+Manim est fait pour des *scènes* : des objets nommés, peu nombreux, qu'on anime.
+Il reconstruit ses objets vectoriels à chaque image, ce qui est parfait pour une
+démonstration et ruineux pour deux mille éléments qui changent tous les seize
+millisecondes. Cairo est un moteur de rasterisation : on lui donne des chemins,
+il remplit des pixels, et rien ne survit d'une image à l'autre — ce qui tombe
+bien, puisque tout change.
+
+`prison.py` simule et dessine dans la même passe, et envoie les images brutes
+dans ffmpeg par un tube, sans écrire des milliers de PNG sur le disque. Le film
+de 39 s se rend en 91 secondes.
+
+**La règle qui s'en dégage** : Manim tant qu'on met en scène des objets qu'on
+peut nommer — c'est le cas des quinze autres —, Cairo dès qu'on peint des
+milliers d'éléments par image.
+
 Toutes ont un son facultatif : une note par impact, grave pour les éléments
 lents ou gros. Les quatre premières jouent une gamme pentatonique mineure ; la
 05 suit une suite d'accords, détaillée plus haut.
@@ -306,6 +376,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 13 | Les portes | 25 s | 2,9 Mo |
 | 14 | Le dernier debout | 25 s | 2,1 Mo |
 | 15 | Le mur qui pousse | 24 s | 1,3 Mo |
+| 16 | La prison | 39 s | 7,4 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
 l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
