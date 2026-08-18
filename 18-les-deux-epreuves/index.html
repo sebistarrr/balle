@@ -55,10 +55,12 @@
    <strong>sas</strong> attend le peloton — il ne s'ouvre que lorsque quatre
    balles patientent dessus, ou au bout de neuf secondes.</p>
 
-<p>Le sas donne sur la ligne droite finale. Les balles abordent donc les derniers
-   mille sept cents pixels à égalité, et tout se joue là&nbsp;: sur quarante
-   courses, l'écart entre la première et la deuxième est inférieur à une
-   seconde une fois sur deux.</p>
+<p>Le sas donne sur la ligne droite finale, qui se termine par un
+   <strong>goulet de cent quarante pixels</strong> — deux balles et demie de
+   large. C'est le dernier endroit où la course change de mains&nbsp;: quatre
+   balles y arrivent groupées, et il n'en passe qu'une à la fois. Sur trente
+   courses, l'écart entre la première et la deuxième est inférieur à sept
+   dixièmes de seconde une fois sur deux.</p>
 
 <p class="note">Le chiffre sous le classement donne l'écart au sein du trio de tête,
    en pourcentage du parcours&nbsp;; il passe à l'or sous les dix pour cent. On
@@ -224,13 +226,13 @@ const FIN_ECRAN = 4.2;
 
 const CAM_ANCRE = 0.38;
 const CAM_SUIVI = 6.0;
-const VUE_HAUT = 450;             // le monde est découpé sous cette hauteur
+const VUE_HAUT = 258;             // le monde est découpé sous cette hauteur
 
 const JOUEURS = [
   { nom: 'ROUGE',  h: 354 },
-  { nom: 'AMBRE',  h: 38 },
-  { nom: 'LIME',   h: 104 },
-  { nom: 'CYAN',   h: 190 },
+  { nom: 'JAUNE',  h: 38 },
+  { nom: 'VERT',   h: 104 },
+  { nom: 'BLEU',   h: 190 },
   { nom: 'VIOLET', h: 280 },
 ];
 const N = JOUEURS.length;
@@ -318,8 +320,13 @@ segment(X1, 4180, SAS_D, SAS_Y);
 
 //  --- E. la ligne droite finale : mille sept cents pixels, clous serrés ----
 for (let l = 0; l < 8; l++) rangee(l, 4820 + l * 150, (X1 - X0) / 10, 11);
-segment(X0, 6030, 430, 6150);
-segment(X1, 6030, 650, 6150);
+//  Le goulet final. Il ne fait plus que cent quarante pixels — deux balles et
+//  demie de large — parce que c'est le dernier endroit où la course peut
+//  encore changer de mains : quatre balles y arrivent groupées, et il n'en
+//  passe qu'une à la fois.
+const GOULET_G = 470, GOULET_D = 610;
+segment(X0, 6000, GOULET_G, 6160);
+segment(X1, 6000, GOULET_D, 6160);
 
 // ---------------------------------------------------------------------------
 //  État
@@ -535,29 +542,35 @@ function pas() {
 // ---------------------------------------------------------------------------
 //  Rendu
 // ---------------------------------------------------------------------------
+//  Le classement tient sur une seule ligne, sans jauges. Les jauges disaient
+//  la même chose que l'ordre des noms, et coûtaient trois cents pixels de
+//  hauteur — soit un sixième du parcours visible. L'ordre de gauche à droite
+//  est le classement ; c'est tout ce qu'il y a à lire.
 function tableau() {
   const ordre = [...balles].sort((a, b) => (b.arrive ? 1e9 - b.rang : b.y)
                                          - (a.arrive ? 1e9 - a.rang : a.y));
+  //  Largeurs mesurées puis réparties : à noms de longueurs inégales, un pas
+  //  fixe laisserait des trous.
+  ctx.font = '700 32px system-ui, sans-serif';
+  const larg = ordre.map(b => 30 + ctx.measureText(b.nom).width);
+  const ECART = 26;
+  const total = larg.reduce((a, b) => a + b, 0) + ECART * (ordre.length - 1);
+  let x = W / 2 - total / 2;
   ctx.textAlign = 'left';
   for (const [k, b] of ordre.entries()) {
-    const y = 148 + k * 58;
-    ctx.font = '700 30px system-ui, sans-serif';
-    ctx.fillStyle = k === 0 ? 'rgba(255,214,90,0.95)' : 'rgba(150,170,180,0.75)';
-    ctx.fillText(`${k + 1}`, 76, y + 8);
-    ctx.fillStyle = couleur(b.h, 100, 64);
-    ctx.fillText(b.nom, 116, y + 8);
-    const x0 = 330, larg = 560;
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-    ctx.beginPath(); ctx.roundRect(x0, y - 12, larg, 22, 11); ctx.fill();
-    ctx.fillStyle = couleur(b.h, 100, 56);
-    ctx.beginPath();
-    ctx.roundRect(x0, y - 12, Math.max(22, larg * avance(b)), 22, 11);
-    ctx.fill();
-    if (b.arrive) {
-      ctx.font = '700 24px system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,214,90,0.9)';
-      ctx.fillText(['1er', '2e', '3e', '4e', '5e'][b.rang - 1], 920, y + 6);
+    ctx.font = '700 26px system-ui, sans-serif';
+    ctx.fillStyle = k === 0 ? 'rgba(255,214,90,0.95)' : 'rgba(140,160,172,0.7)';
+    ctx.fillText(`${k + 1}`, x, 168);
+    ctx.font = '700 32px system-ui, sans-serif';
+    ctx.fillStyle = couleur(b.h, 100, b.arrive ? 42 : 64);
+    ctx.fillText(b.nom, x + 30, 168);
+    if (k === 0) {
+      //  Un soulignement pour la tête de course : sur une ligne, le rang 1 ne
+      //  se distingue pas assez du seul fait d'être à gauche.
+      ctx.fillStyle = couleur(b.h, 100, 56, 0.75);
+      ctx.fillRect(x + 30, 180, larg[k] - 30, 4);
     }
+    x += larg[k] + ECART;
   }
   //  L'écart au sein du trio de tête, en pourcentage du parcours : c'est la
   //  mesure de la tension, et le chiffre qu'on regarde tomber à chaque épreuve.
@@ -570,7 +583,7 @@ function tableau() {
     ctx.font = '400 27px system-ui, sans-serif';
     const ecart = Math.round((Math.max(...av) - Math.min(...av)) * 100);
     ctx.fillStyle = ecart < 10 ? 'rgba(255,214,90,0.9)' : 'rgba(150,168,178,0.7)';
-    ctx.fillText(`${ecart} % entre les trois premières`, W / 2, 428);
+    ctx.fillText(`${ecart} % entre les trois premières`, W / 2, 228);
   }
   ctx.textAlign = 'center';
 }

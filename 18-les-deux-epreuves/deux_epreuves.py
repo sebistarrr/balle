@@ -199,16 +199,17 @@ DT = 1 / 480
 CAM_ANCRE = 0.38
 CAM_SUIVI = 6.0
 #  Le monde est masqué au-dessus de cette hauteur : au-dessus il n'y a que le
-#  titre et le classement.
-VUE_HAUT = 450
+#  titre et le classement. Le classement tenant sur une ligne, il ne mange plus
+#  que deux cent cinquante pixels au lieu de quatre cent cinquante.
+VUE_HAUT = 258
 
-NOMS = ("ROUGE", "AMBRE", "LIME", "CYAN", "VIOLET")
+NOMS = ("ROUGE", "JAUNE", "VERT", "BLEU", "VIOLET")
 TEINTES = (354.0, 38.0, 104.0, 190.0, 280.0)
 N = len(NOMS)
 
-#  Graine 0, la plus serrée des vingt-six essayées : 29,9 s, et AMBRE franchit
-#  la ligne trois centièmes de seconde devant CYAN — le trio de tête tient dans
-#  2,1 % du parcours à l'instant de l'arrivée.
+#  Graine 0, la plus serrée des vingt-six essayées : 29,7 s, et VIOLET franchit
+#  la ligne sept centièmes de seconde devant JAUNE — le trio de tête tient dans
+#  1,7 % du parcours à l'instant de l'arrivée.
 GRAINE = 0
 
 # --------------------------------------------------------------------------
@@ -326,8 +327,13 @@ _segment(X1, 4180, SAS_D, SAS_Y)
 #  E. la ligne droite finale : mille sept cents pixels, clous serrés
 for _l in range(8):
     _rangee(_l, 4820 + _l * 150, (X1 - X0) / 10, 11)
-_segment(X0, 6030, 430, 6150)
-_segment(X1, 6030, 650, 6150)
+#  Le goulet final. Il ne fait que cent quarante pixels — deux balles et demie
+#  de large — parce que c'est le dernier endroit où la course peut encore
+#  changer de mains : quatre balles y arrivent groupées, et il n'en passe
+#  qu'une à la fois.
+GOULET_G, GOULET_D = 470, 610
+_segment(X0, 6000, GOULET_G, 6160)
+_segment(X1, 6000, GOULET_D, 6160)
 
 
 def projete(px, py, x1, y1, x2, y2):
@@ -671,23 +677,22 @@ class DeuxEpreuves(Scene):
         liseré = Line(vers_scene(0, VUE_HAUT), vers_scene(W, VUE_HAUT),
                       stroke_color="#7896AF", stroke_width=3, stroke_opacity=0.22)
 
-        # --- le tableau de bord : cinq lignes, dans l'ordre de la course -------
-        lignes = []
-        for k in range(N):
-            y = 148 + k * 58
-            rang = Text("1", weight=BOLD, color="#96AAB4").scale_to_fit_height(0.20)
-            rang.move_to(vers_scene(76, y), aligned_edge=LEFT)
-            nom = Text(NOMS[0], weight=BOLD).scale_to_fit_height(0.20)
-            nom.move_to(vers_scene(116, y), aligned_edge=LEFT)
-            fond_b = RoundedRectangle(width=560 * ECHELLE, height=22 * ECHELLE,
-                                      corner_radius=11 * ECHELLE, stroke_width=0,
-                                      fill_color="#FFFFFF", fill_opacity=0.07)
-            fond_b.move_to(vers_scene(330 + 280, y))
-            plein = RoundedRectangle(width=22 * ECHELLE, height=22 * ECHELLE,
-                                     corner_radius=11 * ECHELLE, stroke_width=0,
-                                     fill_opacity=1)
-            lignes.append({"rang": rang, "nom": nom, "fond": fond_b,
-                           "plein": plein, "vu": None})
+        # --- le classement, sur une seule ligne -------------------------------
+        #  Les jauges de progression ont sauté : elles disaient la même chose
+        #  que l'ordre des noms, et coûtaient trois cents pixels de hauteur —
+        #  soit un sixième du parcours visible. L'ordre de gauche à droite est
+        #  le classement, c'est tout ce qu'il y a à lire.
+        #
+        #  Les mobjects sont construits une fois pour toutes et seulement
+        #  déplacés : les reconstruire à chaque image doublerait le rendu.
+        noms_m = [Text(NOMS[i], weight=BOLD, color=teinte(TEINTES[i], 0.64)
+                       ).scale_to_fit_height(0.215) for i in range(N)]
+        rangs_m = [Text(str(k + 1), weight=BOLD,
+                        color="#FFD65A" if k == 0 else "#8CA0AC"
+                        ).scale_to_fit_height(0.155) for k in range(N)]
+        souligne = Line(ORIGIN, RIGHT, stroke_width=5)
+        CENTRE = vers_scene(W / 2, 168)
+        ECART_M = 0.26
 
         #  L'écart au sein du trio de tête, en pourcentage du parcours : c'est
         #  la mesure de la tension, et le chiffre qu'on regarde tomber au sas.
@@ -696,43 +701,37 @@ class DeuxEpreuves(Scene):
         #  mi-parcours ne dit rien de ce qui se joue devant.
         ecart = Text("0 % entre les trois premières",
                      color="#96A8B2").scale_to_fit_height(0.185)
-        ecart.move_to(vers_scene(W / 2, 428))
+        ecart.move_to(vers_scene(W / 2, 228))
 
-        tableau = VGroup(*[m for l in lignes
-                           for m in (l["fond"], l["plein"], l["rang"], l["nom"])],
-                         ecart)
+        tableau = VGroup(*noms_m, *rangs_m, souligne, ecart)
 
         def maj_tableau(_):
             etats, _, _, _, _, _ = instantane(t.get_value())
-            #  L'ordre des lignes est déjà le classement : arrivées d'abord,
-            #  puis les autres par distance parcourue.
+            #  L'ordre est celui de la course : arrivées d'abord, puis les
+            #  autres par distance parcourue.
             ordre = sorted(range(N),
                            key=lambda i: -(1e9 - etats[i][3] if etats[i][2]
                                            else etats[i][1]))
+            #  Les noms n'ont pas la même longueur : un pas fixe laisserait des
+            #  trous. On mesure, on somme, on centre.
+            larg = [rangs_m[k].width + 0.10 + noms_m[i].width
+                    for k, i in enumerate(ordre)]
+            x = CENTRE[0] - (sum(larg) + ECART_M * (N - 1)) / 2
             for k, i in enumerate(ordre):
-                l = lignes[k]
-                y = 148 + k * 58
-                part = float(np.clip((etats[i][1] - DEPART)
-                                     / (ARRIVEE - DEPART), 0, 1))
-                larg = max(22, 560 * part)
-                l["plein"].become(RoundedRectangle(
-                    width=larg * ECHELLE, height=22 * ECHELLE,
-                    corner_radius=11 * ECHELLE, stroke_width=0,
-                    fill_color=teinte(TEINTES[i], 0.56), fill_opacity=1))
-                l["plein"].move_to(vers_scene(330 + larg / 2, y))
-                #  Les textes ne sont refaits qu'au changement de place : en
-                #  reconstruire dix à chaque image doublerait le temps de rendu.
-                if l["vu"] != (k, i):
-                    r = Text(str(k + 1), weight=BOLD,
-                             color="#FFD65A" if k == 0 else "#96AAB4")
-                    r.scale_to_fit_height(0.20)
-                    r.move_to(vers_scene(76, y), aligned_edge=LEFT)
-                    l["rang"].become(r)
-                    m = Text(NOMS[i], weight=BOLD, color=teinte(TEINTES[i], 0.64))
-                    m.scale_to_fit_height(0.20)
-                    m.move_to(vers_scene(116, y), aligned_edge=LEFT)
-                    l["nom"].become(m)
-                    l["vu"] = (k, i)
+                nom = noms_m[i]
+                nom.set_color(teinte(TEINTES[i], 0.42 if etats[i][2] else 0.64))
+                nom.move_to([x + larg[k] - nom.width / 2, CENTRE[1], 0])
+                rangs_m[k].next_to(nom, LEFT, buff=0.10)
+                rangs_m[k].align_to(nom, DOWN)
+                if k == 0:
+                    #  Un soulignement pour la tête de course : sur une ligne,
+                    #  le rang 1 ne se distingue pas assez d'être à gauche.
+                    souligne.put_start_and_end_on(
+                        nom.get_corner(DL) + DOWN * 0.07,
+                        nom.get_corner(DR) + DOWN * 0.07)
+                    souligne.set_stroke(color=teinte(TEINTES[i], 0.56),
+                                        opacity=0.75)
+                x += larg[k] + ECART_M
 
             trio = [float(np.clip((etats[i][1] - DEPART) / (ARRIVEE - DEPART),
                                   0, 1)) for i in ordre[:3]]
@@ -740,7 +739,7 @@ class DeuxEpreuves(Scene):
             if ecart.vu_ecart != e:
                 n = Text("%d %% entre les trois premières" % e,
                          color="#FFD65A" if e < 10 else "#96A8B2")
-                n.scale_to_fit_height(0.185).move_to(vers_scene(W / 2, 428))
+                n.scale_to_fit_height(0.185).move_to(vers_scene(W / 2, 228))
                 ecart.become(n)
                 ecart.vu_ecart = e
 

@@ -367,9 +367,22 @@ les parois pour qu'il n'y subsiste aucune fente. Un garde-fou secoue en dernier
 recours une balle qui n'avance plus, avec plus de patience devant la herse et le
 sas où l'attente fait partie du jeu.
 
-Mesuré sur quarante courses après ces trois corrections : durées 27 à 45 s,
-médiane 31 s, les cinq balles gagnent entre 5 et 13 fois, et **l'écart entre la
-première et la deuxième est inférieur à une seconde une fois sur deux**. Le
+**Le goulet final** est le troisième obstacle, et le plus court : cent quarante
+pixels, deux balles et demie de large, juste avant la ligne. C'est le dernier
+endroit où la course change de mains — quatre balles y arrivent groupées et il
+n'en passe qu'une à la fois. Le resserrer de 220 à 140 px a fait tomber l'écart
+médian entre la première et la deuxième de 0,90 s à 0,69 s.
+
+**Le classement tient sur une ligne, sans jauges.** Les barres de progression
+disaient la même chose que l'ordre des noms et coûtaient trois cents pixels de
+hauteur — un sixième du parcours visible. Le bandeau du haut est passé de 450 à
+258 px, et l'ordre de gauche à droite est le classement, la tête de course
+soulignée.
+
+Mesuré sur trente courses après ces corrections : durées 27 à 38 s,
+médiane 32 s, les cinq balles gagnent entre 3 et 8 fois, et **l'écart entre la
+première et la deuxième est inférieur à sept dixièmes de seconde une fois sur
+deux**. Le
 chiffre affiché sous le classement est l'écart au sein du trio de tête — pas des
 cinq, car la course s'arrête à la troisième arrivée et une traînarde à
 mi-parcours ne dit rien de ce qui se joue devant.
@@ -466,7 +479,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 15 | Le mur qui pousse | 24 s | 1,3 Mo |
 | 16 | La prison | 39 s | 7,4 Mo |
 | 17 | Le parcours | 38 s | 4,7 Mo |
-| 18 | Les deux épreuves | 33 s | 4,4 Mo |
+| 18 | Les deux épreuves | 33 s | 4,5 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
 l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.

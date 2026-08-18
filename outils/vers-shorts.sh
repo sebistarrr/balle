@@ -77,5 +77,5 @@ convertir 14-le-dernier-debout          DernierDebout        25.3
 convertir 15-le-mur-qui-pousse          MurQuiPousse         24.4
 #            les courses à cinq
 convertir 17-le-parcours                LeParcours           37.9
-convertir 18-les-deux-epreuves          DeuxEpreuves         33.4
+convertir 18-les-deux-epreuves          DeuxEpreuves         33.2
 echo "Terminé."
