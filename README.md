@@ -30,6 +30,12 @@ connaît l'issue qu'à la fin :
 | 14 | Le dernier debout | [`14-le-dernier-debout/`](14-le-dernier-debout/) | `dernier_debout.py` |
 | 15 | Le mur qui pousse | [`15-le-mur-qui-pousse/`](15-le-mur-qui-pousse/) | `mur_qui_pousse.py` |
 
+Et une **course à cinq**, sur un parcours d'obstacles plus long que l'écran :
+
+| | Animation | Dossier | Script Manim |
+|---|---|---|---|
+| 17 | Le parcours | [`17-le-parcours/`](17-le-parcours/) | `parcours.py` |
+
 Et une **évasion**, seule de son espèce — c'est aussi la seule dont la vidéo
 n'est pas rendue par Manim, pour une raison mesurée plus bas :
 
@@ -286,6 +292,41 @@ supérieur à un : c'est le **cube** de la largeur qui est retenu, et un étau q
 se referme après seize secondes pour les parties encore serrées. 13 – 17 sur
 trente, médiane 26 s.
 
+## La course
+
+**17 — Le parcours.** Reprise de la 09, mais à cinq balles et sur un vrai
+parcours : **sept mille six cents pixels**, huit fois la hauteur de l'écran, que
+la caméra suit en restant accrochée à la tête de course. Six sections
+s'enchaînent — champ de clous, trois barres tournantes, entonnoir, chicane de
+plans inclinés, moulins, ligne droite finale hérissée de clous serrés. La
+première en bas gagne ; le film s'arrête dès que le podium est complet, regarder
+les deux dernières finir n'apprenant plus rien.
+
+**Un obstacle, une primitive.** Tout est une capsule — un segment doté d'une
+épaisseur — ou un disque. Clous, parois inclinées, entonnoir, barres et pales de
+moulin passent donc par le même test de contact, ce qui permet de varier le
+parcours sans multiplier les cas.
+
+**Les rotors ajoutent une chose, et c'est la plus importante** : au point de
+contact, la pale a une vitesse propre, ω ∧ r. On rebondit sur cette vitesse-là
+et non sur zéro. Sans cela une pale balaie la balle sans jamais la propulser —
+et c'est justement là que les places se prennent et se perdent, une pale prise à
+contretemps renvoyant la balle vers l'amont.
+
+Deux réglages tirés des captures de contrôle :
+
+- **Le monde est découpé sous le tableau de bord.** Sans découpage, une pale de
+  moulin ou une balle distancée vient se dessiner par-dessus le classement et le
+  rend illisible. Manim n'ayant pas de découpage, le film pose un bandeau opaque
+  au même endroit.
+- **L'ordre des couloirs de départ est tiré au sort.** Sur un parcours fixe la
+  position de départ compte, et il ne faut pas qu'elle avantage toujours la même
+  couleur. Mesuré sur vingt-quatre courses : les cinq balles gagnent entre trois
+  et sept fois chacune, durée médiane 36 s.
+
+Le tableau du haut n'est pas une liste de jauges mais **le classement lui-même** :
+les lignes s'y échangent en direct, et il suffit de regarder l'ordre.
+
 ## La prison, et le choix de la bibliothèque
 
 **16 — La prison.** Une balle au centre, quarante murs concentriques autour
@@ -377,6 +418,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 14 | Le dernier debout | 25 s | 2,1 Mo |
 | 15 | Le mur qui pousse | 24 s | 1,3 Mo |
 | 16 | La prison | 39 s | 7,4 Mo |
+| 17 | Le parcours | 38 s | 4,7 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
 l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
@@ -413,6 +455,7 @@ manim -r 1080,1920 --fps 60 12-sumo/sumo.py Sumo
 manim -r 1080,1920 --fps 60 13-les-portes/les_portes.py LesPortes
 manim -r 1080,1920 --fps 60 14-le-dernier-debout/dernier_debout.py DernierDebout
 manim -r 1080,1920 --fps 60 15-le-mur-qui-pousse/mur_qui_pousse.py MurQuiPousse
+manim -r 1080,1920 --fps 60 17-le-parcours/parcours.py LeParcours
 ```
 
 Les dix duels sont tous en 9:16. Chacun accepte `--graines`, qui simule une

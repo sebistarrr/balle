@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le parcours</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a; background: #04060a;
+    font: 400 15px/1.6 ui-sans-serif, system-ui, sans-serif;
+    padding: 1.25rem 1.25rem 3rem;
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+  }
+  a { color: #49c4b9; }
+  canvas {
+    width: min(92vw, 46vh); aspect-ratio: 1080 / 1920; display: block;
+    background: #000; border-radius: 14px;
+  }
+  .cmd { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center;
+         align-items: center; max-width: 640px; }
+  button, .btn {
+    font: inherit; font-size: 14px; color: #dde4e4; background: #0d1622;
+    border: 1px solid #1d2b3a; border-radius: 999px; padding: .45rem .95rem;
+    cursor: pointer; text-decoration: none;
+  }
+  button:hover, .btn:hover { border-color: #49c4b9; color: #49c4b9; }
+  label { font-size: 13px; display: flex; align-items: center; gap: .4rem; }
+  input[type=range] { width: 110px; accent-color: #49c4b9; }
+  p { max-width: 58ch; margin: 0; }
+  .note { font-size: 13px; color: #5d6a6a; }
+  strong { color: #dde4e4; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<canvas id="c" width="1080" height="1920"></canvas>
+
+<div class="cmd">
+  <a class="btn" href="../">← animations</a>
+  <button id="snd" aria-pressed="false">♪ activer le son</button>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="raz">nouvelle course</button>
+  <label>vitesse <input id="vit" type="range" min="0.5" max="3" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="parcours.py">code Manim</a>
+  <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
+</div>
+
+<p>Cinq balles, un parcours de <strong>sept mille pixels</strong> —
+   huit fois la hauteur de l'écran. Champ de clous, barres tournantes,
+   entonnoir, chicane, moulins, ligne droite finale. <strong>La première en bas
+   gagne</strong>, et la caméra suit la tête de course.</p>
+
+<p class="note">Les pales des moulins ne se contentent pas de renvoyer&nbsp;: elles
+   ont leur propre vitesse au point de contact, donc elles propulsent — ou
+   renvoient en arrière. C'est là que les places se prennent et se perdent. Le
+   tableau du haut est déjà le classement&nbsp;: les lignes s'y échangent en
+   direct.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  Le parcours — cinq balles, huit écrans de descente, une seule arrivée.
+//
+//  Tout obstacle est une capsule — un segment doté d'une épaisseur — ou un
+//  disque. Une seule primitive de contact suffit donc pour les clous, les
+//  parois inclinées, l'entonnoir, les barres et les moulins : c'est ce qui
+//  permet de varier le parcours sans multiplier les cas de collision.
+//
+//  Les rotors ajoutent une chose : au point de contact, la pale a une vitesse
+//  propre. On rebondit sur cette vitesse-là et non sur zéro, sinon une pale
+//  balaie la balle sans jamais la propulser.
+//
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+const W = 1080, H = 1920;
+
+// ---------------------------------------------------------------------------
+//  Outils de dessin
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+function redimensionner() {
+  const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(b.width * d) || 1;
+  cv.height = Math.round(b.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+const couleur = (h, s = 100, l = 60, a = 1) => `hsl(${h} ${s}% ${l}% / ${a})`;
+
+//  Fond, accroche du haut. Toutes les pages de duel commencent pareil : la
+//  question posée doit être lisible dès la première image.
+function fond(accroche) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '600 40px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(235,244,248,0.9)';
+  ctx.fillText(accroche, W / 2, 96);
+}
+
+//  Bandeau de fin : voile sombre, nom du vainqueur, et la ligne qui dit de
+//  combien. Sans cette dernière, on ne sait pas si c'était serré.
+function bandeau(nom, h, detail) {
+  const v = Math.min(1, fini / 0.4);
+  ctx.fillStyle = `rgba(4,6,10,${0.66 * v})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '400 44px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(200,215,220,${v})`;
+  ctx.fillText('vainqueur', W / 2, H / 2 - 120);
+  ctx.font = '800 118px system-ui, sans-serif';
+  ctx.fillStyle = couleur(h, 100, 64, v);
+  ctx.fillText(nom, W / 2, H / 2 + 10);
+  ctx.font = '400 40px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(160,180,190,${v})`;
+  ctx.fillText(detail, W / 2, H / 2 + 90);
+}
+
+// ---------------------------------------------------------------------------
+//  Son
+// ---------------------------------------------------------------------------
+let audio = null, son = false, sec = null, mouille = null;
+
+function preparerBus() {
+  sec = audio.createGain(); sec.gain.value = 1;
+  sec.connect(audio.destination);
+  const n = Math.floor(audio.sampleRate * 1.6);
+  const ri = audio.createBuffer(2, n, audio.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ri.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const u = i / audio.sampleRate;
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-u * 3.4) * Math.min(1, u / 0.008);
+    }
+  }
+  const conv = audio.createConvolver(); conv.buffer = ri;
+  mouille = audio.createGain(); mouille.gain.value = 0.35;
+  mouille.connect(conv); conv.connect(audio.destination);
+}
+
+function voix(pan, envoi = 1) {
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.connect(sp); sp.connect(sec);
+  if (envoi > 0) {
+    const e = audio.createGain(); e.gain.value = envoi;
+    sp.connect(e); e.connect(mouille);
+  }
+  return g;
+}
+
+//  Timbre de métal frappé : les harmoniques hautes s'éteignent plus vite que la
+//  fondamentale. Des partiels de même durée donneraient un orgue.
+function cloche(demi, pan, force = 0.20, duree = 1.0, base = 196) {
+  if (!audio || audio.state !== 'running') return;
+  const f = base * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  for (const [mult, amp, part] of [[1, 1, 1], [2, 0.34, 0.55], [3, 0.13, 0.35]]) {
+    const g = voix(pan);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(force * amp, t0 + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree * part);
+    const o = audio.createOscillator();
+    o.frequency.value = f * mult; o.connect(g);
+    o.start(t0); o.stop(t0 + duree * part + 0.05);
+  }
+}
+
+function souffle(pan, force = 0.40, duree = 0.45, coupe = 320, type = 'bandpass') {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime, g = voix(pan, 0.6);
+  const n = audio.createBufferSource();
+  const buf = audio.createBuffer(1, audio.sampleRate * duree, audio.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+  }
+  n.buffer = buf;
+  const f = audio.createBiquadFilter();
+  f.type = type; f.frequency.value = coupe; f.Q.value = 0.7;
+  g.gain.setValueAtTime(force, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
+  n.connect(f); f.connect(g); n.start(t0);
+}
+
+//  Un accord montant à la victoire : c'est le seul moment où le son quitte le
+//  rythme de la physique pour dire quelque chose.
+function fanfare(joueur) {
+  if (!audio || audio.state !== 'running') return;
+  [0, 4, 7, 12].forEach((demi, i) => {
+    setTimeout(() => cloche(demi + (joueur ? 5 : 0), 0, 0.24, 1.7, 220), i * 110);
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+//  Réglages
+// ---------------------------------------------------------------------------
+const X0 = 70, X1 = 1010;         // bords du couloir
+const DEPART = 120;
+const ARRIVEE = 7600;             // longueur du parcours, en px de monde
+const R_BALLE = 24;
+const G0 = 900;                   // gravité au départ
+const G_MONTE = 22;               // px/s² par seconde : la fin s'emballe
+const REBOND = 0.52;              // sur les clous et les parois
+const REBOND_PALE = 0.75;         // sur les pales, qui rendent de l'énergie
+const V_MAX = 1450;
+const FROTTE_X = 0.9993;
+const DT = 1 / 480;
+const FIN_ECRAN = 4.2;
+
+//  La caméra suit la balle de tête, qu'elle tient au tiers de la hauteur : on
+//  voit ce qui arrive plutôt que ce qui vient de passer.
+const CAM_ANCRE = 0.38;
+const CAM_SUIVI = 6.0;            // vitesse de rattrapage, par seconde
+//  Le monde est découpé sous cette hauteur : au-dessus, il n'y a que le titre
+//  et le classement. Sans ce découpage, une pale de moulin ou une balle
+//  distancée vient se dessiner par-dessus le tableau de bord et le rend
+//  illisible — c'est arrivé sur les deux premières captures.
+const VUE_HAUT = 450;
+
+const JOUEURS = [
+  { nom: 'ROUGE',  h: 354 },
+  { nom: 'AMBRE',  h: 38 },
+  { nom: 'LIME',   h: 104 },
+  { nom: 'CYAN',   h: 190 },
+  { nom: 'VIOLET', h: 280 },
+];
+const N = JOUEURS.length;
+
+// ---------------------------------------------------------------------------
+//  Le parcours
+//
+//  Tout obstacle est une capsule — un segment doté d'une épaisseur — ou un
+//  disque. Une seule primitive de contact suffit donc pour les clous, les
+//  parois inclinées, les entonnoirs, les barres et les moulins : c'est ce qui
+//  permet de dessiner un parcours varié sans multiplier les cas de collision.
+//
+//  Les rotors ajoutent une chose : au point de contact, la pale a une vitesse
+//  propre. On rebondit sur cette vitesse, pas sur zéro — sinon une pale
+//  traverse la balle sans jamais la propulser.
+// ---------------------------------------------------------------------------
+const CLOUS = [], SEGMENTS = [], ROTORS = [];
+
+function clou(x, y, r = 13) { CLOUS.push({ x, y, r }); }
+function segment(x1, y1, x2, y2, ep = 11) { SEGMENTS.push({ x1, y1, x2, y2, ep }); }
+function rotor(x, y, longueur, pales, omega, ep = 13) {
+  ROTORS.push({ x, y, longueur, pales, omega, ep, phase: Math.random() * 6.2832 });
+}
+
+//  --- A. le champ de clous, pour disperser le peloton d'entrée -------------
+for (let l = 0; l < 6; l++) {
+  const y = 420 + l * 190;
+  const pas = (X1 - X0) / 9;
+  if (l % 2 === 0) for (let k = 0; k < 9; k++) clou(X0 + (k + 0.5) * pas, y);
+  else for (let k = 1; k < 9; k++) clou(X0 + k * pas, y);
+}
+
+//  --- B. trois barres tournantes ------------------------------------------
+rotor(540, 1780, 300, 2, 1.7);
+rotor(540, 2200, 300, 2, -2.1);
+rotor(540, 2620, 300, 2, 1.4);
+
+//  --- C. l'entonnoir : deux parois qui se referment sur un goulet ----------
+segment(X0, 2980, 430, 3380);
+segment(X1, 2980, 650, 3380);
+segment(430, 3380, 430, 3480);
+segment(650, 3380, 650, 3480);
+
+//  --- D. la chicane : des plans inclinés en quinconce ----------------------
+for (let l = 0; l < 5; l++) {
+  const y = 3760 + l * 300;
+  if (l % 2 === 0) segment(X0, y, X0 + 660, y + 150);
+  else segment(X1, y, X1 - 660, y + 150);
+}
+
+//  --- E. les moulins, qui renvoient la balle en arrière si elle s'y frotte --
+rotor(350, 5560, 230, 4, 2.4);
+rotor(730, 5560, 230, 4, -2.4);
+rotor(540, 5980, 250, 3, 1.9);
+
+//  --- F. la dernière ligne : clous serrés, puis l'arrivée -------------------
+for (let l = 0; l < 6; l++) {
+  const y = 6320 + l * 165;
+  const pas = (X1 - X0) / 13;
+  if (l % 2 === 0) for (let k = 0; k < 13; k++) clou(X0 + (k + 0.5) * pas, y, 11);
+  else for (let k = 1; k < 13; k++) clou(X0 + k * pas, y, 11);
+}
+segment(X0, 7380, 430, 7500);
+segment(X1, 7380, 650, 7500);
+
+// ---------------------------------------------------------------------------
+//  État
+// ---------------------------------------------------------------------------
+let balles, tps, fini, vainqueur, camera, ondes, traces, classement;
+
+function reinitialiser() {
+  //  Les cinq partent alignées, à la même hauteur, réparties sur la largeur.
+  //  L'ordre des couloirs est tiré au sort : sur un parcours fixe, la position
+  //  de départ compte, et il ne faut pas qu'elle avantage toujours la même.
+  const rangs = JOUEURS.map((_, i) => i);
+  for (let i = rangs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rangs[i], rangs[j]] = [rangs[j], rangs[i]];
+  }
+  balles = JOUEURS.map((j, i) => ({
+    ...j, i, arrive: 0, rang: 0,
+    x: X0 + (rangs[i] + 0.5) * (X1 - X0) / N,
+    y: DEPART, vx: (Math.random() - 0.5) * 40, vy: 0,
+  }));
+  for (const r of ROTORS) r.phase = Math.random() * 6.2832;
+  tps = 0; fini = 0; vainqueur = -1;
+  camera = 0; ondes = []; classement = [];
+  traces = balles.map(() => []);
+}
+reinitialiser();
+
+const gravite = () => G0 + G_MONTE * tps;
+const avance = b => Math.max(0, Math.min(1, (b.y - DEPART) / (ARRIVEE - DEPART)));
+
+//  Point du segment le plus proche d'un point donné.
+function projete(px, py, s) {
+  const dx = s.x2 - s.x1, dy = s.y2 - s.y1;
+  const l2 = dx * dx + dy * dy || 1;
+  let t = ((px - s.x1) * dx + (py - s.y1) * dy) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return [s.x1 + t * dx, s.y1 + t * dy];
+}
+
+//  Contact avec une capsule. vsx, vsy est la vitesse propre de la surface :
+//  nulle pour un obstacle fixe, celle de la pale pour un rotor.
+function heurter(b, qx, qy, ep, rebond, vsx, vsy) {
+  const dx = b.x - qx, dy = b.y - qy;
+  const dd = Math.sqrt(dx * dx + dy * dy);
+  const mini = R_BALLE + ep;
+  if (dd >= mini) return 0;
+  const nx = dd > 1e-9 ? dx / dd : 0, ny = dd > 1e-9 ? dy / dd : -1;
+  b.x = qx + nx * mini;
+  b.y = qy + ny * mini;
+  const rvx = b.vx - vsx, rvy = b.vy - vsy;
+  const vn = rvx * nx + rvy * ny;
+  if (vn >= 0) return 0;
+  b.vx = vsx + rvx - (1 + rebond) * vn * nx;
+  b.vy = vsy + rvy - (1 + rebond) * vn * ny;
+  return 1;
+}
+
+function pas() {
+  if (fini) { fini = Math.min(fini + DT, 99); return; }
+  tps += DT;
+  const g = gravite();
+  for (const r of ROTORS) r.phase += r.omega * DT;
+
+  for (const b of balles) {
+    if (b.arrive) continue;
+    b.vy += g * DT;
+    b.vx *= FROTTE_X;
+    b.x += b.vx * DT;
+    b.y += b.vy * DT;
+    const s = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+    if (s > V_MAX) { b.vx *= V_MAX / s; b.vy *= V_MAX / s; }
+
+    if (b.x < X0 + R_BALLE) { b.x = X0 + R_BALLE; b.vx = Math.abs(b.vx) * REBOND; }
+    if (b.x > X1 - R_BALLE) { b.x = X1 - R_BALLE; b.vx = -Math.abs(b.vx) * REBOND; }
+
+    //  Les clous, puis les parois, puis les pales. On ne teste que ce qui est
+    //  dans la bande utile : le parcours fait sept mille pixels de long.
+    for (const c of CLOUS) {
+      if (Math.abs(c.y - b.y) > 90) continue;
+      if (heurter(b, c.x, c.y, c.r, REBOND, 0, 0)) {
+        if (notesCeTour < 5) {
+          cloche([0, 3, 7, 10, 12][(c.x | 0) % 5] + (b.i % 2 ? 12 : 0),
+                 (c.x - W / 2) / (W / 2), 0.13, 0.6);
+          notesCeTour++;
+        }
+        ondes.push({ x: c.x, y: c.y, r: c.r, vie: 1, h: b.h });
+      }
+    }
+    for (const sg of SEGMENTS) {
+      if (b.y < Math.min(sg.y1, sg.y2) - 120 || b.y > Math.max(sg.y1, sg.y2) + 120) continue;
+      const [qx, qy] = projete(b.x, b.y, sg);
+      if (heurter(b, qx, qy, sg.ep, REBOND, 0, 0)) {
+        ondes.push({ x: qx, y: qy, r: 12, vie: 1, h: b.h });
+      }
+    }
+    for (const ro of ROTORS) {
+      if (Math.abs(ro.y - b.y) > ro.longueur + 120) continue;
+      for (let p = 0; p < ro.pales; p++) {
+        const a = ro.phase + p * 2 * Math.PI / ro.pales;
+        const ex = ro.x + Math.cos(a) * ro.longueur;
+        const ey = ro.y + Math.sin(a) * ro.longueur;
+        const [qx, qy] = projete(b.x, b.y, { x1: ro.x, y1: ro.y, x2: ex, y2: ey });
+        //  Vitesse du point de contact : ω ∧ r. C'est elle qui propulse.
+        const rx = qx - ro.x, ry = qy - ro.y;
+        if (heurter(b, qx, qy, ro.ep, REBOND_PALE, -ro.omega * ry, ro.omega * rx)) {
+          if (notesCeTour < 5) {
+            cloche(19 + (b.i % 2 ? 5 : 0), (qx - W / 2) / (W / 2), 0.19, 1.0);
+            notesCeTour++;
+          }
+          ondes.push({ x: qx, y: qy, r: 16, vie: 1, h: b.h });
+        }
+      }
+    }
+
+    if (b.y >= ARRIVEE) {
+      b.arrive = 1;
+      b.rang = classement.length + 1;
+      classement.push(b.i);
+      if (classement.length === 1) {
+        vainqueur = b.i;
+        fanfare(b.i % 2);
+      }
+      //  On s'arrête dès que le podium est complet : la course est jouée, et
+      //  regarder les deux dernières finir n'apprend plus rien.
+      if (classement.length >= 3) fini = 1;
+    }
+  }
+
+  //  Contacts entre balles : c'est là que les places se prennent.
+  for (let i = 0; i < N; i++) {
+    const a = balles[i];
+    if (a.arrive) continue;
+    for (let j = i + 1; j < N; j++) {
+      const b = balles[j];
+      if (b.arrive) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dd = Math.sqrt(dx * dx + dy * dy);
+      if (dd >= 2 * R_BALLE || dd < 1e-9) continue;
+      const nx = dx / dd, ny = dy / dd, corr = (2 * R_BALLE - dd) / 2;
+      a.x -= nx * corr; a.y -= ny * corr;
+      b.x += nx * corr; b.y += ny * corr;
+      const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+      if (vn < 0) {
+        const p = 0.9 * vn;
+        a.vx += p * nx; a.vy += p * ny;
+        b.vx -= p * nx; b.vy -= p * ny;
+      }
+    }
+  }
+
+  //  La caméra vise la balle de tête et la rattrape doucement : un suivi rigide
+  //  ferait sauter tout le décor à chaque rebond.
+  const tete = Math.max(...balles.map(b => b.y));
+  const vise = Math.max(0, Math.min(ARRIVEE + 200 - H, tete - H * CAM_ANCRE));
+  camera += (vise - camera) * Math.min(1, CAM_SUIVI * DT);
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+//  Le tableau : cinq lignes, une par balle, dans l'ordre de la course. C'est la
+//  seule chose à lire, et l'ordre des lignes est déjà le classement.
+function tableau() {
+  const ordre = [...balles].sort((a, b) => (b.arrive ? 1e9 - b.rang : b.y)
+                                         - (a.arrive ? 1e9 - a.rang : a.y));
+  ctx.textAlign = 'left';
+  for (const [k, b] of ordre.entries()) {
+    const y = 150 + k * 62;
+    ctx.font = '700 30px system-ui, sans-serif';
+    ctx.fillStyle = k === 0 ? 'rgba(255,214,90,0.95)' : 'rgba(150,170,180,0.75)';
+    ctx.fillText(`${k + 1}`, 76, y + 8);
+    ctx.fillStyle = couleur(b.h, 100, 64);
+    ctx.fillText(b.nom, 116, y + 8);
+    const x0 = 330, larg = 560;
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    ctx.beginPath(); ctx.roundRect(x0, y - 12, larg, 22, 11); ctx.fill();
+    ctx.fillStyle = couleur(b.h, 100, 56);
+    ctx.beginPath();
+    ctx.roundRect(x0, y - 12, Math.max(22, larg * avance(b)), 22, 11);
+    ctx.fill();
+    if (b.arrive) {
+      ctx.font = '700 24px system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255,214,90,0.9)';
+      ctx.fillText(['1er', '2e', '3e', '4e', '5e'][b.rang - 1], 920, y + 6);
+    }
+  }
+  ctx.textAlign = 'center';
+}
+
+function dessiner(dt) {
+  fond('qui franchira la ligne en premier ?');
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, VUE_HAUT, W, H - VUE_HAUT);
+  ctx.clip();
+  ctx.translate(0, -camera);
+  const hautVue = camera + VUE_HAUT - 60, basVue = camera + H + 60;
+
+  // --- le couloir -----------------------------------------------------------
+  ctx.strokeStyle = 'rgba(110,140,165,0.26)';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(X0, hautVue); ctx.lineTo(X0, basVue);
+  ctx.moveTo(X1, hautVue); ctx.lineTo(X1, basVue);
+  ctx.stroke();
+
+  //  Des repères de distance tous les mille pixels : sans eux, un couloir qui
+  //  défile ne donne aucune idée du chemin parcouru.
+  ctx.font = '400 26px system-ui, sans-serif';
+  for (let m = 1000; m < ARRIVEE; m += 1000) {
+    if (m < hautVue || m > basVue) continue;
+    ctx.strokeStyle = 'rgba(120,150,175,0.13)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(X0, m); ctx.lineTo(X1, m); ctx.stroke();
+    ctx.fillStyle = 'rgba(120,150,175,0.35)';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${m / 1000} k`, X0 + 12, m - 10);
+  }
+  ctx.textAlign = 'center';
+
+  // --- les obstacles fixes --------------------------------------------------
+  ctx.strokeStyle = '#5d7285';
+  ctx.lineCap = 'round';
+  const chemin = new Path2D();
+  for (const s of SEGMENTS) {
+    if (Math.max(s.y1, s.y2) < hautVue || Math.min(s.y1, s.y2) > basVue) continue;
+    chemin.moveTo(s.x1, s.y1); chemin.lineTo(s.x2, s.y2);
+  }
+  ctx.lineWidth = 22; ctx.stroke(chemin);
+  ctx.strokeStyle = '#8fa8ba'; ctx.lineWidth = 12; ctx.stroke(chemin);
+
+  const pClous = new Path2D();
+  for (const c of CLOUS) {
+    if (c.y < hautVue || c.y > basVue) continue;
+    pClous.moveTo(c.x + c.r, c.y);
+    pClous.arc(c.x, c.y, c.r, 0, 6.2832);
+  }
+  ctx.fillStyle = '#546678'; ctx.fill(pClous);
+
+  // --- les rotors -----------------------------------------------------------
+  for (const ro of ROTORS) {
+    if (ro.y + ro.longueur < hautVue || ro.y - ro.longueur > basVue) continue;
+    const p = new Path2D();
+    for (let k = 0; k < ro.pales; k++) {
+      const a = ro.phase + k * 2 * Math.PI / ro.pales;
+      p.moveTo(ro.x, ro.y);
+      p.lineTo(ro.x + Math.cos(a) * ro.longueur, ro.y + Math.sin(a) * ro.longueur);
+    }
+    ctx.strokeStyle = '#c8873a'; ctx.lineWidth = 26; ctx.stroke(p);
+    ctx.strokeStyle = '#f0b25e'; ctx.lineWidth = 15; ctx.stroke(p);
+    ctx.fillStyle = '#2b3644';
+    ctx.beginPath(); ctx.arc(ro.x, ro.y, 20, 0, 6.2832); ctx.fill();
+    ctx.strokeStyle = '#f0b25e'; ctx.lineWidth = 4; ctx.stroke();
+  }
+
+  // --- la ligne d'arrivée ---------------------------------------------------
+  if (ARRIVEE > hautVue && ARRIVEE < basVue) {
+    const puls = 0.5 + 0.5 * Math.sin(tps * 5);
+    ctx.strokeStyle = `hsl(150 100% 60% / ${0.55 + 0.4 * puls})`;
+    ctx.lineWidth = 9; ctx.setLineDash([30, 22]);
+    ctx.beginPath(); ctx.moveTo(X0, ARRIVEE); ctx.lineTo(X1, ARRIVEE); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // --- traînées, ondes, balles ---------------------------------------------
+  ctx.globalCompositeOperation = 'lighter';
+  for (const b of balles) {
+    const tr = traces[b.i];
+    if (!b.arrive) { tr.push([b.x, b.y]); if (tr.length > 14) tr.shift(); }
+    if (tr.length > 3) {
+      const grad = ctx.createLinearGradient(tr[0][0], tr[0][1], b.x, b.y);
+      grad.addColorStop(0, couleur(b.h, 100, 60, 0));
+      grad.addColorStop(1, couleur(b.h, 100, 66));
+      const p = new Path2D();
+      p.moveTo(tr[0][0], tr[0][1]);
+      for (const [x, y] of tr) p.lineTo(x, y);
+      ctx.strokeStyle = grad;
+      ctx.globalAlpha = 0.22; ctx.lineWidth = R_BALLE * 1.5;
+      ctx.stroke(p);
+    }
+  }
+  for (let i = ondes.length - 1; i >= 0; i--) {
+    const o = ondes[i];
+    o.vie -= dt * 3.6; o.r += dt * 300;
+    if (o.vie <= 0) { ondes.splice(i, 1); continue; }
+    if (o.y < hautVue || o.y > basVue) continue;
+    ctx.globalAlpha = 0.45 * o.vie;
+    ctx.strokeStyle = couleur(o.h, 100, 70);
+    ctx.lineWidth = 2 + 4 * o.vie;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.2832); ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  for (const b of balles) {
+    if (b.arrive) continue;
+    ctx.shadowColor = couleur(b.h); ctx.shadowBlur = 26;
+    const g = ctx.createRadialGradient(b.x - 8, b.y - 9, 3, b.x, b.y, R_BALLE);
+    g.addColorStop(0, couleur(b.h, 100, 92));
+    g.addColorStop(1, couleur(b.h, 100, 52));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(b.x, b.y, R_BALLE, 0, 6.2832); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2.5; ctx.stroke();
+  }
+  ctx.restore();
+
+  //  Un liseré à la limite du découpage : la coupure se lit comme un cadre et
+  //  non comme un défaut.
+  ctx.strokeStyle = 'rgba(120,150,175,0.22)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, VUE_HAUT); ctx.lineTo(W, VUE_HAUT);
+  ctx.stroke();
+
+  tableau();
+
+  ctx.font = '400 30px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(150,168,178,0.7)';
+  const restant = Math.max(0, ARRIVEE - Math.max(...balles.map(b => b.y)));
+  ctx.fillText(fini ? '' : `${Math.round(restant / 100) / 10} k restants`,
+               W / 2, H - 70);
+
+  if (fini) {
+    const b = balles[vainqueur];
+    const v = Math.min(1, fini / 0.4);
+    ctx.fillStyle = `rgba(4,6,10,${0.72 * v})`;
+    ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.font = '400 42px system-ui, sans-serif';
+    ctx.fillStyle = `rgba(200,215,220,${v})`;
+    ctx.fillText('vainqueur', W / 2, H / 2 - 190);
+    ctx.font = '800 112px system-ui, sans-serif';
+    ctx.fillStyle = couleur(b.h, 100, 64, v);
+    ctx.fillText(b.nom, W / 2, H / 2 - 70);
+    //  Le podium : c'est ce qu'on vient chercher quand on a parié.
+    for (const [k, i] of classement.slice(0, 3).entries()) {
+      const m = balles[i];
+      ctx.font = '600 44px system-ui, sans-serif';
+      ctx.fillStyle = couleur(m.h, 100, 62, v);
+      ctx.fillText(`${['1er', '2e', '3e'][k]}   ${m.nom}`, W / 2, H / 2 + 40 + k * 66);
+    }
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+//  Boucle
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, vitesse = 1, reste = 0, notesCeTour = 0;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+  if (actif) {
+    notesCeTour = 0;
+    reste += brut * vitesse;
+    let n = 0;
+    while (reste >= DT && n++ < 900) { pas(); reste -= DT; }
+    if (fini > FIN_ECRAN) reinitialiser();   // on relance un duel tout seul
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('raz').onclick = () => reinitialiser();
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre déjà
+  // actif, se fier à audio.state couperait le son dès le premier appui.
+  if (!audio) {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    preparerBus();
+  }
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+  e.target.textContent = son ? '♪ couper le son' : '♪ activer le son';
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>
