@@ -72,6 +72,18 @@ La page web et le script d'une même animation partagent les mêmes constantes,
 converties d'un repère à l'autre. La page est l'aperçu ; le script est la
 référence.
 
+**La page d'accueil range les animations par niveau d'avancement**, et non par
+famille — la famille reste indiquée en bout de ligne :
+
+| | | |
+|---|---|---|
+| **level 1** | brouillon | le principe tient et la partie se termine, mais la mise en scène n'a pas été reprise |
+| **level 2** | en cours | réglages mesurés sur des dizaines de parties, mise en scène travaillée |
+| **level 3** | finalisée | rien à reprendre — vide pour l'instant |
+
+Les tableaux ci-dessous restent classés par famille, qui est ce qui compte pour
+s'y retrouver dans le code.
+
 ## Les animations
 
 **01 — Vagues de pendule.** Seize pendules ; le *k*-ième effectue *30 − k*

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Animations — boucles exactes</title>
+<title>Animations — par niveau d'avancement</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -22,9 +22,18 @@
   ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid #16202c; }
   li { border-bottom: 1px solid #16202c; }
   h2 {
-    margin: clamp(2rem, 5vw, 3rem) 0 .35rem; font-size: 1.05rem; font-weight: 500;
-    letter-spacing: .01em; color: #dde4e4;
+    margin: clamp(2.4rem, 6vw, 3.4rem) 0 .35rem;
+    font-size: 1.05rem; font-weight: 500; letter-spacing: .01em; color: #dde4e4;
+    display: flex; align-items: baseline; gap: .7rem;
   }
+  /* La pastille de niveau : trois teintes, du plus brut au plus abouti. */
+  .niv {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    padding: .18rem .5rem; border-radius: 999px; font-weight: 600;
+  }
+  .n1 { color: #8a7f5c; background: #221f14; }
+  .n2 { color: #49c4b9; background: #0e2422; }
+  .n3 { color: #7fa8d8; background: #121d2a; }
   h2 + p { margin: 0 0 1.1rem; max-width: 52ch; }
   a.item {
     display: flex; align-items: baseline; gap: 1rem; padding: 1.1rem .25rem;
@@ -34,8 +43,18 @@
   a.item:hover, a.item:focus-visible { color: #49c4b9; padding-left: .75rem; }
   .num { font-size: 12px; letter-spacing: .18em; color: #49c4b9; flex: none; }
   .titre { font-size: 1.15rem; font-weight: 500; }
-  .fleche { margin-left: auto; color: #2c4a49; }
+  /* La famille reste indiquée ligne à ligne : le classement par niveau ne dit
+     rien de ce que fait l'animation, et l'un ne remplace pas l'autre. */
+  .fam {
+    margin-left: auto; font-size: 12px; letter-spacing: .06em; color: #55646e;
+    flex: none;
+  }
+  .fleche { color: #2c4a49; flex: none; }
   a.item:hover .fleche { color: #49c4b9; }
+  .vide {
+    margin: 0; padding: 1.4rem .25rem; border-top: 1px solid #16202c;
+    border-bottom: 1px solid #16202c; color: #4d5a63; font-style: italic;
+  }
   footer { max-width: 680px; margin: 2.5rem auto 0; font-size: 13px; }
   footer a { color: #49c4b9; }
   @media (prefers-reduced-motion: reduce) { a.item { transition: none; } }
@@ -46,153 +65,152 @@
 <main>
   <header>
     <h1>Animations</h1>
-    <p>Deux familles&nbsp;: des figures réglées pour se refermer exactement, et des
-       duels dont on ne connaît l'issue qu'à la fin. Aucune bibliothèque, tout
-       est calculé image par image.</p>
+    <p>Vingt animations rangées par <strong>niveau d'avancement</strong>, du
+       brouillon à la version finalisée. La famille de chacune — boucle, duel,
+       course, conquête, évasion — est rappelée en bout de ligne. Aucune
+       bibliothèque&nbsp;: tout est calculé image par image.</p>
   </header>
 
-  <h2>Boucles exactes</h2>
-  <p>Au bout d'un cycle, chaque figure retrouve sa position de départ.</p>
+  <h2><span class="niv n1">level 1</span> brouillon</h2>
+  <p>Le principe tient et la partie se termine, mais la mise en scène n'a pas
+     été reprise&nbsp;: ni question posée au spectateur, ni compte à rebours, et
+     les réglages n'ont eu qu'une passe de mesures.</p>
 
   <ul>
     <li><a class="item" href="1-vagues-de-pendule-intense/">
       <span class="num">01</span>
       <span class="titre">Vagues de pendule</span>
+      <span class="fam">boucle</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="2-billard-en-boucle/">
       <span class="num">02</span>
       <span class="titre">Billard en boucle</span>
+      <span class="fam">boucle</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="3-balle-qui-grossit/">
       <span class="num">03</span>
       <span class="titre">La balle qui grossit</span>
+      <span class="fam">boucle</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="4-rayons-de-rebond/">
       <span class="num">04</span>
       <span class="titre">Rayons de rebond</span>
+      <span class="fam">boucle</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="5-balle-et-pointes/">
       <span class="num">05</span>
       <span class="titre">La balle et les pointes</span>
+      <span class="fam">boucle</span>
       <span class="fleche">→</span>
     </a></li>
-  </ul>
-
-  <h2>Duels — qui va survivre&nbsp;?</h2>
-  <p>Deux concurrentes au moins, une seule à l'arrivée. L'état de chacune est
-     affiché en permanence&nbsp;: vies, avance, terrain. À chaque partie, une
-     issue différente.</p>
-
-  <ul>
     <li><a class="item" href="6-cinq-vies/">
       <span class="num">06</span>
       <span class="titre">Cinq vies</span>
+      <span class="fam">duel</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="7-course-en-spirale/">
       <span class="num">07</span>
       <span class="titre">Course en spirale</span>
+      <span class="fam">duel</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="8-sol-qui-s-effrite/">
       <span class="num">08</span>
       <span class="titre">Le sol qui s'effrite</span>
+      <span class="fam">duel</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="9-grand-plongeon/">
       <span class="num">09</span>
       <span class="titre">Le grand plongeon</span>
+      <span class="fam">duel</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="10-guerre-de-territoire/">
+      <span class="num">10</span>
+      <span class="titre">Guerre de territoire</span>
+      <span class="fam">conquête</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="11-pointes-qui-poussent/">
       <span class="num">11</span>
       <span class="titre">Les pointes qui poussent</span>
+      <span class="fam">duel</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="12-sumo/">
       <span class="num">12</span>
       <span class="titre">Sumo</span>
+      <span class="fam">duel</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="13-les-portes/">
       <span class="num">13</span>
       <span class="titre">Les portes</span>
+      <span class="fam">duel</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="14-le-dernier-debout/">
+      <span class="num">14</span>
+      <span class="titre">Le dernier debout</span>
+      <span class="fam">taille</span>
       <span class="fleche">→</span>
     </a></li>
     <li><a class="item" href="15-le-mur-qui-pousse/">
       <span class="num">15</span>
       <span class="titre">Le mur qui pousse</span>
+      <span class="fam">duel</span>
       <span class="fleche">→</span>
     </a></li>
-  </ul>
-
-  <h2>Courses</h2>
-  <p>Cinq balles, un parcours plus long que l'écran, et la caméra qui suit la
-     tête. La seconde ajoute deux obstacles qui rassemblent le peloton au lieu
-     de l'étaler&nbsp;: la course se joue sur la ligne droite finale.</p>
-
-  <ul>
     <li><a class="item" href="17-le-parcours/">
       <span class="num">17</span>
       <span class="titre">Le parcours</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="18-les-deux-epreuves/">
-      <span class="num">18</span>
-      <span class="titre">Les deux épreuves</span>
+      <span class="fam">course</span>
       <span class="fleche">→</span>
     </a></li>
   </ul>
 
-  <h2>Le plus gros mange le plus petit</h2>
-  <p>Des balles de même taille, et un morceau qui change de main à chaque
-     contact. La seconde ajoute de quoi grossir par terre&nbsp;: des pastilles
-     grises qui profitent surtout aux plus petites.</p>
-
-  <ul>
-    <li><a class="item" href="14-le-dernier-debout/">
-      <span class="num">14</span>
-      <span class="titre">Le dernier debout</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="20-les-gloutons/">
-      <span class="num">20</span>
-      <span class="titre">Les gloutons</span>
-      <span class="fleche">→</span>
-    </a></li>
-  </ul>
-
-  <h2>Conquête</h2>
-  <p>Un plateau partagé, des balles qui prennent du terrain à chaque rebond, et
-     un royaume qui tombe à la fin de chaque manche.</p>
-
-  <ul>
-    <li><a class="item" href="10-guerre-de-territoire/">
-      <span class="num">10</span>
-      <span class="titre">Guerre de territoire</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="19-quatre-royaumes/">
-      <span class="num">19</span>
-      <span class="titre">Quatre royaumes</span>
-      <span class="fleche">→</span>
-    </a></li>
-  </ul>
-
-  <h2>Évasion</h2>
-  <p>Une seule balle, et un mur qui s'effrite sous ses coups.</p>
+  <h2><span class="niv n2">level 2</span> en cours</h2>
+  <p>Reprises&nbsp;: réglages mesurés sur plusieurs dizaines de parties, mise en
+     scène travaillée — question posée au spectateur, compte à rebours,
+     équilibre vérifié entre les couleurs.</p>
 
   <ul>
     <li><a class="item" href="16-la-prison/">
       <span class="num">16</span>
       <span class="titre">La prison</span>
+      <span class="fam">évasion</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="18-les-deux-epreuves/">
+      <span class="num">18</span>
+      <span class="titre">Les deux épreuves</span>
+      <span class="fam">course</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="19-quatre-royaumes/">
+      <span class="num">19</span>
+      <span class="titre">Quatre royaumes</span>
+      <span class="fam">conquête</span>
+      <span class="fleche">→</span>
+    </a></li>
+    <li><a class="item" href="20-les-gloutons/">
+      <span class="num">20</span>
+      <span class="titre">Les gloutons</span>
+      <span class="fam">taille</span>
       <span class="fleche">→</span>
     </a></li>
   </ul>
+
+  <h2><span class="niv n3">level 3</span> finalisée</h2>
+  <p>Rien à reprendre&nbsp;: bonne à publier telle quelle.</p>
+
+  <p class="vide">Aucune pour l'instant.</p>
 </main>
 
 <footer>
