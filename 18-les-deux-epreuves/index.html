@@ -53,17 +53,20 @@
    <strong>herse</strong> barre toute la largeur&nbsp;: une seule fenêtre, qui
    va et vient, et des battants en pente qui vous y font glisser. Le
    <strong>sas</strong> attend le peloton — il ne s'ouvre que lorsque quatre
-   balles patientent dessus, ou au bout de neuf secondes.</p>
+   balles patientent dessus, ou au bout de six secondes.</p>
 
 <p>Le sas donne sur la ligne droite finale, où <strong>la pesanteur tombe à
    42&nbsp;%</strong>&nbsp;: tout s'y joue au ralenti. Elle se termine par un
-   <strong>goulet de cent quarante pixels</strong> — deux balles et demie de
-   large — le dernier endroit où la course change de mains&nbsp;: quatre balles
-   y arrivent groupées, et il n'en passe qu'une à la fois.</p>
+   <strong>goulet de cent pixels</strong> — deux balles de large tout juste — le
+   dernier endroit où la course change de mains&nbsp;: quatre balles y arrivent
+   groupées, et il n'en passe qu'une à la fois. Ses pentes sont bien plus
+   élastiques que le reste du parcours&nbsp;: elles renvoient le peloton vers le
+   haut au lieu de l'avaler, et les dernières secondes se jouent en
+   <strong>ricochets au-dessus du trou</strong>.</p>
 
-<p>Sur quarante courses, cette dernière ligne droite dure dix secondes en
+<p>Sur trente courses, cette dernière ligne droite dure treize secondes en
    médiane, presque un tiers du film, et l'écart entre la première et la
-   deuxième à la ligne vaut deux cents pixels — quatre balles.</p>
+   deuxième à la ligne vaut 178 pixels — moins de quatre balles.</p>
 
 <p class="note">Le film s'ouvre sur les cinq couleurs et un décompte&nbsp;: le pari
    se prend avant le départ. Ensuite il n'y a ni classement ni compteur — un
@@ -289,7 +292,7 @@ const herseX = t => (X0 + X1) / 2
 const SAS_Y = 4560;
 const SAS_G = 400, SAS_D = 680;   // largeur de la trappe
 const SAS_QUORUM = 4;             // balles qui déclenchent l'ouverture
-const SAS_DELAI = 9;              // s d'attente maximale
+const SAS_DELAI = 6;              // s d'attente maximale
 const SAS_OUVERT = 1.3;           // s d'ouverture
 
 //  3. Le ralenti. Sous le sas, la pesanteur tombe à un peu moins de la moitié
@@ -306,7 +309,9 @@ const RALENTI_V = 0.55;           // part de vitesse maximale conservée
 const CLOUS = [], SEGMENTS = [], ROTORS = [];
 
 function clou(x, y, r = 13) { CLOUS.push({ x, y, r }); }
-function segment(x1, y1, x2, y2, ep = 11) { SEGMENTS.push({ x1, y1, x2, y2, ep }); }
+function segment(x1, y1, x2, y2, ep = 11, rebond = REBOND) {
+  SEGMENTS.push({ x1, y1, x2, y2, ep, rebond });
+}
 function rotor(x, y, longueur, pales, omega, ep = 13) {
   ROTORS.push({ x, y, longueur, pales, omega, ep, phase: Math.random() * 6.2832 });
 }
@@ -342,13 +347,18 @@ segment(X1, 4180, SAS_D, SAS_Y);
 
 //  --- E. la ligne droite finale : mille sept cents pixels, clous serrés ----
 for (let l = 0; l < 8; l++) rangee(l, 4820 + l * 150, (X1 - X0) / 10, 11);
-//  Le goulet final. Il ne fait plus que cent quarante pixels — deux balles et
-//  demie de large — parce que c'est le dernier endroit où la course peut
-//  encore changer de mains : quatre balles y arrivent groupées, et il n'en
-//  passe qu'une à la fois.
-const GOULET_G = 470, GOULET_D = 610;
-segment(X0, 6000, GOULET_G, 6160);
-segment(X1, 6000, GOULET_D, 6160);
+//  Le goulet final. Cent pixels — deux balles de large, tout juste — parce que
+//  c'est le dernier endroit où la course peut encore changer de mains : quatre
+//  balles y arrivent groupées, et il n'en passe qu'une à la fois.
+//
+//  Ses deux pentes sont bien plus élastiques que le reste du parcours. Molles,
+//  elles avalaient le peloton en une seconde et demie ; élastiques, elles le
+//  renvoient vers le haut, et la dernière poignée de secondes se joue en
+//  ricochets au-dessus du trou.
+const GOULET_G = 490, GOULET_D = 590;
+const REBOND_GOULET = 0.80;
+segment(X0, 6000, GOULET_G, 6160, 11, REBOND_GOULET);
+segment(X1, 6000, GOULET_D, 6160, 11, REBOND_GOULET);
 
 // ---------------------------------------------------------------------------
 //  État
@@ -465,7 +475,7 @@ function pas() {
     for (const sg of SEGMENTS) {
       if (b.y < Math.min(sg.y1, sg.y2) - 120 || b.y > Math.max(sg.y1, sg.y2) + 120) continue;
       const [qx, qy] = projete(b.x, b.y, sg.x1, sg.y1, sg.x2, sg.y2);
-      if (heurter(b, qx, qy, sg.ep, REBOND, 0, 0)) {
+      if (heurter(b, qx, qy, sg.ep, sg.rebond, 0, 0)) {
         ondes.push({ x: qx, y: qy, r: 12, vie: 1, h: b.h });
       }
     }

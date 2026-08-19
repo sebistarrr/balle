@@ -210,8 +210,10 @@ DT = 1 / 480
 NEUTRE = 4                     # cases d'un royaume tombé, à prendre
 
 #  Le lever de rideau. Rien ne bouge avant : on laisse le temps de choisir une
-#  couleur, puis on décompte.
-PRE_CHOIX = 2.8
+#  couleur, puis on décompte. Les pastilles et le décompte se partagent le même
+#  temps — les quatre couleurs restent sous les yeux pendant que le compte
+#  tourne, au lieu de disparaître au moment précis où il faudrait choisir.
+PRE_CHOIX = 1.3
 PRE_COMPTE = 3.2
 DEPART = PRE_CHOIX + PRE_COMPTE
 
@@ -588,7 +590,7 @@ class QuatreRoyaumes(Scene):
         titre_b.set_opacity(0)
 
         def maj_titre(_):
-            avant = instantane()[4] < PRE_CHOIX
+            avant = instantane()[4] < DEPART
             titre_a.set_opacity(1 if avant else 0)
             titre_b.set_opacity(0 if avant else 1)
 
@@ -610,10 +612,12 @@ class QuatreRoyaumes(Scene):
 
         def maj_pastilles(g):
             tt = instantane()[4]
+            if tt >= DEPART:
+                for m in g:
+                    poser(m, 0)
+                return
             for i, m in enumerate(g):
                 v = float(np.clip((tt - 0.25 - i * 0.16) / 0.32, 0, 1))
-                if tt >= PRE_CHOIX:
-                    v = 0.0
                 poser(m, v)
                 #  Un léger dépassement à l'arrivée : la pastille rebondit au
                 #  lieu de simplement apparaître.

@@ -389,9 +389,12 @@ n'empêche une autre balle de venir se servir avant. La partie dure 33,6 s, la
 même à chaque fois, ce qui est voulu : c'est un format court.
 
 **Le lever de rideau** est la seule partie du film qui ne soit pas de la
-physique. Deux secondes huit pour choisir une couleur — les quatre pastilles
-arrivent une à une —, puis un décompte 3, 2, 1, GO. Sans lui, le spectateur
-découvre les quatre camps alors que la partie est déjà jouée à un quart.
+physique. Les quatre pastilles arrivent une à une, puis le décompte 3, 2, 1, GO
+tourne **par-dessus elles** — les couleurs restent sous les yeux au lieu de
+disparaître au moment précis où il faudrait choisir. Sans ce rideau, le
+spectateur découvre les quatre camps alors que la partie est déjà jouée à un
+quart ; en mutualisant les deux temps, il ne coûte que quatre secondes et
+demie.
 
 ## Les courses
 
@@ -450,10 +453,10 @@ temps en tranches**. Les instants de passage mesurés se rangent sur la grille
 17,9 / 21,1 / 24,7 / 28,3, et deux balles séparées d'une seconde repartent
 souvent à une tranche entière d'écart. L'écart au sas valait 3,5 s — exactement
 la période. La trappe **attend donc le peloton au lieu de compter** : elle
-s'ouvre dès que quatre balles patientent dessus, ou au bout de neuf secondes si
+s'ouvre dès que quatre balles patientent dessus, ou au bout de six secondes si
 elles ne viennent pas. Écart au sas après correction : **0,3 s**. Une seule
-ouverture par course, cinq secondes d'attente en médiane — et c'est le meilleur
-moment du film, tout le monde entassé derrière une trappe qui verdit.
+ouverture par course — et c'est le meilleur moment du film, tout le monde
+entassé derrière une trappe qui verdit.
 
 **Toute fente plus étroite qu'une balle est un piège.** C'est la troisième leçon,
 et la plus coûteuse : une course sur vingt-quatre durait **833 secondes**. Les
@@ -466,11 +469,16 @@ les parois pour qu'il n'y subsiste aucune fente. Un garde-fou secoue en dernier
 recours une balle qui n'avance plus, avec plus de patience devant la herse et le
 sas où l'attente fait partie du jeu.
 
-**Le goulet final** est le troisième obstacle, et le plus court : cent quarante
-pixels, deux balles et demie de large, juste avant la ligne. C'est le dernier
-endroit où la course change de mains — quatre balles y arrivent groupées et il
-n'en passe qu'une à la fois. Le resserrer de 220 à 140 px a fait tomber l'écart
-médian entre la première et la deuxième de 0,90 s à 0,69 s.
+**Le goulet final** est le troisième obstacle, et le plus court : **cent
+pixels**, deux balles de large tout juste, à quatre-vingt-dix pixels de la
+ligne. C'est le dernier endroit où la course change de mains — quatre balles y
+arrivent groupées et il n'en passe qu'une à la fois. Ses deux pentes sont par
+ailleurs **bien plus élastiques** que le reste du parcours, rebond 0,80 contre
+0,50 : molles, elles avalaient le peloton en une seconde et demie ; élastiques,
+elles le renvoient vers le haut, et la dernière poignée de secondes se joue en
+ricochets au-dessus du trou. Ces deux réglages ont porté la dernière ligne
+droite de dix à **treize secondes** et resserré l'écart à la ligne de 206 à
+**178 px**.
 
 **La dernière ligne droite se joue au ralenti.** Sous le sas la pesanteur tombe
 à 42 % et la vitesse est plafonnée à 55 %. C'est le seul endroit du dépôt où la
@@ -486,10 +494,10 @@ déjà la même chose que l'ordre des noms tout en coûtant trois cents pixels d
 hauteur. Le bandeau du haut est ainsi passé de 450 à 215 px, soit un quart de
 parcours visible en plus.
 
-Mesuré sur quarante courses après ces corrections : durées 28 à 38 s, médiane
-34 s dont **dix secondes de ligne droite finale**, les cinq balles gagnent entre
-5 et 9 fois, et l'écart entre la première et la deuxième à la ligne vaut deux
-cents pixels en médiane — quatre balles.
+Mesuré sur trente courses après ces corrections : durées 38 à 47 s, médiane
+44 s dont **treize secondes de ligne droite finale**, et l'écart entre la
+première et la deuxième à la ligne vaut 178 pixels en médiane — moins de quatre
+balles. Le film retenu se termine à 107 px, soit deux balles.
 
 ## La prison, et le choix de la bibliothèque
 
@@ -583,8 +591,8 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 15 | Le mur qui pousse | 24 s | 1,3 Mo |
 | 16 | La prison | 39 s | 7,4 Mo |
 | 17 | Le parcours | 38 s | 4,7 Mo |
-| 18 | Les deux épreuves | 44 s | 4,2 Mo |
-| 19 | Quatre royaumes | 37 s | 4,3 Mo |
+| 18 | Les deux épreuves | 45 s | 4,2 Mo |
+| 19 | Quatre royaumes | 36 s | 4,4 Mo |
 | 20 | Les gloutons | 36 s | 2,8 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à

@@ -214,11 +214,9 @@ NOMS = ("ROUGE", "JAUNE", "VERT", "BLEU", "VIOLET")
 TEINTES = (354.0, 38.0, 104.0, 190.0, 280.0)
 N = len(NOMS)
 
-#  Graine 6, choisie sur vingt-six : 34,6 s, dont 9,6 s dans la dernière ligne
-#  droite au ralenti, et JAUNE franchit la ligne 81 px devant ROUGE — moins de
-#  deux balles d'écart. Deux graines finissaient plus serré encore, mais sur un
-#  film plus court : c'est le temps passé au ralenti qui fait le suspens.
-GRAINE = 6
+#  Graine 12, la plus serrée des vingt-six : 35,7 s de course, et VERT franchit
+#  la ligne 107 px devant JAUNE — deux balles d'écart, un quart de seconde.
+GRAINE = 12
 
 # --------------------------------------------------------------------------
 #  Les deux épreuves
@@ -266,7 +264,7 @@ def battants(t):
 SAS_Y = 4560
 SAS_G, SAS_D = 400, 680     # largeur de la trappe
 SAS_QUORUM = 4              # balles qui déclenchent l'ouverture
-SAS_DELAI = 9.0             # s d'attente maximale
+SAS_DELAI = 6.0             # s d'attente maximale
 SAS_OUVERT = 1.3            # s d'ouverture
 
 #  3. Le ralenti. Sous le sas, la pesanteur tombe à un peu moins de la moitié
@@ -289,8 +287,8 @@ def _clou(x, y, r=13):
     CLOUS.append((x, y, r))
 
 
-def _segment(x1, y1, x2, y2, ep=11):
-    SEGMENTS.append((x1, y1, x2, y2, ep))
+def _segment(x1, y1, x2, y2, ep=11, rebond=REBOND):
+    SEGMENTS.append((x1, y1, x2, y2, ep, rebond))
 
 
 def _rotor(x, y, longueur, pales, omega, ep=13):
@@ -343,13 +341,18 @@ _segment(X1, 4180, SAS_D, SAS_Y)
 #  E. la ligne droite finale : mille sept cents pixels, clous serrés
 for _l in range(8):
     _rangee(_l, 4820 + _l * 150, (X1 - X0) / 10, 11)
-#  Le goulet final. Il ne fait que cent quarante pixels — deux balles et demie
-#  de large — parce que c'est le dernier endroit où la course peut encore
-#  changer de mains : quatre balles y arrivent groupées, et il n'en passe
-#  qu'une à la fois.
-GOULET_G, GOULET_D = 470, 610
-_segment(X0, 6000, GOULET_G, 6160)
-_segment(X1, 6000, GOULET_D, 6160)
+#  Le goulet final. Cent pixels — deux balles de large, tout juste — parce que
+#  c'est le dernier endroit où la course peut encore changer de mains : quatre
+#  balles y arrivent groupées, et il n'en passe qu'une à la fois.
+#
+#  Ses deux pentes sont bien plus élastiques que le reste du parcours. Molles,
+#  elles avalaient le peloton en une seconde et demie ; élastiques, elles le
+#  renvoient vers le haut, et la dernière poignée de secondes se joue en
+#  ricochets au-dessus du trou.
+GOULET_G, GOULET_D = 490, 590
+REBOND_GOULET = 0.80
+_segment(X0, 6000, GOULET_G, 6160, 11, REBOND_GOULET)
+_segment(X1, 6000, GOULET_D, 6160, 11, REBOND_GOULET)
 
 
 def projete(px, py, x1, y1, x2, y2):
@@ -456,11 +459,11 @@ def simuler(graine):
                     continue
                 if heurter(b, cx, cy, cr, REBOND, 0.0, 0.0):
                     chocs.append((t, cx, b["i"], 0))
-            for x1, y1, x2, y2, ep in SEGMENTS:
+            for x1, y1, x2, y2, ep, rebond in SEGMENTS:
                 if b["y"] < min(y1, y2) - 120 or b["y"] > max(y1, y2) + 120:
                     continue
                 qx, qy = projete(b["x"], b["y"], x1, y1, x2, y2)
-                heurter(b, qx, qy, ep, REBOND, 0.0, 0.0)
+                heurter(b, qx, qy, ep, rebond, 0.0, 0.0)
 
             #  La herse. Les battants glissent : au choc, leur vitesse propre
             #  pousse la balle sur le côté.
@@ -584,7 +587,7 @@ class DeuxEpreuves(Scene):
         #  dans un seul groupe, et la caméra n'est qu'un décalage de ce groupe.
         #  Les replacer un par un à chaque image coûterait cent fois plus.
         statique = VGroup()
-        for x1, y1, x2, y2, ep in SEGMENTS:
+        for x1, y1, x2, y2, ep, _r in SEGMENTS:
             statique.add(Line(monde(x1, y1, 0), monde(x2, y2, 0),
                               stroke_color="#8FA8BA",
                               stroke_width=2 * ep * ECHELLE * 130))

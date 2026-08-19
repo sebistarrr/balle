@@ -59,7 +59,8 @@
    balle de venir se servir avant. C'est le moment le plus disputé de la
    partie.</p>
 
-<p class="note">Les manches raccourcissent — dix secondes et demie, huit et demie,
+<p class="note">Le décompte tourne par-dessus les quatre pastilles&nbsp;: les
+   couleurs restent sous les yeux jusqu'au GO. Les manches raccourcissent — dix secondes et demie, huit et demie,
    sept — et le compte à rebours passe au rouge dans les trois dernières
    secondes. La barre du bas est la carte du plateau ramenée à une ligne.</p>
 
@@ -233,7 +234,12 @@ const NEUTRE = 4;                 // cases d'un royaume tombé, à prendre
 //  couleur, puis on décompte. C'est la seule partie du film qui ne soit pas de
 //  la physique, et elle est là pour une raison — sans elle, le spectateur
 //  découvre les quatre camps alors que la partie est déjà jouée à un quart.
-const PRE_CHOIX = 2.8;            // s de « choisis ta couleur »
+//
+//  Les pastilles et le décompte se partagent le même temps : les quatre
+//  couleurs restent sous les yeux pendant que le compte tourne, au lieu de
+//  disparaître au moment précis où il faudrait choisir. Le rideau y gagne une
+//  seconde et demie, et la question reste posée jusqu'au GO.
+const PRE_CHOIX = 1.3;            // s avant que le décompte ne démarre
 const PRE_COMPTE = 3.2;           // s de compte à rebours
 const DEPART = PRE_CHOIX + PRE_COMPTE;
 
@@ -646,8 +652,7 @@ function compteARebours() {
 
 function dessiner(dt) {
   const avant = tps < DEPART;
-  fond(avant && tps < PRE_CHOIX ? 'choisis ta couleur'
-                                : 'qui sera le dernier debout ?');
+  fond(avant ? 'choisis ta couleur' : 'qui sera le dernier debout ?');
 
   plateau();
 
@@ -683,8 +688,8 @@ function dessiner(dt) {
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
 
   if (avant) {
-    if (tps < PRE_CHOIX) pastilles();
-    else compteARebours();
+    pastilles();
+    if (tps >= PRE_CHOIX) compteARebours();
   } else {
     jauge();
     sablier();

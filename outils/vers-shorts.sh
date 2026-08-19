@@ -76,10 +76,10 @@ convertir 13-les-portes                 LesPortes            25.1
 convertir 15-le-mur-qui-pousse          MurQuiPousse         24.4
 #            les courses à cinq
 convertir 17-le-parcours                LeParcours           37.9
-convertir 18-les-deux-epreuves          DeuxEpreuves         44.1
+convertir 18-les-deux-epreuves          DeuxEpreuves         45.2
 #            le plus gros mange le plus petit
 convertir 14-le-dernier-debout          DernierDebout        25.3
 convertir 20-les-gloutons               LesGloutons          35.5
 #            les conquêtes
-convertir 19-quatre-royaumes            QuatreRoyaumes       37.1
+convertir 19-quatre-royaumes            QuatreRoyaumes       35.6
 echo "Terminé."
