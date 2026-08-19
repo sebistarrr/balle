@@ -198,6 +198,12 @@ DT = 1 / 480
 
 CAM_ANCRE = 0.38
 CAM_SUIVI = 6.0
+#  Le lever de rideau. La simulation, elle, ne connaît que le temps de jeu : le
+#  film lui ajoute six secondes en tête, et la course reste identique.
+PRE_CHOIX = 2.8
+PRE_COMPTE = 3.2
+LANCEMENT = PRE_CHOIX + PRE_COMPTE
+
 #  Le monde est masqué au-dessus de cette hauteur : au-dessus il n'y a que la
 #  question posée au spectateur. Plus de classement ni de chiffre d'écart — le
 #  pari est de désigner une couleur avant le départ, et un tableau qui donne
@@ -552,11 +558,13 @@ def simuler(graine):
 
 
 IMAGES, CHOCS, CLASSEMENT, FIN, VAINQUEUR = simuler(GRAINE)
-DUREE = FIN + APRES
+DUREE = LANCEMENT + FIN + APRES
 
 
 def instantane(t):
-    return IMAGES[min(int(t * FPS_ECH), len(IMAGES) - 1)]
+    #  Le temps du film moins le rideau : avant le GO, on montre la première
+    #  image, course figée sur la ligne de départ.
+    return IMAGES[min(int(max(0.0, t - LANCEMENT) * FPS_ECH), len(IMAGES) - 1)]
 
 
 def monde(x, y, camera):
@@ -700,6 +708,85 @@ class DeuxEpreuves(Scene):
                       weight=BOLD, color="#EBF4F8", line_spacing=0.75)
         entete.scale_to_fit_width(6.6).move_to(vers_scene(W / 2, 128))
 
+        # --- le lever de rideau : les cinq couleurs, puis le décompte ---------
+        #  Un pari ne vaut que s'il est pris avant le départ. Les cinq pastilles
+        #  arrivent une à une, en grand, et rien ne bouge tant que le décompte
+        #  n'est pas fini.
+        def memoriser(m):
+            #  set_opacity écrase l'opacité de chaque partie sans distinction :
+            #  un halo fait de deux voiles à 14 % et 7 % deviendrait un disque
+            #  plein. On retient les opacités d'origine pour ne que les moduler.
+            m.base_op = [(x, x.get_fill_opacity(), x.get_stroke_opacity())
+                         for x in m.family_members_with_points()]
+            return m
+
+        def poser(m, k):
+            for x, fo, so in m.base_op:
+                x.set_fill(opacity=fo * k)
+                x.set_stroke(opacity=so * k)
+
+        rideau = Rectangle(width=config.frame_width,
+                           height=(H - VUE_HAUT) * ECHELLE,
+                           stroke_width=0, fill_color="#04060A", fill_opacity=0)
+        rideau.move_to(vers_scene(W / 2, (VUE_HAUT + H) / 2))
+
+        PAS_P, YP = 190, 980
+        pastilles = VGroup()
+        for i in range(N):
+            x = W / 2 - PAS_P * (N - 1) / 2 + i * PAS_P
+            d = VGroup(halo_mobject(TEINTES[i], 52, ((1.8, 0.22),)),
+                       balle_mobject(TEINTES[i], 52))
+            d.move_to(vers_scene(x, YP))
+            n = Text(NOMS[i], weight=BOLD, color=teinte(TEINTES[i], 0.66))
+            n.scale_to_fit_height(0.21).move_to(vers_scene(x, YP + 104))
+            pastilles.add(memoriser(VGroup(d, n)))
+        pastilles.larg = [m.width for m in pastilles]
+
+        chiffre = Text("3", weight=BOLD, color="#F6FBFE").scale_to_fit_height(1.6)
+        chiffre.move_to(vers_scene(W / 2, 990))
+        chiffre.set_opacity(0)
+        chiffre.vu = None
+        chiffre.base = chiffre.height
+
+        def maj_rideau(_):
+            tt = t.get_value()
+            if tt >= LANCEMENT:
+                rideau.set_fill(opacity=0)
+                for m in pastilles:
+                    poser(m, 0)
+                chiffre.set_opacity(0)
+                return
+            rideau.set_fill(opacity=0.74)
+            if tt < PRE_CHOIX:
+                chiffre.set_opacity(0)
+                for i, m in enumerate(pastilles):
+                    v = float(np.clip((tt - 0.25 - i * 0.15) / 0.3, 0, 1))
+                    poser(m, v)
+                    #  Un léger dépassement à l'arrivée : la pastille rebondit
+                    #  au lieu de simplement apparaître.
+                    e = v * (1 + 0.35 * np.sin(np.pi * v) * (1 - v))
+                    m.set(width=pastilles.larg[i] * max(e, 1e-3))
+                return
+            for m in pastilles:
+                poser(m, 0)
+            #  3, 2, 1, puis GO, un temps chacun.
+            temps = PRE_COMPTE / 4
+            n = min(3, int((tt - PRE_CHOIX) / temps))
+            f = (tt - PRE_CHOIX - n * temps) / temps
+            if chiffre.vu != n:
+                m = Text("GO !" if n == 3 else str(3 - n), weight=BOLD,
+                         color="#4BFFA0" if n == 3 else "#F6FBFE")
+                m.scale_to_fit_height(1.6 if n < 3 else 1.2)
+                chiffre.become(m)
+                chiffre.vu = n
+                chiffre.base = m.height
+            e = 1 + 0.6 * (1 - min(1.0, f / 0.3)) ** 2
+            chiffre.scale_to_fit_height(chiffre.base * e)
+            chiffre.move_to(vers_scene(W / 2, 990))
+            chiffre.set_opacity(1 - 0.5 * max(0.0, (f - 0.72) / 0.28))
+
+        rideau.add_updater(maj_rideau)
+
         # --- bandeau de fin ---------------------------------------------------
         voile = Rectangle(width=config.frame_width, height=config.frame_height,
                           stroke_width=0, fill_color="#04060A", fill_opacity=0)
@@ -715,7 +802,7 @@ class DeuxEpreuves(Scene):
         podium.set_opacity(0)
 
         def maj_fin(_):
-            v = float(np.clip((t.get_value() - FIN) / 0.4, 0, 1))
+            v = float(np.clip((t.get_value() - LANCEMENT - FIN) / 0.4, 0, 1))
             voile.set_fill(opacity=0.72 * v)
             for m in podium:
                 m.set_opacity(v)
@@ -723,12 +810,13 @@ class DeuxEpreuves(Scene):
         voile.add_updater(maj_fin)
 
         self.add(statique, herse, trappe, pales, moyeux, balles, masque, liseré,
-                 entete, voile, podium)
+                 entete, rideau, pastilles, chiffre, voile, podium)
 
         if AVEC_SON:
             gamme = (0, 3, 7, 10, 12)
             ev = []
-            for k, (instant, x, i, genre) in enumerate(CHOCS):
+            for k, (instant0, x, i, genre) in enumerate(CHOCS):
+                instant = instant0 + LANCEMENT
                 pan = (x - W / 2) / (W / 2)
                 if genre == 2:                      # l'ouverture du sas
                     ev.append((instant, "souffle", 260, 0.0, 0.5))
@@ -739,7 +827,11 @@ class DeuxEpreuves(Scene):
                     ev.append((instant, "cloche",
                                gamme[int(x) % 5] + (12 if i % 2 else 0),
                                pan, 0.12))
-            ev += accord_victoire(FIN + 0.15, VAINQUEUR % 2 == 1)
+            #  Trois notes pour le décompte, une quatrième pour le départ.
+            for j in range(3):
+                ev.append((PRE_CHOIX + j * PRE_COMPTE / 4, "cloche", 7, 0.0, 0.30))
+            ev.append((LANCEMENT - PRE_COMPTE / 4, "cloche", 19, 0.0, 0.40))
+            ev += accord_victoire(LANCEMENT + FIN + 0.15, VAINQUEUR % 2 == 1)
             self.add_sound(bande_son(ev, DUREE, "deux_epreuves.wav"))
 
         self.play(t.animate.set_value(DUREE), run_time=DUREE, rate_func=linear)

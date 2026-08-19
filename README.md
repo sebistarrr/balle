@@ -14,7 +14,7 @@ En ligne : <https://sebistarrr.github.io/balle/>
 | 04 | Rayons de rebond | [`4-rayons-de-rebond/`](4-rayons-de-rebond/) | `bounce_rays.py` |
 | 05 | La balle et les pointes | [`5-balle-et-pointes/`](5-balle-et-pointes/) | `balle_et_pointes.py` |
 
-Et neuf **duels**, où deux concurrentes au moins s'affrontent et où l'on ne
+Et huit **duels**, où deux concurrentes au moins s'affrontent et où l'on ne
 connaît l'issue qu'à la fin :
 
 | | Duel | Dossier | Script Manim |
@@ -26,8 +26,14 @@ connaît l'issue qu'à la fin :
 | 11 | Les pointes qui poussent | [`11-pointes-qui-poussent/`](11-pointes-qui-poussent/) | `pointes_poussent.py` |
 | 12 | Sumo | [`12-sumo/`](12-sumo/) | `sumo.py` |
 | 13 | Les portes | [`13-les-portes/`](13-les-portes/) | `les_portes.py` |
-| 14 | Le dernier debout | [`14-le-dernier-debout/`](14-le-dernier-debout/) | `dernier_debout.py` |
 | 15 | Le mur qui pousse | [`15-le-mur-qui-pousse/`](15-le-mur-qui-pousse/) | `mur_qui_pousse.py` |
+
+Deux animations où **le plus gros mange le plus petit** :
+
+| | Animation | Dossier | Script Manim |
+|---|---|---|---|
+| 14 | Le dernier debout | [`14-le-dernier-debout/`](14-le-dernier-debout/) | `dernier_debout.py` |
+| 20 | Les gloutons | [`20-les-gloutons/`](20-les-gloutons/) | `gloutons.py` |
 
 Deux **conquêtes**, où le terrain lui-même est l'enjeu :
 
@@ -263,14 +269,6 @@ garnir le haut du puits sans jamais bouger la caméra. Chaque puits a son propre
 chapelet de portes — avec le même, les deux balles subiraient exactement le même
 sort. 15 – 15 sur trente, médiane 23 s.
 
-**14 — Le dernier debout.** Huit balles, et à chaque contact la plus grosse
-arrache un morceau de la plus petite. À taille égale un choc ne transfère rien :
-c'est ce qui rend les premières secondes indécises, avant que les écarts ne
-s'amplifient d'eux-mêmes. Une part du transfert se perd au passage, sinon les
-tailles s'envolent. Huit jauges seraient illisibles : la rangée du haut montre
-les huit **tailles réelles**, et c'est le classement en direct. Les huit balles
-gagnent au moins une fois sur vingt-quatre parties, médiane 24 s.
-
 **15 — Le mur qui pousse.** Deux chambres, un mur mobile, et chaque coup le
 pousse vers l'adversaire. C'est le duel qui a demandé le plus de tâtonnements.
 
@@ -283,6 +281,59 @@ est constant et les deux camps se compensent toujours. Il faut un exposant
 supérieur à un : c'est le **cube** de la largeur qui est retenu, et un étau qui
 se referme après seize secondes pour les parties encore serrées. 13 – 17 sur
 trente, médiane 26 s.
+
+## Le plus gros mange le plus petit
+
+**14 — Le dernier debout.** Huit balles, et à chaque contact la plus grosse
+arrache un morceau de la plus petite. À taille égale un choc ne transfère rien :
+c'est ce qui rend les premières secondes indécises, avant que les écarts ne
+s'amplifient d'eux-mêmes. Une part du transfert se perd au passage, sinon les
+tailles s'envolent. Huit jauges seraient illisibles : la rangée du haut montre
+les huit **tailles réelles**, et c'est le classement en direct. Les huit balles
+gagnent au moins une fois sur vingt-quatre parties, médiane 24 s.
+
+**20 — Les gloutons.** Même règle qu'à la 14, mais à quatre couleurs, sur un
+terrain presque deux fois plus grand — un rectangle plutôt qu'un disque, à cadre
+égal — et avec de quoi grossir par terre. Quatre corrections, toutes tirées de
+mesures, et trois d'entre elles portent sur le même problème : *ce qui empêche
+une partie de finir*.
+
+**Les pastilles grises** sont l'apport principal. Un choc prend au plus petit ;
+une pastille profite surtout à lui, son gain décroissant avec la taille de qui
+l'avale — nul au plafond, maximal au bord de la mort. C'est le seul mécanisme du
+film qui pousse vers l'égalité, et c'est lui qui fait les retournements : sur la
+partie retenue, la couleur qui gagne a été, un moment, la plus petite encore en
+vie.
+
+**Mais un mécanisme qui pousse vers l'égalité peut l'atteindre.** Première
+version du transfert : prélever une part de l'**écart** des rayons, ce qui a le
+mérite de ne rien transférer entre balles de taille rigoureusement égale. Or les
+pastilles poussent vers l'égalité et le transfert s'y annule : les quatre balles
+s'installent au même rayon et n'en bougent plus. Aucune partie terminée en
+quatorze minutes de simulation. On prélève donc, comme à la 14, une part du
+rayon du **plus petit**, ce qui mord toujours.
+
+**Reste que cela transfère aussi à égalité parfaite** — et c'est alors l'ordre
+de la boucle qui désigne le gros. Au premier choc, toutes les balles étant au
+même rayon, le plus petit indice l'emportait systématiquement : 17 victoires sur
+trente pour la première couleur, aucune pour la quatrième. L'égalité se tranche
+à pile ou face. Après correction, 9 / 11 / 8 / 12 sur quarante parties.
+
+**Et il faut que la nourriture se tarisse.** Tant qu'une balle drainée peut se
+refaire sur le terrain, elle se refait. Passé treize secondes de jeu, une
+pastille avalée n'est plus remplacée : la partie bascule d'une course au
+ravitaillement à un combat sec.
+
+Deux détails encore, l'un et l'autre visibles à la mesure. Deux balles restées
+au contact — coincées contre un mur — se transféraient du rayon à *chaque pas de
+calcul*, soit quatre cent quatre-vingts fois par seconde : une balle mourait dès
+la première seconde. Il y a maintenant un délai de garde entre deux morsures
+d'une même paire. Et une grande arène rend les rencontres rares : la médiane
+tenait en 29 s mais une partie sur dix dépassait 42 s, les deux dernières balles
+tournant sans se croiser. Accélérer le transfert n'y changeait rien — le
+problème n'est pas ce qu'un choc coûte, c'est qu'il n'y a plus de choc. Les murs
+se referment donc après quinze secondes. Durées finales : 17 à 32 s de jeu,
+médiane 24 s.
 
 ## Les conquêtes
 
@@ -532,8 +583,9 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 15 | Le mur qui pousse | 24 s | 1,3 Mo |
 | 16 | La prison | 39 s | 7,4 Mo |
 | 17 | Le parcours | 38 s | 4,7 Mo |
+| 18 | Les deux épreuves | 44 s | 4,2 Mo |
 | 19 | Quatre royaumes | 37 s | 4,3 Mo |
-| 18 | Les deux épreuves | 38 s | 4,1 Mo |
+| 20 | Les gloutons | 36 s | 2,8 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
 l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
@@ -573,6 +625,7 @@ manim -r 1080,1920 --fps 60 15-le-mur-qui-pousse/mur_qui_pousse.py MurQuiPousse
 manim -r 1080,1920 --fps 60 17-le-parcours/parcours.py LeParcours
 manim -r 1080,1920 --fps 60 18-les-deux-epreuves/deux_epreuves.py DeuxEpreuves
 manim -r 1080,1920 --fps 60 19-quatre-royaumes/quatre_royaumes.py QuatreRoyaumes
+manim -r 1080,1920 --fps 60 20-les-gloutons/gloutons.py LesGloutons
 ```
 
 Les dix duels et les deux courses sont tous en 9:16. Chacun accepte
