@@ -3,3 +3,10 @@ media/
 __pycache__/
 *.pyc
 *.wav
+
+# sorties des scripts Cairo : le mp4 publié est shorts.mp4
+anneau_perce.mp4
+spirale_rongee.mp4
+boite_percee.mp4
+prison.mp4
+*-muet.mp4

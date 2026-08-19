@@ -50,6 +50,14 @@ l'écran :
 | 17 | Le parcours | [`17-le-parcours/`](17-le-parcours/) | `parcours.py` |
 | 18 | Les deux épreuves | [`18-les-deux-epreuves/`](18-les-deux-epreuves/) | `deux_epreuves.py` |
 
+Et trois **reproductions** de vidéos vues ailleurs, refaites de zéro :
+
+| | Animation | Dossier | Script |
+|---|---|---|---|
+| 21 | L'anneau percé | [`21-l-anneau-perce/`](21-l-anneau-perce/) | `anneau_perce.py` *(Cairo)* |
+| 22 | La spirale rongée | [`22-la-spirale-rongee/`](22-la-spirale-rongee/) | `spirale_rongee.py` *(Cairo)* |
+| 23 | La boîte percée | [`23-la-boite-percee/`](23-la-boite-percee/) | `boite_percee.py` *(Cairo)* |
+
 Et une **évasion**, seule de son espèce — c'est aussi la seule dont la vidéo
 n'est pas rendue par Manim, pour une raison mesurée plus bas :
 
@@ -511,6 +519,65 @@ Mesuré sur trente courses après ces corrections : durées 38 à 47 s, médiane
 première et la deuxième à la ligne vaut 178 pixels en médiane — moins de quatre
 balles. Le film retenu se termine à 107 px, soit deux balles.
 
+## Les reproductions
+
+Trois vidéos vues ailleurs, refaites de zéro à partir de leurs seules images.
+Rien n'en est repris que le principe : ni bande son, ni cartouche de texte, ni
+les drapeaux nationaux qui servaient d'équipes dans l'une d'elles. Toutes trois
+passent par **Cairo** et non par Manim, pour la raison mesurée plus bas : elles
+comptent des milliers de disques ou de tronçons à chaque image.
+
+**21 — L'anneau percé.** Un anneau percé de deux trouées, qui tourne lentement,
+une balle à l'intérieur, aucune pesanteur. Chaque évasion en fait naître trois
+au centre. La population double toutes les quelques secondes — 1, puis 99 à
+vingt secondes, puis six mille à quarante-trois — et les fuyardes, qui ne sont
+pas effacées, s'ordonnent en spirales parce que l'anneau tourne pendant qu'elles
+sortent.
+
+La largeur des trouées est le seul réglage qui compte, et il a été calé sur la
+vidéo d'origine : à 0,46 radian la population explosait en vingt secondes, à
+0,22 il fallait cinquante secondes. À **0,30** la courbe suit celle du modèle —
+une centaine de balles à vingt secondes.
+
+Deux choses ne tiennent pas en force brute à six mille balles. Les chocs entre
+balles passent par une **grille** : en comparant toutes les paires, ce serait
+dix-huit millions de tests par pas de calcul, contre quatre voisines par balle
+avec la grille. Et le tracé se fait **par lots d'une même teinte** : changer la
+source de remplissage entre chaque disque coûte plus cher que le disque, alors
+on regroupe par tranche de douze degrés et l'on remplit trente chemins au lieu
+de six mille.
+
+**22 — La spirale rongée.** Une spirale bleue qui remplit le cadre, deux balles
+lâchées dans la cavité du centre, une minute au compteur. Chaque rebond ronge le
+morceau touché ; la cavité grandit jusqu'à ne plus laisser que les coins.
+
+La détection des chocs tient en dix opérations grâce à la forme choisie. C'est
+une **spirale d'Archimède** : un tour complet fait gagner exactement un pas, si
+bien qu'un point du plan appartient à un seul bras — celui d'indice
+`(r - R0) / pas - angle / 2π` arrondi à l'entier le plus proche — et la distance
+au bras est ce qui reste de cet arrondi. Sans cela il faudrait tester trois mille
+tronçons à chaque pas.
+
+Deux corrections mesurées. La **morsure s'élargit avec le temps** : à morsure
+fixe l'érosion s'essouffle, puisque plus la cavité grandit, plus les balles
+mettent de temps à revenir toucher un bras — un quart de la spirale rongée en
+une minute, contre la quasi-totalité dans le modèle. Et il a fallu un **bord
+extérieur infranchissable** au dernier tour : une balle qui traverse une zone
+entièrement rongée continue tout droit et ne rencontre plus jamais rien.
+L'érosion s'arrêtait net à 77 % et les scores se figeaient vingt secondes avant
+la fin. Ce bord est hors du cadre, on ne le voit pas.
+
+**23 — La boîte percée.** Une boîte carrée dont le plancher est percé sur un
+tiers de sa largeur, une pesanteur franche, deux balles au départ. Chaque balle
+qui trouve le trou en fait naître deux en haut : le remplissage l'emporte vite
+sur la fuite, la boîte déborde, et les fuyardes forment une colonne qui traverse
+tout l'écran.
+
+Une seule correction, mais elle est indispensable : chaque rebond sur le
+plancher reçoit **une pincée de hasard**. Un plancher parfaitement horizontal
+range les balles en couches immobiles, plus rien ne se dirige vers le trou, et
+le tas se fige — la partie s'arrête d'elle-même.
+
 ## La prison, et le choix de la bibliothèque
 
 **16 — La prison.** Une balle au centre, quarante murs concentriques autour
@@ -580,7 +647,9 @@ lents ou gros. Les quatre premières jouent une gamme pentatonique mineure ; la
 
 ## Télécharger les vidéos
 
-Chaque dossier contient `shorts.mp4` : l'animation rendue en **1080×1920, 60 fps,
+Les quatre animations rendues par Cairo écrivent leur `mp4` directement au bon
+format ; leur `shorts.mp4` en est une copie, resserrée pour les deux plus
+lourdes. Chaque dossier contient `shorts.mp4` : l'animation rendue en **1080×1920, 60 fps,
 H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 « ↓ mp4 1080×1920 » de chaque page y renvoie.
 
@@ -606,6 +675,9 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 18 | Les deux épreuves | 45 s | 4,2 Mo |
 | 19 | Quatre royaumes | 36 s | 4,4 Mo |
 | 20 | Les gloutons | 36 s | 2,8 Mo |
+| 21 | L'anneau percé | 47 s | 13 Mo |
+| 22 | La spirale rongée | 64 s | 6,2 Mo |
+| 23 | La boîte percée | 25 s | 6,7 Mo |
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
 l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
@@ -660,6 +732,22 @@ d'origine, ou `"sinus"` pour un mouvement physiquement correct).
 
 Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (les
 compteurs des 03 et 05, les légendes de la 04) passent par Pango.
+
+Les quatre animations rendues par **Cairo** se lancent autrement — elles
+produisent leur `mp4` directement, déjà en 1080 × 1920, sans passer par
+`vers-shorts.sh` :
+
+```sh
+pip install pycairo numpy
+
+cd 16-la-prison        && python prison.py          && cd ..
+cd 21-l-anneau-perce   && python anneau_perce.py    && cd ..
+cd 22-la-spirale-rongee && python spirale_rongee.py && cd ..
+cd 23-la-boite-percee  && python boite_percee.py    && cd ..
+```
+
+Chacune accepte `--graines`, qui simule une série de tirages et dit ce qu'ils
+donnent.
 
 ## Voir en local
 
