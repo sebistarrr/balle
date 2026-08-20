@@ -947,6 +947,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 27 | Ombre contre Glace | 66 s | 11 Mo |
 | 28 | Les fils coupés | 75 s | 23 Mo |
 | 29 | La toile | 66 s | 15 Mo |
+| 30–59 | Les trente duels d'éléments | 40 à 95 s | 3 à 6 Mo pièce |
 
 La 24 est de loin la plus lourde du lot, et c'est irréductible : deux mille
 disques colorés qui bougent chacun pour soi ne se compressent pas. Même
@@ -1008,7 +1009,8 @@ compteurs des 03 et 05, les légendes de la 04) passent par Pango.
 
 Les dix animations rendues par **Cairo** se lancent autrement — elles
 produisent leur `mp4` directement, déjà en 1080 × 1920, sans passer par
-`vers-shorts.sh` :
+`vers-shorts.sh`. Les trente duels d'éléments ont chacun le leur, engendré du
+même moteur : `cd 30-feu-contre-eau && python duel.py`, et ainsi de suite.
 
 ```sh
 pip install pycairo numpy scipy   # scipy n'est utile qu'à la 24
@@ -1026,7 +1028,8 @@ cd 29-la-toile          && python toile.py             && cd ..
 ```
 
 Chacune accepte `--graines`, qui simule une série de tirages et dit ce qu'ils
-donnent.
+donnent — y compris les trente duels d'éléments, qui affichent le vainqueur et
+les points de vie restants.
 
 ## Voir en local
 
