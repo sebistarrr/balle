@@ -201,30 +201,45 @@ const CX = 540, CY = 975, RC = 498;
 const EP_BORD = 7;
 
 const R = 34;                       // rayon d'une balle
-const V = 640;                      // vitesse, constante : il n'y a pas de
+const V = 900;                      // vitesse, constante : il n'y a pas de
                                     // pesanteur, la balle atteint tout le bord
 const N0 = 14;                      // fils au départ
 const OUVERTURE = 0.9;              // demi-angle de la gerbe initiale, en rad
-const MAX_FILS = 60;
+const MAX_FILS = 160;
+
+//  Un rebond ne plante pas un point d'attache mais toute une grappe. Compté
+//  sur la vidéo, image par image, en dénombrant les paquets de couleur sur le
+//  bord : le vert passe de 15 points à 33 en une seconde, le jaune de 18 à 37.
+//  Un point par rebond ne pouvait pas donner ça.
+//  La grappe maigrit au fil de la partie, et c'est ce qui fait qu'il y a une
+//  fin. Mesuré sur quarante secondes : chaque balle gagnait 500 fils et en
+//  perdait 450. Or la perte est proportionnelle à la taille de la gerbe — plus
+//  on a de fils, plus on en présente à couper — tandis que le gain est fixe.
+//  Chaque balle converge donc vers le même équilibre, autour de cent fils, et
+//  personne ne descend jamais à zéro : mesuré, aucune partie sur quarante ne
+//  se terminait en cinq minutes. En faisant maigrir la grappe, l'équilibre
+//  descend avec elle et entraîne les gerbes vers zéro.
+const GAIN0 = 12;
+const GAIN_PENTE = 0.26;            // par seconde
+//  Le plancher est zéro, pas un : à deux, il ne reste que deux gerbes à
+//  traverser au lieu de cinq, les coupes se raréfient et l'équilibre remonte.
+//  À un fil par rebond les deux dernières se stabilisaient vers quarante et la
+//  partie ne finissait jamais. Passé la quarante-sixième seconde le puits est
+//  sec : les deux gerbes ne font plus que se vider.
+const gain = () => Math.max(0, Math.round(GAIN0 - tps * GAIN_PENTE));
+const GAIN_ETALE = 0.18;            // demi-ouverture de la grappe, en rad
 
 //  Un fil n'est coupé que loin de son point d'attache : au ras de la balle qui
 //  le tient, toutes ses gerbes passent à portée d'un adversaire de passage et
 //  disparaîtraient d'un coup.
 const GARDE = 3.2 * R;
 
-//  Un délai entre deux coupes, par balle. Sans lui la fonction s'exécute deux
-//  cent quarante fois par seconde contre quatre adversaires : mesuré, près de
-//  mille fils tranchés par seconde, et la partie médiane durait dix secondes
-//  au lieu des cent de la vidéo.
-const COUPE_REPOS = 0.55;
-
-//  L'usure. Passé un temps, chaque balle perd un fil de temps en temps, et de
-//  plus en plus vite. Sans elle la fin de partie se fige : à deux, les gerbes
-//  ne se croisent presque plus, chacune regagne un fil par rebond et personne
-//  ne descend jamais à zéro — mesuré, un quart des parties dépassait deux
-//  minutes et l'une n'a pas fini en cinq.
-const USURE_DEBUT = 38;
-const usurePeriode = () => Math.max(1.1, 5.5 - (tps - USURE_DEBUT) * 0.055);
+//  Un passage = une coupe. La gerbe de l'adversaire balaie l'écran en même
+//  temps que lui : sans ce délai par paire, elle vient se présenter fil après
+//  fil sous la balle qui la coupe, et le saignement est continu au lieu d'être
+//  un coup de faux. Mesuré, la partie médiane tombait à dix secondes alors que
+//  la vidéo en dure cent.
+const PASSE_REPOS = 1.3;
 
 const NOMS = ['VERT', 'VIOLET', 'ROSE', 'JAUNE', 'BLEU'];
 const TEINTES = [125, 268, 335, 58, 195];
@@ -251,7 +266,8 @@ function reinitialiser() {
       i, h,
       x: CX + Math.cos(a) * RC * 0.55, y: CY + Math.sin(a) * RC * 0.55,
       vx: Math.cos(cap) * V, vy: Math.sin(cap) * V,
-      fils, vivante: true, mort: 0, eclat: 0, repos: 0, usure: 0,
+      fils, vivante: true, mort: 0, eclat: 0, usure: 0,
+      repos: [0, 0, 0, 0, 0],
     };
   });
   ordre = balles.map((_, i) => i);
@@ -272,9 +288,14 @@ function bord(b) {
   const p = 2 * (b.vx * nx + b.vy * ny);
   b.vx -= p * nx;
   b.vy -= p * ny;
-  //  Le point d'attache est sur le bord, pas sur la balle : c'est ce qui fait
-  //  que les fils touchent le cercle et non un anneau intérieur.
-  if (b.fils.length < MAX_FILS) b.fils.push(Math.atan2(ny, nx));
+  //  Les points d'attache sont sur le bord, pas sur la balle : c'est ce qui
+  //  fait que les fils touchent le cercle et non un anneau intérieur. Et il en
+  //  naît toute une grappe d'un coup, étalée autour du point de contact.
+  const a0 = Math.atan2(ny, nx);
+  const g = gain();
+  for (let k = 0; k < g && b.fils.length < MAX_FILS; k++) {
+    b.fils.push(a0 + (g === 1 ? 0 : (k / (g - 1) - 0.5) * 2 * GAIN_ETALE));
+  }
   b.eclat = 0.22;
   if (notesCeTour < 3) {
     notesCeTour++;
@@ -283,35 +304,42 @@ function bord(b) {
   }
 }
 
-//  Distance d'un point à un segment, en ne gardant que la portion utile : le
-//  fil part de la balle qui le tient, on ignore les GARDE premiers pixels.
+//  Traverser une gerbe la tranche EN ENTIER : tous les fils que la balle
+//  coupe à cet instant tombent d'un coup. Mesuré sur la vidéo : le jaune perd
+//  quarante-quatre fils en une seconde, le rose treize. Un fil à la fois ne
+//  pouvait pas donner ça. Seul le début du fil est épargné — au ras de la
+//  balle qui le tient, toute sa gerbe passe à portée d'un adversaire de
+//  passage et disparaîtrait pour rien.
 function couperFils(tueur, cible) {
-  if (tueur.repos > 0) return;
+  if (tueur.repos[cible.i] > 0) return;
+  const ax = cible.x, ay = cible.y;
+  let n = 0;
   for (let k = cible.fils.length - 1; k >= 0; k--) {
-    const ax = cible.x, ay = cible.y;
     const bx = CX + Math.cos(cible.fils[k]) * RC;
     const by = CY + Math.sin(cible.fils[k]) * RC;
     const ex = bx - ax, ey = by - ay;
     const L = Math.hypot(ex, ey);
     if (L < 1e-6) continue;
     let t = ((tueur.x - ax) * ex + (tueur.y - ay) * ey) / (L * L);
-    if (t * L < GARDE) continue;          // trop près de son attache
+    if (t * L < GARDE) continue;
     t = Math.min(1, t);
     const px = ax + ex * t, py = ay + ey * t;
     if (Math.hypot(tueur.x - px, tueur.y - py) > R) continue;
-    tueur.repos = COUPE_REPOS;
     coupes.push({ x: px, y: py, h: cible.h, vie: 0.45 });
     cible.fils.splice(k, 1);
-    if (notesCeTour < 3) {
-      notesCeTour++;
-      souffle((px - W / 2) / (W / 2), 0.14, 0.16, 1800, 'highpass');
-    }
-    if (cible.fils.length === 0) {
-      cible.vivante = false;
-      cible.mort = tps;
-      souffle(0, 0.4, 0.7, 260, 'lowpass');
-    }
-    return;                                // un fil par pas de calcul
+    n++;
+  }
+  if (!n) return;
+  tueur.repos[cible.i] = PASSE_REPOS;
+  if (notesCeTour < 3) {
+    notesCeTour++;
+    souffle((tueur.x - W / 2) / (W / 2), Math.min(0.4, 0.06 + n * 0.03),
+            0.22, 1500, 'highpass');
+  }
+  if (cible.fils.length === 0) {
+    cible.vivante = false;
+    cible.mort = tps;
+    souffle(0, 0.4, 0.7, 260, 'lowpass');
   }
 }
 
@@ -344,19 +372,7 @@ function pas() {
     const b = balles[i];
     if (!b.vivante) continue;
     if (b.eclat > 0) b.eclat -= DT;
-    if (b.repos > 0) b.repos -= DT;
-    if (tps > USURE_DEBUT) {
-      b.usure += DT;
-      if (b.usure >= usurePeriode()) {
-        b.usure = 0;
-        const k = (Math.random() * b.fils.length) | 0;
-        const a = b.fils[k];
-        coupes.push({ x: CX + Math.cos(a) * RC * 0.72,
-                      y: CY + Math.sin(a) * RC * 0.72, h: b.h, vie: 0.45 });
-        b.fils.splice(k, 1);
-        if (b.fils.length === 0) { b.vivante = false; b.mort = tps; }
-      }
-    }
+    for (let k = 0; k < 5; k++) if (b.repos[k] > 0) b.repos[k] -= DT;
     b.x += b.vx * DT;
     b.y += b.vy * DT;
     bord(b);

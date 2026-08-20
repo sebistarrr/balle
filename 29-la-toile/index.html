@@ -205,7 +205,14 @@ const EP_BORD = 2.5;
 const R = 26;
 const V = 700;                      // vitesse, constante
 const DUREE = 62;                   // s — la toile est jugée au temps
-const MAX_FILS = 190;               // au-delà, le disque est plein
+const MAX_FILS = 900;               // au-delà, le disque est plein
+
+//  Un rebond ne plante pas un point d'attache mais toute une grappe — compté
+//  sur la vidéo, image par image. C'est de là que vient la montée en puissance
+//  du duel : quelques dizaines de fils au début, plus d'un millier à la fin, et
+//  le disque entièrement tissé.
+const GAIN = 9;
+const GAIN_ETALE = 0.16;            // demi-ouverture de la grappe, en rad
 
 const NOMS = ['ORANGE', 'VIOLET'];
 const TEINTES = [34, 285];
@@ -253,7 +260,10 @@ function bord(b) {
   b.vx = Math.cos(c) * s;
   b.vy = Math.sin(c) * s;
 
-  if (b.fils.length < MAX_FILS) b.fils.push(Math.atan2(ny, nx));
+  const a0 = Math.atan2(ny, nx);
+  for (let k = 0; k < GAIN && b.fils.length < MAX_FILS; k++) {
+    b.fils.push(a0 + (k / (GAIN - 1) - 0.5) * 2 * GAIN_ETALE);
+  }
   b.eclat = 0.3;
   ondes.push({ x: b.x, y: b.y, h: b.h, vie: 0.5 });
   if (notesCeTour < 3) {
@@ -322,8 +332,12 @@ function dessiner(dt) {
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'butt';
   for (const b of balles) {
-    ctx.strokeStyle = couleur(b.h, 88, 42, 0.85);
-    ctx.lineWidth = 1.9;
+    //  En fusion additive, mille traits opaques saturent le disque en blanc.
+    //  Le trait s'affine et pâlit à mesure que la toile s'épaissit : c'est ce
+    //  qui laisse voir les croisements jusqu'au bout.
+    const dense = Math.min(1, b.fils.length / 420);
+    ctx.strokeStyle = couleur(b.h, 88, 40 - 14 * dense, 0.85 - 0.48 * dense);
+    ctx.lineWidth = 1.9 - 0.85 * dense;
     ctx.beginPath();
     for (const a of b.fils) {
       ctx.moveTo(b.x, b.y);

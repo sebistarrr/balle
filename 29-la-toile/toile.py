@@ -67,7 +67,14 @@ EP_BORD = 2.5
 R = 26.0
 V = 700.0
 DUREE = 62.0
-MAX_FILS = 190
+MAX_FILS = 900
+
+#  Un rebond ne plante pas un point d'attache mais toute une grappe — compté sur
+#  la vidéo, image par image. C'est de là que vient la montée en puissance du
+#  duel : quelques dizaines de fils au début, plus d'un millier à la fin, et le
+#  disque entièrement tissé.
+GAIN = 9
+GAIN_ETALE = 0.16
 
 NOMS = ("ORANGE", "VIOLET")
 TEINTES = (34.0, 285.0)
@@ -122,8 +129,11 @@ class Partie:
         c = math.atan2(b.vy, b.vx) + self.rng.uniform(-0.045, 0.045)
         b.vx, b.vy = math.cos(c) * s, math.sin(c) * s
 
-        if len(b.fils) < MAX_FILS:
-            b.fils.append(math.atan2(ny, nx))
+        a0 = math.atan2(ny, nx)
+        for k in range(GAIN):
+            if len(b.fils) >= MAX_FILS:
+                break
+            b.fils.append(a0 + (k / (GAIN - 1) - 0.5) * 2 * GAIN_ETALE)
         b.eclat = 0.3
         self.ondes.append({"x": b.x, "y": b.y, "h": TEINTES[b.i], "vie": 0.5})
         if len(self.notes) < 3000:
@@ -191,8 +201,13 @@ def dessiner(ctx, jeu, dt):
         for a in b.fils:
             ctx.move_to(b.x, b.y)
             ctx.line_to(CX + math.cos(a) * RC, CY + math.sin(a) * RC)
-        ctx.set_source_rgba(*teinte(TEINTES[b.i], 0.88, 0.42), 0.85)
-        ctx.set_line_width(1.9)
+        #  En fusion additive, mille traits opaques saturent le disque en
+        #  blanc. Le trait s'affine et pâlit à mesure que la toile s'épaissit :
+        #  c'est ce qui laisse voir les croisements jusqu'au bout.
+        dense = min(1.0, len(b.fils) / 420)
+        ctx.set_source_rgba(*teinte(TEINTES[b.i], 0.88, 0.40 - 0.14 * dense),
+                            0.85 - 0.48 * dense)
+        ctx.set_line_width(1.9 - 0.85 * dense)
         ctx.stroke()
 
     for o in jeu.ondes:

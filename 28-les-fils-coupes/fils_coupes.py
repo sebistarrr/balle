@@ -66,34 +66,43 @@ CX, CY, RC = 540.0, 975.0, 498.0
 EP_BORD = 7.0
 
 R = 34.0
-V = 640.0
+V = 900.0
 N0 = 14
 OUVERTURE = 0.9
-MAX_FILS = 60
+MAX_FILS = 160
 
 #  Un fil n'est coupé que loin de son point d'attache : au ras de la balle qui
 #  le tient, toutes ses gerbes passent à portée d'un adversaire de passage et
 #  disparaîtraient d'un coup.
 GARDE = 3.2 * R
 
-#  Un délai entre deux coupes, par balle. Sans lui la recherche s'exécute deux
-#  cent quarante fois par seconde contre quatre adversaires : mesuré, près de
-#  mille fils tranchés par seconde, et la partie médiane durait dix secondes au
-#  lieu des cent de la vidéo.
-COUPE_REPOS = 0.55
+#  Un passage = une coupe. La gerbe de l'adversaire balaie l'écran en même
+#  temps que lui : sans ce délai par paire, elle vient se présenter fil après
+#  fil sous la balle qui la coupe, et le saignement est continu au lieu d'être
+#  un coup de faux.
+PASSE_REPOS = 1.3
 
-#  L'usure. Passé un temps, chaque balle perd un fil de temps en temps, et de
-#  plus en plus vite. Sans elle la fin de partie se fige : à deux, les gerbes
-#  ne se croisent presque plus, chacune regagne un fil par rebond et personne
-#  ne descend jamais à zéro — mesuré, un quart des parties dépassait deux
-#  minutes et l'une n'a pas fini en cinq.
-USURE_DEBUT = 38.0
+#  Un rebond ne plante pas un point d'attache mais toute une grappe. Compté sur
+#  la vidéo, image par image, en dénombrant les paquets de couleur sur le bord :
+#  le vert passe de 15 points à 33 en une seconde, le jaune de 18 à 37.
+#
+#  La grappe maigrit ensuite, et c'est ce qui fait qu'il y a une fin. Mesuré sur
+#  quarante secondes : chaque balle gagnait 500 fils et en perdait 450. Or la
+#  perte est proportionnelle à la taille de la gerbe — plus on a de fils, plus
+#  on en présente à couper — tandis que le gain est fixe. Chaque balle converge
+#  donc vers le même équilibre, autour de cent fils, et personne ne descend
+#  jamais à zéro : aucune partie sur quarante ne se terminait en cinq minutes.
+#  Le plancher est zéro et non un : à deux, il ne reste que deux gerbes à
+#  traverser, les coupes se raréfient et l'équilibre remonte à quarante.
+GAIN0 = 12
+GAIN_PENTE = 0.26
+GAIN_ETALE = 0.16
 
 NOMS = ("VERT", "VIOLET", "ROSE", "JAUNE", "BLEU")
 TEINTES = (125.0, 268.0, 335.0, 58.0, 195.0)
 
 DT = 1 / 240
-GRAINE = 4          # 57,5 s : la plus proche de la durée médiane
+GRAINE = 2          # 54,7 s, le vert l'emporte de justesse — comme la vidéo
 
 
 class Balle:
@@ -108,8 +117,7 @@ class Balle:
         self.vivante = True
         self.mort = 0.0
         self.eclat = 0.0
-        self.repos = 0.0
-        self.usure = 0.0
+        self.repos = [0.0] * 5
 
 
 class Partie:
@@ -133,8 +141,8 @@ class Partie:
     def vivantes(self):
         return [b for b in self.b if b.vivante]
 
-    def usure_periode(self):
-        return max(1.1, 5.5 - (self.t - USURE_DEBUT) * 0.055)
+    def gain(self):
+        return max(0, round(GAIN0 - self.t * GAIN_PENTE))
 
     def bord(self, b):
         dx, dy = b.x - CX, b.y - CY
@@ -146,21 +154,31 @@ class Partie:
         p = 2 * (b.vx * nx + b.vy * ny)
         b.vx -= p * nx
         b.vy -= p * ny
-        #  Le point d'attache est sur le bord, pas sur la balle : c'est ce qui
-        #  fait que les fils touchent le cercle et non un anneau intérieur.
-        if len(b.fils) < MAX_FILS:
-            b.fils.append(math.atan2(ny, nx))
+        #  Les points d'attache sont sur le bord, pas sur la balle : c'est ce
+        #  qui fait que les fils touchent le cercle et non un anneau intérieur.
+        #  Et il en naît toute une grappe d'un coup.
+        a0 = math.atan2(ny, nx)
+        g = self.gain()
+        for k in range(g):
+            if len(b.fils) >= MAX_FILS:
+                break
+            b.fils.append(a0 + (0 if g == 1 else
+                                (k / (g - 1) - 0.5) * 2 * GAIN_ETALE))
         b.eclat = 0.22
         if len(self.notes) < 3000:
             self.notes.append((self.t, (len(b.fils) % 5) * 2 + b.i, 0.11,
                                (b.x - W / 2) / (W / 2)))
 
     def couper(self, tueur, cible):
-        """Le fil part de la balle qui le tient ; on ignore les GARDE premiers
-        pixels, et on n'en coupe qu'un par passage."""
-        if tueur.repos > 0:
+        """Traverser une gerbe la tranche EN ENTIER : tous les fils que la
+        balle coupe à cet instant tombent d'un coup. Mesuré sur la vidéo : le
+        jaune perd quarante-quatre fils en une seconde, le rose treize. Seul le
+        début du fil est épargné — au ras de la balle qui le tient, toute sa
+        gerbe passe à portée d'un adversaire de passage."""
+        if tueur.repos[cible.i] > 0:
             return
         ax, ay = cible.x, cible.y
+        n = 0
         for k in range(len(cible.fils) - 1, -1, -1):
             bx = CX + math.cos(cible.fils[k]) * RC
             by = CY + math.sin(cible.fils[k]) * RC
@@ -175,14 +193,16 @@ class Partie:
             px, py = ax + ex * t, ay + ey * t
             if math.hypot(tueur.x - px, tueur.y - py) > R:
                 continue
-            tueur.repos = COUPE_REPOS
             self.coupes.append({"x": px, "y": py, "h": TEINTES[cible.i],
                                 "vie": 0.45})
             cible.fils.pop(k)
-            if not cible.fils:
-                cible.vivante = False
-                cible.mort = self.t
+            n += 1
+        if not n:
             return
+        tueur.repos[cible.i] = PASSE_REPOS
+        if not cible.fils:
+            cible.vivante = False
+            cible.mort = self.t
 
     def entre_elles(self, a, b):
         dx, dy = b.x - a.x, b.y - a.y
@@ -214,21 +234,8 @@ class Partie:
             if not b.vivante:
                 continue
             b.eclat = max(0.0, b.eclat - DT)
-            b.repos = max(0.0, b.repos - DT)
-            if self.t > USURE_DEBUT:
-                b.usure += DT
-                if b.usure >= self.usure_periode():
-                    b.usure = 0.0
-                    k = int(self.rng.integers(len(b.fils)))
-                    a = b.fils[k]
-                    self.coupes.append({"x": CX + math.cos(a) * RC * 0.72,
-                                        "y": CY + math.sin(a) * RC * 0.72,
-                                        "h": TEINTES[b.i], "vie": 0.45})
-                    b.fils.pop(k)
-                    if not b.fils:
-                        b.vivante = False
-                        b.mort = self.t
-                        continue
+            for k in range(5):
+                b.repos[k] = max(0.0, b.repos[k] - DT)
             b.x += b.vx * DT
             b.y += b.vy * DT
             self.bord(b)

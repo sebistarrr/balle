@@ -634,34 +634,59 @@ seul.
 
 **28 — Les fils coupés.** Cinq balles dans un cercle noir cerclé de blanc.
 Chacune tient une gerbe de fils tendus entre elle et des points fixes du bord :
-la gerbe suit la balle, les points ne bougent pas. **Toucher le bord en tend un
-de plus, traverser le fil d'une autre le coupe** ; à court de fils, on est
-éliminée. C'est le tracé de la 04 — relier le mobile à ses points d'impact — mais
-transposé au cercle, à cinq, et devenu la règle du jeu au lieu d'une décoration :
-les fils sont à la fois ce qu'on regarde et ce qui tue.
+la gerbe suit la balle, les points ne bougent pas. **Toucher le bord y plante
+toute une grappe de points, traverser la gerbe d'une autre la tranche en
+entier** ; à court de fils, on est éliminée. C'est le tracé de la 04 — relier le
+mobile à ses points d'impact — mais transposé au cercle, à cinq, et devenu la
+règle du jeu au lieu d'une décoration : les fils sont à la fois ce qu'on regarde
+et ce qui tue.
 
-Deux mesures ont fait le réglage. La coupe s'exécutait **deux cent quarante fois
-par seconde contre quatre adversaires**, soit près de mille fils tranchés par
-seconde : la partie médiane durait dix secondes au lieu des cent de la vidéo. Un
-délai de 0,55 s entre deux coupes, par balle, remet les choses d'aplomb. Restait
-la fin de partie, qui se figeait : à deux, les gerbes ne se croisent presque
-plus, chacune regagne un fil par rebond et personne ne descend jamais à zéro —
-un quart des parties dépassait deux minutes, et l'une n'a pas fini en cinq. D'où
-**l'usure** : passé 38 s, chaque balle perd un fil de temps en temps, et de plus
-en plus vite.
+Les deux règles ont été comptées sur la vidéo, image par image, en dénombrant
+les paquets de couleur sur le bord. Ce comptage tranche : **le vert passe de 15
+points à 33 en une seconde**, le jaune de 18 à 37 — un point par rebond ne peut
+pas donner ça, il en faut une douzaine. Et dans l'autre sens, **le jaune perd
+quarante-quatre fils en une seconde**, le rose treize — un fil à la fois ne peut
+pas donner ça non plus, c'est une gerbe entière qui tombe d'un coup.
 
-Après quoi, sur soixante parties : victoires **9 / 12 / 10 / 16 / 13** entre les
-cinq couleurs, durée médiane **50 s**, toutes terminées, et la survivante finit
-le plus souvent avec deux à sept fils.
+Restait à faire tenir la partie. Trois mesures :
+
+*Le saignement continu.* La gerbe de l'adversaire balaie l'écran en même temps
+que lui, et vient donc se présenter fil après fil sous la balle qui la coupe. Le
+saignement était permanent au lieu d'être un coup de faux, et la partie médiane
+durait dix secondes contre cent à la vidéo. Un passage vaut désormais une coupe,
+avec 1,3 s de délai par paire.
+
+*L'équilibre.* Mesuré sur quarante secondes, chaque balle gagnait 500 fils et en
+perdait 450. Or **la perte est proportionnelle à la taille de la gerbe** — plus
+on a de fils, plus on en présente à couper — tandis que le gain est fixe. Toutes
+les balles convergent donc vers le même équilibre, autour de cent fils, et
+aucune ne descend jamais à zéro : **aucune partie sur quarante ne se terminait
+en cinq minutes**. C'est la même impasse qu'à la 20 sous une autre forme — une
+quantité conservée fige le jeu. La grappe maigrit donc au fil du temps, ce qui
+fait descendre l'équilibre avec elle.
+
+*Le plancher.* Il est à zéro et non à un. À deux, il ne reste que deux gerbes à
+traverser au lieu de cinq, les coupes se raréfient, l'équilibre remonte : à un
+fil par rebond les deux dernières se stabilisaient vers quarante et la partie ne
+finissait toujours pas. Passé la quarante-sixième seconde le puits est sec.
+
+Après quoi, sur quarante parties : victoires **5 / 6 / 11 / 8 / 10** entre les
+cinq couleurs, durée médiane **56 s** dans une fourchette de 51 à 69, toutes
+terminées, et la survivante finit avec un à quinze fils.
 
 **29 — La toile.** Même tracé, deux balles, et la règle inverse : **rien ne se
-coupe**. Chaque rebord planté reste, chaque fil reste tendu, et les deux gerbes
-s'épaississent pendant soixante-deux secondes jusqu'à tisser le disque entier.
-Les fils sont dessinés en **fusion additive** : à cent vingt fils la toile
-s'éclaire aux croisements au lieu de virer à la bouillie grise.
+coupe**. Chaque grappe plantée reste, chaque fil reste tendu, et les deux gerbes
+s'épaississent pendant soixante-deux secondes. C'est de la grappe que vient la
+montée en puissance du duel : quelques dizaines de fils au début, **plus d'un
+millier à la fin**, et le disque entièrement tissé.
 
-Une pincée de hasard à chaque rebond, sans quoi une balle finit par tomber sur
-une corde périodique — un triangle, une étoile à cinq branches — et repasse
+Deux réglages de tracé pour que ça reste lisible. Les fils sont en **fusion
+additive**, sinon la toile vire à la bouillie grise ; et le trait **s'affine et
+pâlit à mesure que la toile s'épaissit**, sinon mille traits opaques saturent le
+disque en blanc et l'on ne voit plus les croisements.
+
+Une pincée de hasard à chaque rebond, enfin, sans quoi une balle finit par tomber
+sur une corde périodique — un triangle, une étoile à cinq branches — et repasse
 indéfiniment par les mêmes points : la toile cesse alors de s'épaissir, ce qui
 est précisément ce que l'animation raconte.
 
@@ -842,8 +867,8 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 25 | Le trou qui glisse | 26 s | 12 Mo |
 | 26 | Rayons en fusion | 55 s | 27 Mo |
 | 27 | Ombre contre Glace | 66 s | 11 Mo |
-| 28 | Les fils coupés | 61 s | 21 Mo |
-| 29 | La toile | 66 s | 21 Mo |
+| 28 | Les fils coupés | 58 s | 31 Mo |
+| 29 | La toile | 66 s | 24 Mo |
 
 La 24 est de loin la plus lourde du lot, et c'est irréductible : deux mille
 disques colorés qui bougent chacun pour soi ne se compressent pas. Même
