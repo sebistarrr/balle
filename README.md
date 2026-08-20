@@ -50,13 +50,14 @@ l'écran :
 | 17 | Le parcours | [`17-le-parcours/`](17-le-parcours/) | `parcours.py` |
 | 18 | Les deux épreuves | [`18-les-deux-epreuves/`](18-les-deux-epreuves/) | `deux_epreuves.py` |
 
-Et trois **reproductions** de vidéos vues ailleurs, refaites de zéro :
+Et quatre **reproductions** de vidéos vues ailleurs, refaites de zéro :
 
 | | Animation | Dossier | Script |
 |---|---|---|---|
 | 21 | L'anneau percé | [`21-l-anneau-perce/`](21-l-anneau-perce/) | `anneau_perce.py` *(Cairo)* |
 | 22 | La spirale rongée | [`22-la-spirale-rongee/`](22-la-spirale-rongee/) | `spirale_rongee.py` *(Cairo)* |
 | 23 | La boîte percée | [`23-la-boite-percee/`](23-la-boite-percee/) | `boite_percee.py` *(Cairo)* |
+| 27 | Ombre contre Glace | [`27-ombre-contre-glace/`](27-ombre-contre-glace/) | `ombre_contre_glace.py` *(Cairo)* |
 
 Et trois **variantes**, qui reprennent chacune une animation existante et la
 poussent dans une direction — vers l'accumulation, vers le mouvement, vers la
@@ -531,11 +532,12 @@ balles. Le film retenu se termine à 107 px, soit deux balles.
 
 ## Les reproductions
 
-Trois vidéos vues ailleurs, refaites de zéro à partir de leurs seules images.
+Quatre vidéos vues ailleurs, refaites de zéro à partir de leurs seules images.
 Rien n'en est repris que le principe : ni bande son, ni cartouche de texte, ni
-les drapeaux nationaux qui servaient d'équipes dans l'une d'elles. Toutes trois
-passent par **Cairo** et non par Manim, pour la raison mesurée plus bas : elles
-comptent des milliers de disques ou de tronçons à chaque image.
+les drapeaux nationaux qui servaient d'équipes dans l'une d'elles, ni la marque
+de l'auteur dans la dernière. Toutes quatre passent par **Cairo** et non par
+Manim, pour la raison mesurée plus bas : elles comptent des milliers de disques,
+de tronçons ou de cases de pixels à chaque image.
 
 **21 — L'anneau percé.** Un anneau percé de deux trouées, qui tourne lentement,
 une balle à l'intérieur, aucune pesanteur. Chaque évasion en fait naître trois
@@ -587,6 +589,41 @@ Une seule correction, mais elle est indispensable : chaque rebond sur le
 plancher reçoit **une pincée de hasard**. Un plancher parfaitement horizontal
 range les balles en couches immobiles, plus rien ne se dirige vers le trou, et
 le tas se fige — la partie s'arrête d'elle-même.
+
+**27 — Ombre contre Glace.** Deux balles de cent points de vie dans un carré
+blanc, chacune portant une arme au bout d'un bras qui tourne. L'arme qui touche
+la balle d'en face lui prend des points. À côté du corps à corps, chaque camp
+charge un pouvoir : le **lien d'essence** pour l'ombre — un disque sombre qui
+s'ouvre et un fil tendu vers la glace qui la vide pendant sept secondes — et le
+**blizzard** pour la glace, une volée d'éclats qui blessent et ralentissent.
+L'ombre bondit en plus, d'un pas court qui laisse un sillage, et le délai entre
+deux bonds se raccourcit tout au long du duel.
+
+La disposition entière est relevée sur la vidéo et ramenée d'un cadre de
+720 × 1280 au nôtre (facteur 1,5) : le carré, les deux jauges du bas, les deux
+compteurs, la crème du fond (`#faf3d9`), le violet (`#88018b`) et le cyan
+(`#05ffff`) pris au pixel. Ce qui n'est pas repris : les sprites d'armes, les
+emblèmes, les intitulés anglais et la marque de l'auteur. Les armes sont
+redessinées case par case, à dix pixels et demi la case.
+
+Un détail de l'ordre de dessin fait tout le reste, et il n'est pas celui qu'on
+écrirait spontanément : **les traînées restent enfermées dans le carré, mais le
+champ du lien, les balles et leurs armes le débordent**. Contenu dans le cadre,
+le pouvoir n'aurait l'air que d'un disque de plus ; débordant sur la crème et
+par-dessus le trait noir, il prend l'ampleur qu'il a dans la vidéo. Le titre est
+posé en dernier, sans quoi il disparaîtrait sous le champ une fois sur trois.
+
+L'équilibre a demandé une seule correction, mais elle décide du duel. Au
+premier jet les éclats du blizzard **rebondissaient sur les parois**, ce qui
+leur offrait une deuxième puis une troisième chance de toucher : mesuré sur
+quarante duels, le blizzard faisait à lui seul **94 dégâts sur les 106**
+encaissés par l'ombre, et la glace gagnait **quarante fois sur quarante**. Un
+éclat se brise maintenant contre la paroi — ce que montre la vidéo. Après
+compensation (le lien vidant plus vite, les lames d'ombre plus fréquentes, la
+volée portée à six éclats), les mêmes mesures sur quatre-vingts duels donnent
+**43 victoires de l'ombre contre 37**, une durée médiane de **60,0 s** — celle
+de la vidéo — et le vainqueur à **23 points de vie** en médiane, parfois à un
+seul.
 
 ## Les variantes
 
@@ -724,7 +761,7 @@ lents ou gros. Les quatre premières jouent une gamme pentatonique mineure ; la
 
 ## Télécharger les vidéos
 
-Les sept animations rendues par Cairo écrivent leur `mp4` directement au bon
+Les huit animations rendues par Cairo écrivent leur `mp4` directement au bon
 format ; leur `shorts.mp4` en est une copie, resserrée pour les plus lourdes.
 Chaque dossier contient `shorts.mp4` : l'animation rendue en **1080×1920, 60 fps,
 H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
@@ -758,6 +795,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 24 | Le cercle plein | 54 s | 41 Mo |
 | 25 | Le trou qui glisse | 26 s | 12 Mo |
 | 26 | Rayons en fusion | 55 s | 27 Mo |
+| 27 | Ombre contre Glace | 66 s | 11 Mo |
 
 La 24 est de loin la plus lourde du lot, et c'est irréductible : deux mille
 disques colorés qui bougent chacun pour soi ne se compressent pas. Même
@@ -817,7 +855,7 @@ d'origine, ou `"sinus"` pour un mouvement physiquement correct).
 Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (les
 compteurs des 03 et 05, les légendes de la 04) passent par Pango.
 
-Les sept animations rendues par **Cairo** se lancent autrement — elles
+Les huit animations rendues par **Cairo** se lancent autrement — elles
 produisent leur `mp4` directement, déjà en 1080 × 1920, sans passer par
 `vers-shorts.sh` :
 
@@ -831,6 +869,7 @@ cd 23-la-boite-percee   && python boite_percee.py     && cd ..
 cd 24-le-cercle-plein   && python cercle_plein.py     && cd ..
 cd 25-le-trou-qui-glisse && python trou_qui_glisse.py && cd ..
 cd 26-rayons-en-fusion  && python rayons_fusion.py    && cd ..
+cd 27-ombre-contre-glace && python ombre_contre_glace.py && cd ..
 ```
 
 Chacune accepte `--graines`, qui simule une série de tirages et dit ce qu'ils

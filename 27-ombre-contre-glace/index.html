@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27 — Ombre contre Glace</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a; background: #04060a;
+    font: 400 15px/1.6 ui-sans-serif, system-ui, sans-serif;
+    padding: 1.25rem 1.25rem 3rem;
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+  }
+  a { color: #49c4b9; }
+  canvas {
+    width: min(92vw, 46vh); aspect-ratio: 1080 / 1920; display: block;
+    background: #000; border-radius: 14px;
+  }
+  .cmd { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center;
+         align-items: center; max-width: 640px; }
+  button, .btn {
+    font: inherit; font-size: 14px; color: #dde4e4; background: #0d1622;
+    border: 1px solid #1d2b3a; border-radius: 999px; padding: .45rem .95rem;
+    cursor: pointer; text-decoration: none;
+  }
+  button:hover, .btn:hover { border-color: #49c4b9; color: #49c4b9; }
+  label { font-size: 13px; display: flex; align-items: center; gap: .4rem; }
+  input[type=range] { width: 110px; accent-color: #49c4b9; }
+  p { max-width: 58ch; margin: 0; }
+  .note { font-size: 13px; color: #5d6a6a; }
+  strong { color: #dde4e4; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<canvas id="c" width="1080" height="1920"></canvas>
+
+<div class="cmd">
+  <a class="btn" href="../">← animations</a>
+  <button id="snd" aria-pressed="false">♪ activer le son</button>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="raz">nouveau duel</button>
+  <label>vitesse <input id="vit" type="range" min="0.5" max="3" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="ombre_contre_glace.py">code du rendu</a>
+  <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
+</div>
+
+<p>Deux balles armées. L'arme tourne au bout d'un bras&nbsp;; celle qui
+touche la balle adverse lui prend des points de vie. À côté du corps à corps,
+chaque camp charge son pouvoir&nbsp;: le <strong>lien d'essence</strong> pour
+l'ombre, le <strong>blizzard</strong> pour la glace. Le premier à zéro
+perd.</p>
+
+<p class="note">Reproduction d'une vidéo existante, refaite de zéro : mécanique, disposition et couleurs relevées image par image. Les armes et les emblèmes sont redessinés, les intitulés traduits, et la marque de l'auteur n'est pas reprise.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  27 — Ombre contre Glace
+//
+//  Deux balles armées, chacune portant une arme au bout d'un bras qui tourne.
+//  L'arme qui touche la balle adverse lui prend des points de vie. À côté du
+//  corps à corps, chaque camp charge un pouvoir : le lien d'essence pour
+//  l'ombre, le blizzard pour la glace. Le premier à zéro perd.
+//
+//  Reproduction d'une vidéo existante, refaite de zéro.
+//
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+const W = 1080, H = 1920;
+
+// ---------------------------------------------------------------------------
+//  Outils de dessin
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+function redimensionner() {
+  const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(b.width * d) || 1;
+  cv.height = Math.round(b.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+const couleur = (h, s = 100, l = 60, a = 1) => `hsl(${h} ${s}% ${l}% / ${a})`;
+
+//  Fond, accroche du haut. Toutes les pages de duel commencent pareil : la
+//  question posée doit être lisible dès la première image.
+function fond(accroche) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '600 40px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(235,244,248,0.9)';
+  ctx.fillText(accroche, W / 2, 96);
+}
+
+//  Bandeau de fin : voile sombre, nom du vainqueur, et la ligne qui dit de
+//  combien. Sans cette dernière, on ne sait pas si c'était serré.
+function bandeau(nom, h, detail) {
+  const v = Math.min(1, fini / 0.4);
+  ctx.fillStyle = `rgba(4,6,10,${0.66 * v})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '400 44px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(200,215,220,${v})`;
+  ctx.fillText('vainqueur', W / 2, H / 2 - 120);
+  ctx.font = '800 118px system-ui, sans-serif';
+  ctx.fillStyle = couleur(h, 100, 64, v);
+  ctx.fillText(nom, W / 2, H / 2 + 10);
+  ctx.font = '400 40px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(160,180,190,${v})`;
+  ctx.fillText(detail, W / 2, H / 2 + 90);
+}
+
+// ---------------------------------------------------------------------------
+//  Son
+// ---------------------------------------------------------------------------
+let audio = null, son = false, sec = null, mouille = null;
+
+function preparerBus() {
+  sec = audio.createGain(); sec.gain.value = 1;
+  sec.connect(audio.destination);
+  const n = Math.floor(audio.sampleRate * 1.6);
+  const ri = audio.createBuffer(2, n, audio.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ri.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const u = i / audio.sampleRate;
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-u * 3.4) * Math.min(1, u / 0.008);
+    }
+  }
+  const conv = audio.createConvolver(); conv.buffer = ri;
+  mouille = audio.createGain(); mouille.gain.value = 0.35;
+  mouille.connect(conv); conv.connect(audio.destination);
+}
+
+function voix(pan, envoi = 1) {
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.connect(sp); sp.connect(sec);
+  if (envoi > 0) {
+    const e = audio.createGain(); e.gain.value = envoi;
+    sp.connect(e); e.connect(mouille);
+  }
+  return g;
+}
+
+//  Timbre de métal frappé : les harmoniques hautes s'éteignent plus vite que la
+//  fondamentale. Des partiels de même durée donneraient un orgue.
+function cloche(demi, pan, force = 0.20, duree = 1.0, base = 196) {
+  if (!audio || audio.state !== 'running') return;
+  const f = base * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  for (const [mult, amp, part] of [[1, 1, 1], [2, 0.34, 0.55], [3, 0.13, 0.35]]) {
+    const g = voix(pan);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(force * amp, t0 + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree * part);
+    const o = audio.createOscillator();
+    o.frequency.value = f * mult; o.connect(g);
+    o.start(t0); o.stop(t0 + duree * part + 0.05);
+  }
+}
+
+function souffle(pan, force = 0.40, duree = 0.45, coupe = 320, type = 'bandpass') {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime, g = voix(pan, 0.6);
+  const n = audio.createBufferSource();
+  const buf = audio.createBuffer(1, audio.sampleRate * duree, audio.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+  }
+  n.buffer = buf;
+  const f = audio.createBiquadFilter();
+  f.type = type; f.frequency.value = coupe; f.Q.value = 0.7;
+  g.gain.setValueAtTime(force, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
+  n.connect(f); f.connect(g); n.start(t0);
+}
+
+//  Un accord montant à la victoire : c'est le seul moment où le son quitte le
+//  rythme de la physique pour dire quelque chose.
+function fanfare(joueur) {
+  if (!audio || audio.state !== 'running') return;
+  [0, 4, 7, 12].forEach((demi, i) => {
+    setTimeout(() => cloche(demi + (joueur ? 5 : 0), 0, 0.24, 1.7, 220), i * 110);
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+//  Réglages
+// ---------------------------------------------------------------------------
+const DT = 1 / 240;
+const FIN_ECRAN = 3.4;
+
+//  La palette est relevée sur la vidéo, au pixel.
+const CREME = '#faf3d9';
+const NOIR = '#000000';
+const VIOLET = '#88018b';
+const CYAN = '#05ffff';
+const VIOLET_SOMBRE = '#370679';
+const GRIS_MORT = '#8a8678';
+
+//  Le cadre : un carré noir au milieu, le titre au-dessus, les deux jauges
+//  en dessous. Tout est à l'échelle 1,5 de la vidéo, qui fait 720 × 1280.
+const X0 = 60, X1 = 1020, Y0 = 477, Y1 = 1437;
+const EP = 9;                       // épaisseur du trait du cadre
+const Y_TITRE = 440;
+const Y_JAUGE = 1452, H_JAUGE = 48, L_JAUGE = 402;
+const Y_STAT = 1545;
+
+const R = 67;                       // rayon d'une balle
+const PV0 = 100;
+const V0 = 620;                     // vitesse, constante en dehors des gels
+const BRAS = 125;                   // distance du centre de l'arme à la balle
+const TETE = 46;                    // demi-portée de la partie qui blesse
+const REPOS = 0.34;                 // s entre deux touches de la même arme
+const DEG_MELEE = 1;
+
+//  Charges des deux pouvoirs, en secondes.
+const CH_LIEN = 19.0, CH_BLIZZARD = 10.5;
+
+//  Le lien d'essence : un disque qui s'ouvre, tient, puis s'efface, et un fil
+//  tendu vers la glace qui la vide pendant tout ce temps.
+const LIEN_OUVRE = 0.85, LIEN_TIENT = 7.0, LIEN_FERME = 1.2;
+const LIEN_RAYON = 470;             // relevé sur la vidéo : 320 px sur 720
+const LIEN_DRAIN = 3.6;             // pv/s
+
+//  Le pas de l'ombre : un bond court qui laisse un sillage. Le délai se
+//  raccourcit au fil du duel — c'est le compteur affiché en bas à gauche.
+const PAS_BOND = 210;
+const pasDelai = () => Math.max(0.7, 3.0 - 0.055 * tps);
+
+//  Les lames d'ombre : trois lames lâchées dans le cadre, qui dérivent.
+const LAMES_PER = 6.0, LAMES_DEG = 3, LAMES_VIE = 3.6;
+
+//  Le blizzard : une volée d'éclats qui ralentissent en plus de blesser. Leur
+//  dégât monte tout au long du duel, c'est le compteur du bas à droite.
+const BLIZ_N = 6, BLIZ_V = 760, BLIZ_VIE = 2.6;
+const BLIZ_RALENTI = 1.3;           // s de ralentissement
+const degatsGlace = () => 1 + Math.floor(tps / 4.4);
+
+// ---------------------------------------------------------------------------
+//  Les armes, en pixels — redessinées, pas décalquées
+// ---------------------------------------------------------------------------
+//  o = cerne, h = manche, b = lame, w = reflet, g = gemme
+const EPEE = [
+  '.......oooooo...',
+  '..ooo.obbbbbbo..',
+  '.ohhhobbwbbbbbo.',
+  'ohgghobbbbbbbbbo',
+  '.ohhhobbwbbbbbo.',
+  '..ooo.obbbbbbo..',
+  '.......oooooo...',
+];
+//  La lame est plus claire que le champ du lien, pas plus sombre : posée à
+//  la teinte du fer sombre, elle disparaissait dès que le pouvoir s'ouvrait.
+const PAL_EPEE = { o: '#150a1e', h: '#33293c', g: '#d030e8',
+                   b: '#4a3a5c', w: '#8f6fb0' };
+
+//  Les éclats du blizzard ont leur propre dessin : la pioche réduite au tiers
+//  n'était plus qu'une tache.
+const ECLAT = [
+  '..oo..',
+  '.owwo.',
+  'owwbwo',
+  'owbwwo',
+  '.owwo.',
+  '..oo..',
+];
+
+const PIOCHE = [
+  '..........oooo..',
+  '.........obbbbo.',
+  '.......oobwwwwbo',
+  '......obwwwwwwbo',
+  '.ooo.obwwwwwwwbo',
+  'ohhhobwwwwbwwwbo',
+  '.ooo.obwwwwwwwbo',
+  '......obwwwwwwbo',
+  '.......oobwwwwbo',
+  '.........obbbbo.',
+  '..........oooo..',
+];
+const PAL_PIOCHE = { o: '#0a2e3a', h: '#4a4a52', b: '#39b6d8', w: '#ddfbff' };
+
+const LAME_CHUTE = [
+  '....oooooo',
+  '.ooobbbbbo',
+  'ohhobbwbbo',
+  '.ooobbbbbo',
+  '....oooooo',
+];
+
+function pixels(grille, pal, cx, cy, ang, cell, alpha = 1) {
+  const h = grille.length, w = grille[0].length;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(cx, cy);
+  ctx.rotate(ang);
+  ctx.translate(-w * cell / 2, -h * cell / 2);
+  for (let j = 0; j < h; j++) {
+    const ligne = grille[j];
+    for (let i = 0; i < w; i++) {
+      const c = pal[ligne[i]];
+      if (!c) continue;
+      ctx.fillStyle = c;
+      //  Un demi-pixel de recouvrement : sans lui, la rotation laisse des
+      //  fentes claires entre les cases et l'arme paraît grillagée.
+      ctx.fillRect(i * cell, j * cell, cell + 0.6, cell + 0.6);
+    }
+  }
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+//  Texte : gras, cerné de noir, comme la vidéo
+// ---------------------------------------------------------------------------
+function texte(s, x, y, taille, couleur, align = 'center', cerne = 7) {
+  ctx.font = `900 ${taille}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'alphabetic';
+  if (cerne) {
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = cerne;
+    ctx.strokeStyle = NOIR;
+    ctx.strokeText(s, x, y);
+  }
+  ctx.fillStyle = couleur;
+  ctx.fillText(s, x, y);
+}
+
+// ---------------------------------------------------------------------------
+//  L'état du duel
+// ---------------------------------------------------------------------------
+let tps, fini, vainqueur;
+let ombre, glace, lien, blizzard, lames, eclats, sillages, fantomes, motes;
+let chLien, chBliz, tPas, perdant, tMort;
+//  Compteurs de dégâts par source. Ils ne s'affichent pas : ils servent au
+//  banc de mesure, qui est le seul juge de l'équilibre entre les deux camps.
+let compte;
+
+function nouvelleBalle(i, x, y, cap) {
+  return {
+    i, x, y,
+    vx: Math.cos(cap) * V0, vy: Math.sin(cap) * V0,
+    pv: PV0,
+    ang: Math.random() * Math.PI * 2,
+    //  Les deux armes ne tournent ni à la même vitesse ni dans le même sens :
+    //  à vitesses égales elles se croisent toujours dans la même figure, et le
+    //  duel prend un air de mécanique d'horlogerie.
+    omega: i ? -2.35 : 1.85,
+    repos: 0, flash: 0, gel: 0,
+  };
+}
+
+function reinitialiser() {
+  tps = 0; fini = 0; vainqueur = -1;
+  perdant = -1; tMort = 0;
+  const a = Math.random() * Math.PI * 2;
+  ombre = nouvelleBalle(0, X0 + 280, (Y0 + Y1) / 2, a);
+  glace = nouvelleBalle(1, X1 - 280, (Y0 + Y1) / 2, a + Math.PI + 0.4);
+  lien = null;
+  blizzard = 0;
+  lames = []; eclats = []; sillages = []; fantomes = []; motes = [];
+  chLien = 0; chBliz = 0; tPas = 0;
+  compte = { epee: 0, pioche: 0, bliz: 0, lien: 0, lames: 0 };
+}
+
+const balles = () => [ombre, glace];
+
+// ---------------------------------------------------------------------------
+//  Physique
+// ---------------------------------------------------------------------------
+function murs(b) {
+  if (b.x < X0 + EP + R) { b.x = X0 + EP + R; b.vx = Math.abs(b.vx); }
+  if (b.x > X1 - EP - R) { b.x = X1 - EP - R; b.vx = -Math.abs(b.vx); }
+  if (b.y < Y0 + EP + R) { b.y = Y0 + EP + R; b.vy = Math.abs(b.vy); }
+  if (b.y > Y1 - EP - R) { b.y = Y1 - EP - R; b.vy = -Math.abs(b.vy); }
+}
+
+function entreElles() {
+  const dx = glace.x - ombre.x, dy = glace.y - ombre.y;
+  const d = Math.hypot(dx, dy);
+  if (d >= 2 * R || d < 1e-9) return;
+  const nx = dx / d, ny = dy / d, corr = (2 * R - d) / 2;
+  ombre.x -= nx * corr; ombre.y -= ny * corr;
+  glace.x += nx * corr; glace.y += ny * corr;
+  const vn = (glace.vx - ombre.vx) * nx + (glace.vy - ombre.vy) * ny;
+  if (vn > 0) return;
+  ombre.vx += vn * nx; ombre.vy += vn * ny;
+  glace.vx -= vn * nx; glace.vy -= vn * ny;
+}
+
+//  La vitesse est tenue à V0, modulée par le gel. Sans cette remise à niveau,
+//  les chocs successifs finissent par vider les deux balles de leur énergie et
+//  le duel s'endort dans un coin.
+function tenirVitesse(b) {
+  const cible = V0 * (b.gel > 0 ? 0.46 : 1);
+  const s = Math.hypot(b.vx, b.vy) || 1e-9;
+  b.vx *= cible / s; b.vy *= cible / s;
+}
+
+function teteArme(b) {
+  return [b.x + Math.cos(b.ang) * (BRAS + 32),
+          b.y + Math.sin(b.ang) * (BRAS + 32)];
+}
+
+function blesser(cible, degats, pan) {
+  if (fini) return;
+  cible.pv = Math.max(0, cible.pv - degats);
+  cible.flash = 0.13;
+  if (notesCeTour < 3) {
+    notesCeTour++;
+    cloche(cible.i ? 9 : 2, pan, 0.13, 0.35, cible.i ? 330 : 165);
+  }
+  if (cible.pv <= 0 && !fini) {
+    fini = 1e-6;
+    perdant = cible.i;
+    vainqueur = 1 - cible.i;
+    tMort = tps;
+    fanfare(vainqueur);
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Les pouvoirs
+// ---------------------------------------------------------------------------
+function lancerLien() {
+  lien = { x: ombre.x, y: ombre.y, t: 0 };
+  motes = [];
+  for (let i = 0; i < 190; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * LIEN_RAYON;
+    motes.push({ a, r, dr: 12 + Math.random() * 30,
+                 da: (Math.random() - 0.5) * 0.25, c: Math.random() });
+  }
+  souffle(-0.4, 0.5, 1.1, 180, 'lowpass');
+}
+
+function lancerBlizzard() {
+  const a0 = Math.atan2(ombre.y - glace.y, ombre.x - glace.x);
+  for (let k = 0; k < BLIZ_N; k++) {
+    const a = a0 + (k - (BLIZ_N - 1) / 2) * 0.19 + (Math.random() - 0.5) * 0.09;
+    eclats.push({
+      x: glace.x + Math.cos(a) * (R + 18),
+      y: glace.y + Math.sin(a) * (R + 18),
+      vx: Math.cos(a) * BLIZ_V, vy: Math.sin(a) * BLIZ_V,
+      vie: BLIZ_VIE, tr: [], ta: 0,
+    });
+  }
+  souffle(0.4, 0.42, 0.6, 2400, 'highpass');
+}
+
+function lancerLames() {
+  const a0 = Math.random() * Math.PI * 2;
+  for (let k = 0; k < 3; k++) {
+    const a = a0 + k * 0.5;
+    lames.push({
+      x: X0 + 120 + Math.random() * (X1 - X0 - 240),
+      y: Y0 + 120 + Math.random() * (Y1 - Y0 - 240),
+      vx: Math.cos(a) * 230, vy: Math.sin(a) * 230,
+      ang: a, vie: LAMES_VIE,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Un pas de calcul
+// ---------------------------------------------------------------------------
+function pas() {
+  tps += DT;
+  if (fini) fini += DT;
+
+  for (const b of balles()) {
+    if (fini && b.i === perdant) continue;
+    b.ang += b.omega * DT;
+    if (b.gel > 0) b.gel -= DT;
+    if (b.repos > 0) b.repos -= DT;
+    if (b.flash > 0) b.flash -= DT;
+    tenirVitesse(b);
+    b.x += b.vx * DT;
+    b.y += b.vy * DT;
+    murs(b);
+  }
+  if (!fini) entreElles();
+
+  // --- corps à corps : la tête de l'arme contre la balle d'en face ---------
+  if (!fini) {
+    for (const b of balles()) {
+      const c = b.i ? ombre : glace;
+      if (b.repos > 0) continue;
+      const [hx, hy] = teteArme(b);
+      if (Math.hypot(c.x - hx, c.y - hy) < R + TETE) {
+        b.repos = REPOS;
+        compte[b.i ? 'pioche' : 'epee'] += DEG_MELEE;
+        blesser(c, DEG_MELEE, (hx - W / 2) / (W / 2));
+      }
+    }
+  }
+
+  // --- le pas de l'ombre ---------------------------------------------------
+  if (!fini || perdant === 1) {
+    tPas += DT;
+    if (tPas >= pasDelai()) {
+      tPas = 0;
+      const s = Math.hypot(ombre.vx, ombre.vy) || 1e-9;
+      const nx = ombre.vx / s, ny = ombre.vy / s;
+      const ax = ombre.x, ay = ombre.y;
+      ombre.x = Math.max(X0 + EP + R, Math.min(X1 - EP - R, ax + nx * PAS_BOND));
+      ombre.y = Math.max(Y0 + EP + R, Math.min(Y1 - EP - R, ay + ny * PAS_BOND));
+      sillages.push({ ax, ay, bx: ombre.x, by: ombre.y, vie: 0.55 });
+      fantomes.push({ x: ax, y: ay, vie: 0.5 });
+      if (notesCeTour < 3) { notesCeTour++; souffle(-0.3, 0.16, 0.2, 520); }
+    }
+  }
+
+  // --- charges et pouvoirs -------------------------------------------------
+  if (!fini) {
+    chLien += DT;
+    if (chLien >= CH_LIEN && !lien) { chLien = 0; lancerLien(); }
+    chBliz += DT;
+    if (chBliz >= CH_BLIZZARD) { chBliz = 0; lancerBlizzard(); }
+    if (tps > 4 && Math.floor(tps / LAMES_PER) !== Math.floor((tps - DT) / LAMES_PER)) {
+      lancerLames();
+    }
+  }
+
+  // --- le lien d'essence ---------------------------------------------------
+  if (lien) {
+    lien.t += DT;
+    if (lien.t > LIEN_OUVRE && lien.t < LIEN_OUVRE + LIEN_TIENT && !fini) {
+      compte.lien += LIEN_DRAIN * DT;
+      glace.pv = Math.max(0, glace.pv - LIEN_DRAIN * DT);
+      if (glace.pv <= 0) blesser(glace, 0, 0.4);
+    }
+    if (lien.t > LIEN_OUVRE + LIEN_TIENT + LIEN_FERME) lien = null;
+  }
+  for (const m of motes) {
+    m.a += m.da * DT;
+    m.r += m.dr * DT;
+    //  Une poussière sortie du disque repart du centre. Avec une durée de vie
+    //  propre, elles s'éteignaient toutes vers la septième seconde et le champ
+    //  finissait vide alors qu'il tenait encore.
+    //  Renaître par tirage uniforme en SURFACE, pas près du centre : rendues
+    //  au milieu du disque, les cent quatre-vingt-dix poussières s'y nouaient
+    //  en un amas visible au bout de quelques secondes.
+    if (m.r > LIEN_RAYON) {
+      m.r = Math.sqrt(Math.random()) * LIEN_RAYON;
+      m.a = Math.random() * 7;
+    }
+  }
+  if (!lien) motes = [];
+
+  // --- les éclats de blizzard ---------------------------------------------
+  for (const e of eclats) {
+    e.vie -= DT;
+    e.x += e.vx * DT;
+    e.y += e.vy * DT;
+    //  Un éclat qui atteint la paroi s'y brise. Le faire rebondir lui offrait
+    //  une deuxième puis une troisième chance de toucher : mesuré, le blizzard
+    //  faisait à lui seul 94 dégâts sur les 106 encaissés par l'ombre, et la
+    //  glace gagnait quarante duels sur quarante.
+    if (e.x < X0 + EP || e.x > X1 - EP || e.y < Y0 + EP || e.y > Y1 - EP) e.vie = 0;
+    e.ta += DT;
+    if (e.ta > 0.028) { e.ta = 0; e.tr.push([e.x, e.y]); if (e.tr.length > 22) e.tr.shift(); }
+    if (!fini && e.vie > 0 && Math.hypot(ombre.x - e.x, ombre.y - e.y) < R + 12) {
+      e.vie = 0;
+      ombre.gel = BLIZ_RALENTI;
+      compte.bliz += degatsGlace();
+      blesser(ombre, degatsGlace(), (e.x - W / 2) / (W / 2));
+    }
+  }
+  eclats = eclats.filter(e => e.vie > 0);
+
+  // --- les lames d'ombre ---------------------------------------------------
+  for (const l of lames) {
+    l.vie -= DT;
+    l.x += l.vx * DT;
+    l.y += l.vy * DT;
+    l.ang += 0.6 * DT;
+    if (!fini && l.vie > 0 && Math.hypot(glace.x - l.x, glace.y - l.y) < R + 26) {
+      l.vie = 0;
+      compte.lames += LAMES_DEG;
+      blesser(glace, LAMES_DEG, (l.x - W / 2) / (W / 2));
+    }
+  }
+  lames = lames.filter(l => l.vie > 0);
+
+  for (const s of sillages) s.vie -= DT;
+  sillages = sillages.filter(s => s.vie > 0);
+  for (const f of fantomes) f.vie -= DT;
+  fantomes = fantomes.filter(f => f.vie > 0);
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+function jauge(x, gauche, frac, couleur, nom, mort) {
+  ctx.fillStyle = CREME;
+  ctx.fillRect(x, Y_JAUGE, L_JAUGE, H_JAUGE);
+  const l = L_JAUGE * Math.min(1, frac);
+  ctx.fillStyle = mort ? GRIS_MORT : couleur;
+  ctx.fillRect(gauche ? x : x + L_JAUGE - l, Y_JAUGE, l, H_JAUGE);
+  ctx.strokeStyle = NOIR;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x + 2, Y_JAUGE + 2, L_JAUGE - 4, H_JAUGE - 4);
+  texte(nom, gauche ? x + 12 : x + L_JAUGE - 12, Y_JAUGE + 35, 30,
+        mort ? GRIS_MORT : '#ffffff', gauche ? 'left' : 'right', 6);
+}
+
+function emblemeOmbre(x, y, r, mort) {
+  const g = ctx.createRadialGradient(x, y, r * 0.1, x, y, r);
+  g.addColorStop(0, mort ? '#7d7a70' : '#5b1fd0');
+  g.addColorStop(0.55, mort ? '#4a4842' : '#2a0752');
+  g.addColorStop(1, '#0d0212');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = NOIR; ctx.lineWidth = 5; ctx.stroke();
+}
+
+function emblemeGlace(x, y, r, mort) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = mort ? GRIS_MORT : '#cdf4ff';
+  ctx.lineCap = 'round';
+  for (let k = 0; k < 6; k++) {
+    ctx.save(); ctx.rotate(k * Math.PI / 3);
+    ctx.lineWidth = 7; ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(0, -r); ctx.stroke();
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.55); ctx.lineTo(r * 0.3, -r * 0.8);
+    ctx.moveTo(0, -r * 0.55); ctx.lineTo(-r * 0.3, -r * 0.8);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function balle(b) {
+  const mort = fini && b.i === perdant;
+  if (mort) {
+    //  Le perdant ne disparaît pas d'un coup : il laisse un halo blanc qui
+    //  s'efface, le temps qu'on comprenne ce qui vient d'arriver.
+    const v = 1 - Math.min(1, (tps - tMort) / 0.7);
+    if (v <= 0) return;
+    ctx.globalAlpha = v;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(b.x, b.y, R * (1 + (1 - v) * 0.5), 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  const base = b.i ? CYAN : VIOLET;
+
+  //  L'ombre porte un halo qui bat au rythme de sa charge : c'est le seul
+  //  indice, dans le cadre, que le pouvoir approche.
+  if (!b.i) {
+    const p = Math.min(1, chLien / CH_LIEN);
+    const g = ctx.createRadialGradient(b.x, b.y, R * 0.6, b.x, b.y, R * 1.55);
+    g.addColorStop(0, `rgba(120,60,220,${0.55 * p})`);
+    g.addColorStop(1, 'rgba(120,60,220,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(b.x, b.y, R * 1.55, 0, 7); ctx.fill();
+  }
+  if (b.gel > 0) {
+    ctx.fillStyle = `rgba(180,240,255,${0.5 * Math.min(1, b.gel)})`;
+    ctx.beginPath(); ctx.arc(b.x, b.y, R * 1.3, 0, 7); ctx.fill();
+  }
+
+  //  L'arme passe derrière la balle : la vidéo la montre sortir du disque, pas
+  //  posée dessus.
+  const ax = b.x + Math.cos(b.ang) * BRAS, ay = b.y + Math.sin(b.ang) * BRAS;
+  if (b.i) pixels(PIOCHE, PAL_PIOCHE, ax, ay, b.ang, 10.5);
+  else pixels(EPEE, PAL_EPEE, ax, ay, b.ang, 10.5);
+
+  ctx.fillStyle = b.flash > 0 ? '#ffffff' : base;
+  ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, 7); ctx.fill();
+  ctx.strokeStyle = NOIR; ctx.lineWidth = 5; ctx.stroke();
+
+  texte(String(Math.ceil(b.pv)), b.x, b.y + 21, 58, NOIR, 'center', 0);
+}
+
+function dessiner(dt) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = CREME;
+  ctx.fillRect(0, 0, W, H);
+
+  const mortO = fini && perdant === 0, mortG = fini && perdant === 1;
+
+  //  L'ordre de dessin est relevé sur la vidéo, et il n'est pas celui qu'on
+  //  écrirait spontanément : les traînées restent enfermées dans le carré,
+  //  mais le champ du lien, les balles et leurs armes le débordent. C'est ce
+  //  débordement qui donne au pouvoir son ampleur — contenu dans le cadre, il
+  //  n'aurait l'air que d'un disque de plus.
+
+  // --- l'arène et ce qui y reste enfermé -----------------------------------
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(X0 + EP, Y0 + EP, X1 - X0 - 2 * EP, Y1 - Y0 - 2 * EP);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.clip();
+
+  for (const l of lames) {
+    pixels(LAME_CHUTE, PAL_EPEE, l.x, l.y, l.ang, 8.5,
+           Math.min(1, l.vie / 0.6));
+  }
+
+  for (const e of eclats) {
+    for (let k = 0; k < e.tr.length; k++) {
+      const v = (k + 1) / e.tr.length;
+      ctx.fillStyle = `rgba(140,225,255,${0.55 * v})`;
+      const t = 4 + 5 * v;
+      ctx.fillRect(e.tr[k][0] - t / 2, e.tr[k][1] - t / 2, t, t);
+    }
+    pixels(ECLAT, PAL_PIOCHE, e.x, e.y, Math.atan2(e.vy, e.vx), 4.6);
+  }
+
+  ctx.restore();
+
+  ctx.strokeStyle = NOIR;
+  ctx.lineWidth = EP * 2;
+  ctx.strokeRect(X0, Y0, X1 - X0, Y1 - Y0);
+
+  // --- le champ du lien, par-dessus le cadre -------------------------------
+  if (lien) {
+    let r, a;
+    if (lien.t < LIEN_OUVRE) { r = LIEN_RAYON * (lien.t / LIEN_OUVRE); a = 1; }
+    else if (lien.t < LIEN_OUVRE + LIEN_TIENT) { r = LIEN_RAYON; a = 1; }
+    else { r = LIEN_RAYON; a = 1 - (lien.t - LIEN_OUVRE - LIEN_TIENT) / LIEN_FERME; }
+    a = Math.max(0, a);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(28,20,42,0.79)';
+    ctx.beginPath(); ctx.arc(lien.x, lien.y, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = VIOLET_SOMBRE; ctx.lineWidth = 9; ctx.stroke();
+    ctx.save();
+    ctx.beginPath(); ctx.arc(lien.x, lien.y, r, 0, 7); ctx.clip();
+    for (const m of motes) {
+      const px = lien.x + Math.cos(m.a) * m.r, py = lien.y + Math.sin(m.a) * m.r;
+      const t = 9 + Math.floor(m.c * 3) * 5;
+      ctx.fillStyle = m.c > 0.5 ? 'rgba(150,90,230,0.85)' : 'rgba(90,40,160,0.9)';
+      ctx.fillRect(px, py, t, t);
+    }
+    ctx.restore();
+    //  Le fil : c'est lui qui vide la glace, il doit se voir.
+    //  Le fil disparaît avec le duel : tracé après la mise à mort, il partait
+    //  d'une balle effacée et pendait dans le vide.
+    if (lien.t > LIEN_OUVRE && lien.t < LIEN_OUVRE + LIEN_TIENT && !fini) {
+      ctx.strokeStyle = '#b45cff';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(ombre.x, ombre.y);
+      ctx.lineTo(glace.x, glace.y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  //  Sillages et fantômes du pas de l'ombre, par-dessus le champ : dessinés
+  //  dessous, le voile sombre les réduisait à des taches plates.
+  for (const s of sillages) {
+    const v = s.vie / 0.55;
+    const g = ctx.createLinearGradient(s.ax, s.ay, s.bx, s.by);
+    g.addColorStop(0, `rgba(90,20,140,${0.05 * v})`);
+    g.addColorStop(1, `rgba(178,88,255,${0.78 * v})`);
+    ctx.strokeStyle = g;
+    ctx.lineWidth = R * 0.95 * v;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(s.ax, s.ay); ctx.lineTo(s.bx, s.by); ctx.stroke();
+  }
+  for (const f of fantomes) {
+    const v = f.vie / 0.5;
+    ctx.fillStyle = `rgba(170,60,220,${0.6 * v})`;
+    ctx.beginPath(); ctx.arc(f.x, f.y, R * v, 0, 7); ctx.fill();
+  }
+
+  balle(glace);
+  balle(ombre);
+
+  // --- jauges et compteurs -------------------------------------------------
+  jauge(X0, true, chLien / CH_LIEN, VIOLET, "LIEN D'ESSENCE", mortO);
+  jauge(X1 - L_JAUGE, false, chBliz / CH_BLIZZARD, CYAN, 'BLIZZARD', mortG);
+
+  texte("Pas de l'ombre : " + pasDelai().toFixed(1).replace('.', ',') + ' s',
+        X0, Y_STAT, 40, mortO ? GRIS_MORT : VIOLET, 'left');
+  texte('Dégâts / ralent. : ' + degatsGlace(),
+        X1, Y_STAT, 40, mortG ? GRIS_MORT : CYAN, 'right');
+
+  // --- titre, en dernier ---------------------------------------------------
+  //  Le champ du lien monte au-dessus du cadre quand l'ombre est haute ; posé
+  //  avant, le titre disparaîtrait sous lui une fois sur trois.
+  ctx.font = '900 76px ui-sans-serif, system-ui, sans-serif';
+  const lO = ctx.measureText('OMBRE').width;
+  const lG = ctx.measureText('GLACE').width;
+  const lVs = ctx.measureText('VS').width * 0.62;
+  let x = W / 2 - (lO + 112 + lVs + 112 + lG) / 2;
+  texte('OMBRE', x, Y_TITRE, 76, mortO ? GRIS_MORT : VIOLET, 'left');
+  x += lO + 22;
+  emblemeOmbre(x + 34, Y_TITRE - 24, 34, mortO);
+  x += 90;
+  texte('VS', x, Y_TITRE - 6, 47, '#3b3b3b', 'left', 5);
+  x += lVs + 22;
+  emblemeGlace(x + 34, Y_TITRE - 24, 34, mortG);
+  x += 90;
+  texte('GLACE', x, Y_TITRE, 76, mortG ? GRIS_MORT : CYAN, 'left');
+}
+
+reinitialiser();
+
+
+// ---------------------------------------------------------------------------
+//  Boucle
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, vitesse = 1, reste = 0, notesCeTour = 0;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+  if (actif) {
+    notesCeTour = 0;
+    reste += brut * vitesse;
+    let n = 0;
+    while (reste >= DT && n++ < 900) { pas(); reste -= DT; }
+    if (fini > FIN_ECRAN) reinitialiser();   // on relance un duel tout seul
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('raz').onclick = () => reinitialiser();
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre déjà
+  // actif, se fier à audio.state couperait le son dès le premier appui.
+  if (!audio) {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    preparerBus();
+  }
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+  e.target.textContent = son ? '♪ couper le son' : '♪ activer le son';
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>
