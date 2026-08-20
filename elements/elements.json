@@ -1,0 +1,306 @@
+{
+  "elements": [
+    {
+      "cle": "feu",
+      "nom": "FEU",
+      "cotes": 0,
+      "teinte": 14,
+      "sat": 95,
+      "pv": 95,
+      "vitesse": 560,
+      "contact": 6,
+      "charge": 10.0,
+      "pouvoir": "brasier",
+      "force": 0.892,
+      "devise": "laisse derrière elle une traînée qui brûle",
+      "detail": "Une traînée de braises se dépose sur son passage et blesse qui la traverse. Le feu ne frappe pas : il occupe."
+    },
+    {
+      "cle": "eau",
+      "nom": "EAU",
+      "cotes": 0,
+      "teinte": 218,
+      "sat": 92,
+      "pv": 115,
+      "vitesse": 520,
+      "contact": 6,
+      "charge": 8.0,
+      "pouvoir": "ressac",
+      "force": 1.285,
+      "devise": "pousse l'adversaire et le rend à la paroi",
+      "detail": "Une onde circulaire chasse l'adversaire vers le bord. Elle ne blesse presque pas, elle déplace — et un élément plaqué à la paroi encaisse tout ce qui vient."
+    },
+    {
+      "cle": "air",
+      "nom": "AIR",
+      "cotes": 3,
+      "teinte": 172,
+      "sat": 48,
+      "pv": 100,
+      "vitesse": 760,
+      "contact": 7,
+      "charge": 6.5,
+      "pouvoir": "bourrasque",
+      "force": 1.253,
+      "devise": "double sa vitesse et traverse tout",
+      "detail": "Le plus rapide et le plus fragile. Sa bourrasque le rend insaisissable quelques secondes : il double sa vitesse et ne subit plus les chocs."
+    },
+    {
+      "cle": "terre",
+      "nom": "TERRE",
+      "cotes": 6,
+      "teinte": 30,
+      "sat": 42,
+      "pv": 145,
+      "vitesse": 400,
+      "contact": 9,
+      "charge": 11.0,
+      "pouvoir": "carapace",
+      "force": 0.883,
+      "devise": "se couvre et ne prend plus qu'un quart",
+      "detail": "Lente, lourde, endurante. Sa carapace divise par quatre tout ce qu'elle encaisse le temps qu'elle tienne."
+    },
+    {
+      "cle": "foudre",
+      "nom": "FOUDRE",
+      "cotes": -1,
+      "teinte": 52,
+      "sat": 96,
+      "pv": 80,
+      "vitesse": 700,
+      "contact": 6,
+      "charge": 6.5,
+      "pouvoir": "eclair",
+      "force": 1.475,
+      "devise": "frappe à distance, instantanément",
+      "detail": "Un éclair part vers l'adversaire où qu'il soit et frappe sans délai. Le seul pouvoir qui n'a pas besoin d'approcher."
+    },
+    {
+      "cle": "glace",
+      "nom": "GLACE",
+      "cotes": 4,
+      "teinte": 196,
+      "sat": 88,
+      "pv": 105,
+      "vitesse": 540,
+      "contact": 7,
+      "charge": 9.5,
+      "pouvoir": "gel",
+      "force": 0.837,
+      "devise": "fige l'adversaire sur place",
+      "detail": "L'adversaire est cloué quelques secondes. Il ne bouge plus, ne charge plus, et prend tout ce qu'on lui donne."
+    },
+    {
+      "cle": "metal",
+      "nom": "MÉTAL",
+      "cotes": 8,
+      "teinte": 222,
+      "sat": 14,
+      "pv": 112,
+      "vitesse": 470,
+      "contact": 8,
+      "charge": 11.0,
+      "pouvoir": "eclats",
+      "force": 1.6,
+      "devise": "projette une volée d'éclats tranchants",
+      "detail": "Six éclats partent en éventail et rebondissent sur la paroi. Ils vivent longtemps : le terrain devient dangereux."
+    },
+    {
+      "cle": "nature",
+      "nom": "NATURE",
+      "cotes": 5,
+      "teinte": 108,
+      "sat": 85,
+      "pv": 110,
+      "vitesse": 500,
+      "contact": 6,
+      "charge": 8.5,
+      "pouvoir": "racines",
+      "force": 1.275,
+      "devise": "reprend ce qu'elle a perdu",
+      "detail": "Elle se régénère lentement pendant plusieurs secondes. Seul élément qui remonte : les duels contre elle se gagnent vite ou pas du tout."
+    },
+    {
+      "cle": "ombre",
+      "nom": "OMBRE",
+      "cotes": 0,
+      "teinte": 285,
+      "sat": 72,
+      "pv": 100,
+      "vitesse": 600,
+      "contact": 8,
+      "charge": 6.5,
+      "pouvoir": "pas",
+      "force": 0.657,
+      "devise": "disparaît et reparaît derrière",
+      "detail": "Un bond instantané qui la replace dans le dos de l'adversaire, et le choc qui suit compte double."
+    },
+    {
+      "cle": "lumiere",
+      "nom": "LUMIÈRE",
+      "cotes": -1,
+      "teinte": 44,
+      "sat": 30,
+      "pv": 90,
+      "vitesse": 580,
+      "contact": 6,
+      "charge": 10.0,
+      "pouvoir": "rayon",
+      "force": 1.168,
+      "devise": "tend un rayon qui brûle tant qu'il touche",
+      "detail": "Un rayon continu vers l'adversaire pendant quelques secondes. Il ne fait mal que tant que la ligne reste libre : c'est le pouvoir le plus dépendant du placement."
+    },
+    {
+      "cle": "poison",
+      "nom": "POISON",
+      "cotes": 5,
+      "teinte": 78,
+      "sat": 78,
+      "pv": 108,
+      "vitesse": 530,
+      "contact": 6,
+      "charge": 7.5,
+      "pouvoir": "nuage",
+      "force": 1.188,
+      "devise": "laisse une nappe qui ronge",
+      "detail": "Une nappe immobile s'installe et ronge qui s'y attarde. Elle dure longtemps et finit par couvrir les couloirs."
+    },
+    {
+      "cle": "cristal",
+      "nom": "CRISTAL",
+      "cotes": 4,
+      "teinte": 322,
+      "sat": 88,
+      "pv": 112,
+      "vitesse": 510,
+      "contact": 7,
+      "charge": 8.0,
+      "pouvoir": "reflet",
+      "force": 1.504,
+      "devise": "renvoie la moitié de ce qu'elle reçoit",
+      "detail": "Le temps du reflet, la moitié des dégâts encaissés repart vers celui qui les a donnés. Le contre pur."
+    }
+  ],
+  "affiches": [
+    [
+      "feu",
+      "eau"
+    ],
+    [
+      "air",
+      "terre"
+    ],
+    [
+      "foudre",
+      "glace"
+    ],
+    [
+      "metal",
+      "nature"
+    ],
+    [
+      "ombre",
+      "lumiere"
+    ],
+    [
+      "poison",
+      "cristal"
+    ],
+    [
+      "feu",
+      "air"
+    ],
+    [
+      "cristal",
+      "terre"
+    ],
+    [
+      "foudre",
+      "metal"
+    ],
+    [
+      "glace",
+      "nature"
+    ],
+    [
+      "ombre",
+      "poison"
+    ],
+    [
+      "lumiere",
+      "cristal"
+    ],
+    [
+      "feu",
+      "terre"
+    ],
+    [
+      "eau",
+      "foudre"
+    ],
+    [
+      "air",
+      "glace"
+    ],
+    [
+      "metal",
+      "ombre"
+    ],
+    [
+      "nature",
+      "lumiere"
+    ],
+    [
+      "poison",
+      "feu"
+    ],
+    [
+      "cristal",
+      "eau"
+    ],
+    [
+      "terre",
+      "foudre"
+    ],
+    [
+      "air",
+      "metal"
+    ],
+    [
+      "glace",
+      "ombre"
+    ],
+    [
+      "nature",
+      "poison"
+    ],
+    [
+      "lumiere",
+      "feu"
+    ],
+    [
+      "cristal",
+      "air"
+    ],
+    [
+      "eau",
+      "ombre"
+    ],
+    [
+      "terre",
+      "nature"
+    ],
+    [
+      "foudre",
+      "poison"
+    ],
+    [
+      "glace",
+      "metal"
+    ],
+    [
+      "lumiere",
+      "eau"
+    ]
+  ]
+}
