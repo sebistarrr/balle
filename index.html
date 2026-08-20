@@ -25,9 +25,11 @@
      JavaScript, au clavier comme à la souris, et déplié par défaut. */
   .niveau { margin: clamp(2.2rem, 5vw, 3rem) 0 0; }
   .niveau:first-of-type { margin-top: 0; }
-  /* Replié, un groupe n'est plus qu'une ligne : on resserre, sans quoi la page
-     pliée n'est que trois titres perdus dans du vide. */
-  .niveau:not([open]) { margin-top: .35rem; }
+  /* Deux groupes repliés d'affilée ne sont plus que deux lignes : on les
+     resserre, sans quoi la page pliée n'est que des titres perdus dans du
+     vide. Un groupe replié qui suit un groupe ouvert garde sa marge pleine —
+     collé sous une liste, son bandeau passerait pour la dernière entrée. */
+  .niveau:not([open]) + .niveau:not([open]) { margin-top: .35rem; }
   summary {
     font-size: 1.05rem; font-weight: 500; letter-spacing: .01em; color: #dde4e4;
     display: flex; align-items: center; gap: .7rem;
@@ -92,7 +94,8 @@
     <h1>Animations</h1>
     <p>Vingt-sept animations rangées par <strong>niveau d'avancement</strong>, de
        la version finalisée au brouillon&nbsp;; chaque groupe se plie et se
-       déplie. La famille de chacune — boucle, duel, course, conquête,
+       déplie, le brouillon arrivant plié. La famille de chacune — boucle,
+       duel, course, conquête,
        essaimage — est rappelée en bout de ligne. Aucune bibliothèque&nbsp;:
        tout est calculé image par image.</p>
   </header>
@@ -112,7 +115,7 @@
       <span class="chevron" aria-hidden="true"></span>
       <span class="niv n2">level 2</span>
       <span class="nom">en cours</span>
-      <span class="compte">6 animations</span>
+      <span class="compte">10 animations</span>
     </summary>
     <p>Reprises&nbsp;: réglages mesurés sur plusieurs dizaines de parties,
        mise en scène travaillée — question posée au spectateur, compte à
@@ -155,15 +158,39 @@
         <span class="fam">essaimage</span>
         <span class="fleche">→</span>
       </a></li>
+      <li><a class="item" href="24-le-cercle-plein/">
+        <span class="num">24</span>
+        <span class="titre">Le cercle plein</span>
+        <span class="fam">remplissage</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="25-le-trou-qui-glisse/">
+        <span class="num">25</span>
+        <span class="titre">Le trou qui glisse</span>
+        <span class="fam">essaimage</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="26-rayons-en-fusion/">
+        <span class="num">26</span>
+        <span class="titre">Rayons en fusion</span>
+        <span class="fam">boucle</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="27-ombre-contre-glace/">
+        <span class="num">27</span>
+        <span class="titre">Ombre contre Glace</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
     </ul>
   </details>
 
-  <details class="niveau" open>
+  <details class="niveau">
     <summary>
       <span class="chevron" aria-hidden="true"></span>
       <span class="niv n1">level 1</span>
       <span class="nom">brouillon</span>
-      <span class="compte">21 animations</span>
+      <span class="compte">17 animations</span>
     </summary>
     <p>Le principe tient et la partie se termine, mais la mise en scène n'a
        pas été reprise&nbsp;: ni question posée au spectateur, ni compte à
@@ -270,30 +297,6 @@
         <span class="num">22</span>
         <span class="titre">La spirale rongée</span>
         <span class="fam">érosion</span>
-        <span class="fleche">→</span>
-      </a></li>
-      <li><a class="item" href="24-le-cercle-plein/">
-        <span class="num">24</span>
-        <span class="titre">Le cercle plein</span>
-        <span class="fam">remplissage</span>
-        <span class="fleche">→</span>
-      </a></li>
-      <li><a class="item" href="25-le-trou-qui-glisse/">
-        <span class="num">25</span>
-        <span class="titre">Le trou qui glisse</span>
-        <span class="fam">essaimage</span>
-        <span class="fleche">→</span>
-      </a></li>
-      <li><a class="item" href="26-rayons-en-fusion/">
-        <span class="num">26</span>
-        <span class="titre">Rayons en fusion</span>
-        <span class="fam">boucle</span>
-        <span class="fleche">→</span>
-      </a></li>
-      <li><a class="item" href="27-ombre-contre-glace/">
-        <span class="num">27</span>
-        <span class="titre">Ombre contre Glace</span>
-        <span class="fam">duel</span>
         <span class="fleche">→</span>
       </a></li>
     </ul>

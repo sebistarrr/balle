@@ -94,7 +94,9 @@ référence.
 **La page d'accueil range les animations par niveau d'avancement**, du plus
 abouti au plus brut, et non par famille — la famille reste indiquée en bout de
 ligne. Chaque groupe est un `<details>` : il se plie et se déplie, au clavier
-comme à la souris, sans une ligne de JavaScript, et il est déplié par défaut.
+comme à la souris, sans une ligne de JavaScript. Les deux premiers arrivent
+dépliés ; le brouillon, qui est le plus gros tas et le moins intéressant,
+arrive plié.
 
 | | | |
 |---|---|---|
