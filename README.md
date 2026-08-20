@@ -50,7 +50,7 @@ l'écran :
 | 17 | Le parcours | [`17-le-parcours/`](17-le-parcours/) | `parcours.py` |
 | 18 | Les deux épreuves | [`18-les-deux-epreuves/`](18-les-deux-epreuves/) | `deux_epreuves.py` |
 
-Et quatre **reproductions** de vidéos vues ailleurs, refaites de zéro :
+Et six **reproductions** de vidéos vues ailleurs, refaites de zéro :
 
 | | Animation | Dossier | Script |
 |---|---|---|---|
@@ -58,6 +58,8 @@ Et quatre **reproductions** de vidéos vues ailleurs, refaites de zéro :
 | 22 | La spirale rongée | [`22-la-spirale-rongee/`](22-la-spirale-rongee/) | `spirale_rongee.py` *(Cairo)* |
 | 23 | La boîte percée | [`23-la-boite-percee/`](23-la-boite-percee/) | `boite_percee.py` *(Cairo)* |
 | 27 | Ombre contre Glace | [`27-ombre-contre-glace/`](27-ombre-contre-glace/) | `ombre_contre_glace.py` *(Cairo)* |
+| 28 | Les fils coupés | [`28-les-fils-coupes/`](28-les-fils-coupes/) | `fils_coupes.py` *(Cairo)* |
+| 29 | La toile | [`29-la-toile/`](29-la-toile/) | `toile.py` *(Cairo)* |
 
 Et trois **variantes**, qui reprennent chacune une animation existante et la
 poussent dans une direction — vers l'accumulation, vers le mouvement, vers la
@@ -537,10 +539,10 @@ balles. Le film retenu se termine à 107 px, soit deux balles.
 
 ## Les reproductions
 
-Quatre vidéos vues ailleurs, refaites de zéro à partir de leurs seules images.
+Six vidéos vues ailleurs, refaites de zéro à partir de leurs seules images.
 Rien n'en est repris que le principe : ni bande son, ni cartouche de texte, ni
 les drapeaux nationaux qui servaient d'équipes dans l'une d'elles, ni la marque
-de l'auteur dans la dernière. Toutes quatre passent par **Cairo** et non par
+de l'auteur dans les trois dernières. Toutes six passent par **Cairo** et non par
 Manim, pour la raison mesurée plus bas : elles comptent des milliers de disques,
 de tronçons ou de cases de pixels à chaque image.
 
@@ -629,6 +631,45 @@ volée portée à six éclats), les mêmes mesures sur quatre-vingts duels donne
 **43 victoires de l'ombre contre 37**, une durée médiane de **60,0 s** — celle
 de la vidéo — et le vainqueur à **23 points de vie** en médiane, parfois à un
 seul.
+
+**28 — Les fils coupés.** Cinq balles dans un cercle noir cerclé de blanc.
+Chacune tient une gerbe de fils tendus entre elle et des points fixes du bord :
+la gerbe suit la balle, les points ne bougent pas. **Toucher le bord en tend un
+de plus, traverser le fil d'une autre le coupe** ; à court de fils, on est
+éliminée. C'est le tracé de la 04 — relier le mobile à ses points d'impact — mais
+transposé au cercle, à cinq, et devenu la règle du jeu au lieu d'une décoration :
+les fils sont à la fois ce qu'on regarde et ce qui tue.
+
+Deux mesures ont fait le réglage. La coupe s'exécutait **deux cent quarante fois
+par seconde contre quatre adversaires**, soit près de mille fils tranchés par
+seconde : la partie médiane durait dix secondes au lieu des cent de la vidéo. Un
+délai de 0,55 s entre deux coupes, par balle, remet les choses d'aplomb. Restait
+la fin de partie, qui se figeait : à deux, les gerbes ne se croisent presque
+plus, chacune regagne un fil par rebond et personne ne descend jamais à zéro —
+un quart des parties dépassait deux minutes, et l'une n'a pas fini en cinq. D'où
+**l'usure** : passé 38 s, chaque balle perd un fil de temps en temps, et de plus
+en plus vite.
+
+Après quoi, sur soixante parties : victoires **9 / 12 / 10 / 16 / 13** entre les
+cinq couleurs, durée médiane **50 s**, toutes terminées, et la survivante finit
+le plus souvent avec deux à sept fils.
+
+**29 — La toile.** Même tracé, deux balles, et la règle inverse : **rien ne se
+coupe**. Chaque rebord planté reste, chaque fil reste tendu, et les deux gerbes
+s'épaississent pendant soixante-deux secondes jusqu'à tisser le disque entier.
+Les fils sont dessinés en **fusion additive** : à cent vingt fils la toile
+s'éclaire aux croisements au lieu de virer à la bouillie grise.
+
+Une pincée de hasard à chaque rebond, sans quoi une balle finit par tomber sur
+une corde périodique — un triangle, une étoile à cinq branches — et repasse
+indéfiniment par les mêmes points : la toile cesse alors de s'épaissir, ce qui
+est précisément ce que l'animation raconte.
+
+Et la même leçon qu'à la 19, une fois de plus : avec un ordre de mise à jour
+fixe, **la balle jouée en premier gagnait 21 parties sur 30**. La partie se
+jouant à quelques fils près sur une durée fixe, le moindre avantage systématique
+décide presque tout. Ordre tiré à pile ou face à chaque pas : **42 contre 38**
+sur quatre-vingts parties.
 
 ## Les variantes
 
@@ -766,7 +807,7 @@ lents ou gros. Les quatre premières jouent une gamme pentatonique mineure ; la
 
 ## Télécharger les vidéos
 
-Les huit animations rendues par Cairo écrivent leur `mp4` directement au bon
+Les dix animations rendues par Cairo écrivent leur `mp4` directement au bon
 format ; leur `shorts.mp4` en est une copie, resserrée pour les plus lourdes.
 Chaque dossier contient `shorts.mp4` : l'animation rendue en **1080×1920, 60 fps,
 H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
@@ -801,6 +842,8 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 25 | Le trou qui glisse | 26 s | 12 Mo |
 | 26 | Rayons en fusion | 55 s | 27 Mo |
 | 27 | Ombre contre Glace | 66 s | 11 Mo |
+| 28 | Les fils coupés | 61 s | 21 Mo |
+| 29 | La toile | 66 s | 21 Mo |
 
 La 24 est de loin la plus lourde du lot, et c'est irréductible : deux mille
 disques colorés qui bougent chacun pour soi ne se compressent pas. Même
@@ -860,7 +903,7 @@ d'origine, ou `"sinus"` pour un mouvement physiquement correct).
 Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (les
 compteurs des 03 et 05, les légendes de la 04) passent par Pango.
 
-Les huit animations rendues par **Cairo** se lancent autrement — elles
+Les dix animations rendues par **Cairo** se lancent autrement — elles
 produisent leur `mp4` directement, déjà en 1080 × 1920, sans passer par
 `vers-shorts.sh` :
 
@@ -875,6 +918,8 @@ cd 24-le-cercle-plein   && python cercle_plein.py     && cd ..
 cd 25-le-trou-qui-glisse && python trou_qui_glisse.py && cd ..
 cd 26-rayons-en-fusion  && python rayons_fusion.py    && cd ..
 cd 27-ombre-contre-glace && python ombre_contre_glace.py && cd ..
+cd 28-les-fils-coupes   && python fils_coupes.py       && cd ..
+cd 29-la-toile          && python toile.py             && cd ..
 ```
 
 Chacune accepte `--graines`, qui simule une série de tirages et dit ce qu'ils
