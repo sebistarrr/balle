@@ -67,26 +67,43 @@ EP_BORD = 2.5
 R = 26.0
 V = 700.0
 DUREE = 62.0
-MAX_FILS = 900
+MAX_FILS = 300
 
 #  Un rebond ne plante pas un point d'attache mais toute une grappe — compté sur
 #  la vidéo, image par image. C'est de là que vient la montée en puissance du
 #  duel : quelques dizaines de fils au début, plus d'un millier à la fin, et le
 #  disque entièrement tissé.
-GAIN = 9
+GAIN = 18
 GAIN_ETALE = 0.16
 
 NOMS = ("ORANGE", "VIOLET")
 TEINTES = (34.0, 285.0)
 
 DT = 1 / 240
-GRAINE = 0
+GRAINE = 1          # 90 fils contre 102 : dense et décidé de douze
+
+
+#  Ici aussi tout fil traversé disparaît. Compté sur la vidéo, image par image,
+#  en dénombrant les paquets de couleur sur le bord : l'orange passe de 67 points
+#  à la vingt-cinquième seconde à SEPT à la trentième, puis remonte à 23, retombe
+#  à 14, remonte à 56. Ce n'est pas une toile qui s'accumule, ce sont deux gerbes
+#  qui se fauchent l'une l'autre et se refont sans cesse.
+#
+#  « Traverser » se teste sur le déplacement du pas, et le fil est pris dans sa
+#  position du début du pas : seul le mouvement de la balle peut le trancher.
+def croise(ax, ay, bx, by, cx, cy, dx, dy):
+    d1 = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+    d2 = (bx - ax) * (dy - ay) - (by - ay) * (dx - ax)
+    d3 = (dx - cx) * (ay - cy) - (dy - cy) * (ax - cx)
+    d4 = (dx - cx) * (by - cy) - (dy - cy) * (bx - cx)
+    return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
 
 
 class Balle:
     def __init__(self, i, x, y, cap):
         self.i = i
         self.x, self.y = x, y
+        self.px, self.py = x, y
         self.vx, self.vy = math.cos(cap) * V, math.sin(cap) * V
         self.fils = []
         self.eclat = 0.0
@@ -140,6 +157,14 @@ class Partie:
             self.notes.append((self.t, (len(b.fils) % 6) * 2 + (7 if b.i else 0),
                                0.10, (b.x - W / 2) / (W / 2)))
 
+    def couper(self, tueur, cible):
+        ax, ay = cible.px, cible.py
+        for k in range(len(cible.fils) - 1, -1, -1):
+            bx = CX + math.cos(cible.fils[k]) * RC
+            by = CY + math.sin(cible.fils[k]) * RC
+            if croise(tueur.px, tueur.py, tueur.x, tueur.y, ax, ay, bx, by):
+                cible.fils.pop(k)
+
     def entre_elles(self):
         a, b = self.b
         dx, dy = b.x - a.x, b.y - a.y
@@ -167,10 +192,13 @@ class Partie:
         deux = self.b if self.rng.random() < 0.5 else self.b[::-1]
         for b in deux:
             b.eclat = max(0.0, b.eclat - DT)
+            b.px, b.py = b.x, b.y
             b.x += b.vx * DT
             b.y += b.vy * DT
             self.bord(b)
         self.entre_elles()
+        self.couper(self.b[0], self.b[1])
+        self.couper(self.b[1], self.b[0])
 
         for o in self.ondes:
             o["vie"] -= DT

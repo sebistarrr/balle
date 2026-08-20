@@ -205,13 +205,13 @@ const EP_BORD = 2.5;
 const R = 26;
 const V = 700;                      // vitesse, constante
 const DUREE = 62;                   // s — la toile est jugée au temps
-const MAX_FILS = 900;               // au-delà, le disque est plein
+const MAX_FILS = 300;               // au-delà, le disque est plein
 
 //  Un rebond ne plante pas un point d'attache mais toute une grappe — compté
 //  sur la vidéo, image par image. C'est de là que vient la montée en puissance
 //  du duel : quelques dizaines de fils au début, plus d'un millier à la fin, et
 //  le disque entièrement tissé.
-const GAIN = 9;
+const GAIN = 18;
 const GAIN_ETALE = 0.16;            // demi-ouverture de la grappe, en rad
 
 const NOMS = ['ORANGE', 'VIOLET'];
@@ -234,6 +234,7 @@ function reinitialiser() {
       x: CX + Math.cos(a) * RC * 0.45, y: CY + Math.sin(a) * RC * 0.45,
       vx: Math.cos(cap) * V, vy: Math.sin(cap) * V,
       fils: [], eclat: 0,
+      px: CX + Math.cos(a) * RC * 0.45, py: CY + Math.sin(a) * RC * 0.45,
     };
   });
 }
@@ -273,6 +274,39 @@ function bord(b) {
   }
 }
 
+//  Ici aussi tout fil traversé disparaît. Compté sur la vidéo, image par image,
+//  en dénombrant les paquets de couleur sur le bord : l'orange passe de 67
+//  points à la vingt-cinquième seconde à SEPT à la trentième, puis remonte à 23,
+//  retombe à 14, remonte à 56. Ce n'est pas une toile qui s'accumule, ce sont
+//  deux gerbes qui se fauchent l'une l'autre et se refont sans cesse.
+//
+//  « Traverser » se teste sur le déplacement du pas, et le fil est pris dans sa
+//  position du début du pas : seul le mouvement de la balle peut le trancher.
+function croise(ax, ay, bx, by, cx, cy, dx, dy) {
+  const d1 = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  const d2 = (bx - ax) * (dy - ay) - (by - ay) * (dx - ax);
+  const d3 = (dx - cx) * (ay - cy) - (dy - cy) * (ax - cx);
+  const d4 = (dx - cx) * (by - cy) - (dy - cy) * (bx - cx);
+  return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
+}
+
+function couperFils(tueur, cible) {
+  const ax = cible.px, ay = cible.py;
+  let n = 0;
+  for (let k = cible.fils.length - 1; k >= 0; k--) {
+    const bx = CX + Math.cos(cible.fils[k]) * RC;
+    const by = CY + Math.sin(cible.fils[k]) * RC;
+    if (!croise(tueur.px, tueur.py, tueur.x, tueur.y, ax, ay, bx, by)) continue;
+    cible.fils.splice(k, 1);
+    n++;
+  }
+  if (n && notesCeTour < 3) {
+    notesCeTour++;
+    souffle((tueur.x - W / 2) / (W / 2), Math.min(0.35, 0.05 + n * 0.03),
+            0.2, 1600, 'highpass');
+  }
+}
+
 function entreElles() {
   const [a, b] = balles;
   const dx = b.x - a.x, dy = b.y - a.y;
@@ -298,11 +332,14 @@ function pas() {
   const deux = Math.random() < 0.5 ? balles : [balles[1], balles[0]];
   for (const b of deux) {
     if (b.eclat > 0) b.eclat -= DT;
+    b.px = b.x; b.py = b.y;
     b.x += b.vx * DT;
     b.y += b.vy * DT;
     bord(b);
   }
   entreElles();
+  couperFils(balles[0], balles[1]);
+  couperFils(balles[1], balles[0]);
 
   for (const o of ondes) o.vie -= DT;
   ondes = ondes.filter(o => o.vie > 0);

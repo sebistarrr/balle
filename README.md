@@ -635,8 +635,9 @@ seul.
 **28 — Les fils coupés.** Cinq balles dans un cercle noir cerclé de blanc.
 Chacune tient une gerbe de fils tendus entre elle et des points fixes du bord :
 la gerbe suit la balle, les points ne bougent pas. **Toucher le bord y plante
-toute une grappe de points ; tout fil que la balle traverse disparaît** ; à
-court de fils, on est éliminée. C'est le tracé de la 04 — relier le mobile à ses
+toute une grappe de points ; tout fil que la balle traverse disparaît**, sans
+exception ni délai, pas même au pied de la gerbe ; à court de fils, on est
+éliminée. C'est le tracé de la 04 — relier le mobile à ses
 points d'impact — mais transposé au cercle, à cinq, et devenu la règle du jeu au
 lieu d'une décoration : les fils sont à la fois ce qu'on regarde et ce qui tue.
 
@@ -673,27 +674,32 @@ vidéo aussi, deux balles meurent avant la troisième seconde.
 Sur soixante parties : victoires **13 / 7 / 13 / 15 / 12** entre les cinq
 couleurs, durée médiane **32 s**, toutes terminées.
 
-**29 — La toile.** Même tracé, deux balles, et la règle inverse : **rien ne se
-coupe**. Chaque grappe plantée reste, chaque fil reste tendu, et les deux gerbes
-s'épaississent pendant soixante-deux secondes. C'est de la grappe que vient la
-montée en puissance du duel : quelques dizaines de fils au début, **plus d'un
-millier à la fin**, et le disque entièrement tissé.
+**29 — La toile.** Le même jeu à deux, sur un cercle plus petit. J'avais d'abord
+cru à une pure accumulation — les images tardives montrent un disque entièrement
+tissé. Le comptage dit le contraire, et sans appel : **l'orange passe de 67
+points à la vingt-cinquième seconde à SEPT à la trentième**, puis remonte à 23,
+retombe à 14, remonte à 56. Ce n'est pas une toile qui s'accumule, ce sont deux
+gerbes qui se fauchent l'une l'autre et se refont sans cesse ; les images denses
+sont des sommets, pas un état.
 
-Deux réglages de tracé pour que ça reste lisible. Les fils sont en **fusion
-additive**, sinon la toile vire à la bouillie grise ; et le trait **s'affine et
-pâlit à mesure que la toile s'épaissit**, sinon mille traits opaques saturent le
+La même règle s'y applique donc, à l'identique. Ce qui donne au duel sa montée en
+puissance, c'est la grappe : dix-huit points par rebond, des sommets mesurés
+entre 135 et 350 fils à l'écran, et des effondrements brutaux quand une balle
+traverse la gerbe adverse de part en part. La partie se joue au temps —
+soixante-deux secondes — et la plus fournie l'emporte.
+
+Deux réglages de tracé pour que ça reste lisible : les fils sont en **fusion
+additive**, sinon la toile vire à la bouillie grise, et le trait **s'affine et
+pâlit à mesure que la toile s'épaissit**, sinon les traits opaques saturent le
 disque en blanc et l'on ne voit plus les croisements.
 
 Une pincée de hasard à chaque rebond, enfin, sans quoi une balle finit par tomber
 sur une corde périodique — un triangle, une étoile à cinq branches — et repasse
-indéfiniment par les mêmes points : la toile cesse alors de s'épaissir, ce qui
-est précisément ce que l'animation raconte.
+indéfiniment par les mêmes points.
 
 Et la même leçon qu'à la 19, une fois de plus : avec un ordre de mise à jour
-fixe, **la balle jouée en premier gagnait 21 parties sur 30**. La partie se
-jouant à quelques fils près sur une durée fixe, le moindre avantage systématique
-décide presque tout. Ordre tiré à pile ou face à chaque pas : **42 contre 38**
-sur quatre-vingts parties.
+fixe, **la balle jouée en premier gagnait 21 parties sur 30**. Ordre tiré à pile
+ou face à chaque pas.
 
 ## Les variantes
 
@@ -867,7 +873,7 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 26 | Rayons en fusion | 55 s | 27 Mo |
 | 27 | Ombre contre Glace | 66 s | 11 Mo |
 | 28 | Les fils coupés | 75 s | 23 Mo |
-| 29 | La toile | 66 s | 24 Mo |
+| 29 | La toile | 66 s | 15 Mo |
 
 La 24 est de loin la plus lourde du lot, et c'est irréductible : deux mille
 disques colorés qui bougent chacun pour soi ne se compressent pas. Même

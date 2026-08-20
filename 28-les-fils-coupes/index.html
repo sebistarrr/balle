@@ -211,6 +211,7 @@ const MAX_FILS = 160;
 //  sur la vidéo, image par image, en dénombrant les paquets de couleur sur le
 //  bord : le vert passe de 15 points à 33 en une seconde, le jaune de 18 à 37.
 //  Un point par rebond ne pouvait pas donner ça.
+//
 //  La grappe garde sa taille un moment, puis se tarit. Sans tarissement il n'y
 //  a pas de fin : mesuré sur quarante secondes, la perte est proportionnelle à
 //  la taille de la gerbe — plus on a de fils, plus on en présente à couper —
@@ -228,12 +229,6 @@ const GAIN_RAMPE = 22;              // s pour aller de GAIN0 à zéro
 const gain = () => Math.max(0, Math.round(
   GAIN0 * (1 - Math.max(0, tps - GAIN_PLEIN) / GAIN_RAMPE)));
 const GAIN_ETALE = 0.18;            // demi-ouverture de la grappe, en rad
-
-//  Le pied de la gerbe est hors de portée, et ce n'est pas une exception à la
-//  règle : deux balles se repoussent dès qu'elles se touchent, donc aucune ne
-//  peut approcher le centre d'une autre à moins de deux rayons. La garde ne
-//  fait qu'en tenir compte.
-const GARDE = 2.2 * R;
 
 const NOMS = ['VERT', 'VIOLET', 'ROSE', 'JAUNE', 'BLEU'];
 const TEINTES = [125, 268, 335, 58, 195];
@@ -302,6 +297,9 @@ function bord(b) {
 //  à l'instant où elle le traverse, sans délai ni exception. Une gerbe prise de
 //  plein fouet tombe donc en entier.
 //
+//  Aucune exception, pas même au pied de la gerbe : un fil traversé tombe, où
+//  qu'il soit traversé.
+//
 //  « Traverser » se teste sur le déplacement du pas : le segment parcouru par
 //  la balle coupe-t-il le fil ? Et le fil est pris dans sa position du DÉBUT du
 //  pas, si bien que seul le mouvement de la balle peut le trancher. C'est toute
@@ -328,10 +326,6 @@ function couperFils(tueur, cible) {
     //  Le pied de la gerbe est hors de portée, et ce n'est pas une exception à
     //  la règle : deux balles se repoussent dès qu'elles se touchent, aucune ne
     //  peut donc approcher le centre d'une autre à moins de deux rayons.
-    const ex = bx - ax, ey = by - ay;
-    const L = Math.hypot(ex, ey) || 1e-9;
-    const t = ((tueur.x - ax) * ex + (tueur.y - ay) * ey) / (L * L);
-    if (t * L < GARDE) continue;
     if (!croise(tueur.px, tueur.py, tueur.x, tueur.y, ax, ay, bx, by)) continue;
     coupes.push({ x: tueur.x, y: tueur.y, h: cible.h, vie: 0.45 });
     cible.fils.splice(k, 1);

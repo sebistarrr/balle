@@ -71,11 +71,6 @@ N0 = 14
 OUVERTURE = 0.9
 MAX_FILS = 160
 
-#  Le pied de la gerbe est hors de portée, et ce n'est pas une exception à la
-#  règle : deux balles se repoussent dès qu'elles se touchent, donc aucune ne
-#  peut approcher le centre d'une autre à moins de deux rayons.
-GARDE = 2.2 * R
-
 #  Un rebond ne plante pas un point d'attache mais toute une grappe. Compté sur
 #  la vidéo, image par image, en dénombrant les paquets de couleur sur le bord :
 #  le vert passe de 15 points à 33 en une seconde, le jaune de 18 à 37.
@@ -179,6 +174,9 @@ class Partie:
         disparaît, à l'instant où elle le traverse, sans délai ni exception.
         Une gerbe prise de plein fouet tombe donc en entier.
 
+        Aucune exception, pas même au pied de la gerbe : un fil traversé
+        tombe, où qu'il soit traversé.
+
         « Traverser » se teste sur le déplacement du pas : le segment parcouru
         par la balle coupe-t-il le fil ? Et le fil est pris dans sa position du
         DÉBUT du pas, si bien que seul le mouvement de la balle peut le
@@ -192,11 +190,6 @@ class Partie:
         for k in range(len(cible.fils) - 1, -1, -1):
             bx = CX + math.cos(cible.fils[k]) * RC
             by = CY + math.sin(cible.fils[k]) * RC
-            ex, ey = bx - ax, by - ay
-            L = math.hypot(ex, ey) or 1e-9
-            t = ((tueur.x - ax) * ex + (tueur.y - ay) * ey) / (L * L)
-            if t * L < GARDE:
-                continue
             if not croise(tueur.px, tueur.py, tueur.x, tueur.y, ax, ay, bx, by):
                 continue
             self.coupes.append({"x": tueur.x, "y": tueur.y,
