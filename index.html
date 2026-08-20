@@ -21,10 +21,37 @@
   header p { margin: 0 0 clamp(2rem, 5vw, 3rem); max-width: 52ch; }
   ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid #16202c; }
   li { border-bottom: 1px solid #16202c; }
-  h2 {
-    margin: clamp(2.4rem, 6vw, 3.4rem) 0 .35rem;
+  /* Chaque niveau est un <details> : plier et déplier sans une ligne de
+     JavaScript, au clavier comme à la souris, et déplié par défaut. */
+  .niveau { margin: clamp(2.2rem, 5vw, 3rem) 0 0; }
+  .niveau:first-of-type { margin-top: 0; }
+  /* Replié, un groupe n'est plus qu'une ligne : on resserre, sans quoi la page
+     pliée n'est que trois titres perdus dans du vide. */
+  .niveau:not([open]) { margin-top: .35rem; }
+  summary {
     font-size: 1.05rem; font-weight: 500; letter-spacing: .01em; color: #dde4e4;
-    display: flex; align-items: baseline; gap: .7rem;
+    display: flex; align-items: center; gap: .7rem;
+    padding: .5rem .35rem; margin: 0 -.35rem .35rem; cursor: pointer;
+    border-radius: 8px; list-style: none;
+  }
+  /* Le triangle par défaut est remplacé par notre propre chevron. */
+  summary::-webkit-details-marker { display: none; }
+  summary:hover, summary:focus-visible { color: #49c4b9; background: #0a121c; }
+  summary:focus-visible { outline: 1px solid #2c4a49; outline-offset: 2px; }
+  /* Ouvert, le chevron pointe vers le bas ; fermé, vers la droite. Le décalage
+     est dans le transform et non dans la marge : une marge qui change ferait
+     sauter la ligne entière au moment du pli. */
+  .chevron {
+    flex: none; width: 8px; height: 8px; margin-right: .1rem;
+    border-right: 2px solid #55646e; border-bottom: 2px solid #55646e;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform .18s ease;
+  }
+  .niveau:not([open]) .chevron { transform: translateX(-2px) rotate(-45deg); }
+  summary:hover .chevron { border-color: #49c4b9; }
+  .compte {
+    margin-left: auto; font-size: 12px; letter-spacing: .06em; color: #55646e;
+    flex: none;
   }
   /* La pastille de niveau : trois teintes, du plus brut au plus abouti. */
   .niv {
@@ -34,7 +61,7 @@
   .n1 { color: #8a7f5c; background: #221f14; }
   .n2 { color: #49c4b9; background: #0e2422; }
   .n3 { color: #7fa8d8; background: #121d2a; }
-  h2 + p { margin: 0 0 1.1rem; max-width: 52ch; }
+  summary + p { margin: 0 0 1.1rem; max-width: 52ch; }
   a.item {
     display: flex; align-items: baseline; gap: 1rem; padding: 1.1rem .25rem;
     text-decoration: none; color: #dde4e4;
@@ -51,13 +78,11 @@
   }
   .fleche { color: #2c4a49; flex: none; }
   a.item:hover .fleche { color: #49c4b9; }
-  .vide {
-    margin: 0; padding: 1.4rem .25rem; border-top: 1px solid #16202c;
-    border-bottom: 1px solid #16202c; color: #4d5a63; font-style: italic;
-  }
   footer { max-width: 680px; margin: 2.5rem auto 0; font-size: 13px; }
   footer a { color: #49c4b9; }
-  @media (prefers-reduced-motion: reduce) { a.item { transition: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    a.item, .chevron { transition: none; }
+  }
 </style>
 </head>
 <body>
@@ -65,194 +90,214 @@
 <main>
   <header>
     <h1>Animations</h1>
-    <p>Vingt-sept animations rangées par <strong>niveau d'avancement</strong>, du
-       brouillon à la version finalisée. La famille de chacune — boucle, duel,
-       course, conquête, essaimage — est rappelée en bout de ligne. Aucune
-       bibliothèque&nbsp;: tout est calculé image par image.</p>
+    <p>Vingt-sept animations rangées par <strong>niveau d'avancement</strong>, de
+       la version finalisée au brouillon&nbsp;; chaque groupe se plie et se
+       déplie. La famille de chacune — boucle, duel, course, conquête,
+       essaimage — est rappelée en bout de ligne. Aucune bibliothèque&nbsp;:
+       tout est calculé image par image.</p>
   </header>
 
-  <h2><span class="niv n1">level 1</span> brouillon</h2>
-  <p>Le principe tient et la partie se termine, mais la mise en scène n'a pas
-     été reprise&nbsp;: ni question posée au spectateur, ni compte à rebours, et
-     les réglages n'ont eu qu'une passe de mesures.</p>
+  <details class="niveau" open>
+    <summary>
+      <span class="chevron" aria-hidden="true"></span>
+      <span class="niv n3">level 3</span>
+      <span class="nom">finalisée</span>
+      <span class="compte">aucune</span>
+    </summary>
+    <p>Rien à reprendre&nbsp;: bonne à publier telle quelle.</p>
+  </details>
 
-  <ul>
-    <li><a class="item" href="1-vagues-de-pendule-intense/">
-      <span class="num">01</span>
-      <span class="titre">Vagues de pendule</span>
-      <span class="fam">boucle</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="2-billard-en-boucle/">
-      <span class="num">02</span>
-      <span class="titre">Billard en boucle</span>
-      <span class="fam">boucle</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="3-balle-qui-grossit/">
-      <span class="num">03</span>
-      <span class="titre">La balle qui grossit</span>
-      <span class="fam">boucle</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="4-rayons-de-rebond/">
-      <span class="num">04</span>
-      <span class="titre">Rayons de rebond</span>
-      <span class="fam">boucle</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="5-balle-et-pointes/">
-      <span class="num">05</span>
-      <span class="titre">La balle et les pointes</span>
-      <span class="fam">boucle</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="6-cinq-vies/">
-      <span class="num">06</span>
-      <span class="titre">Cinq vies</span>
-      <span class="fam">duel</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="7-course-en-spirale/">
-      <span class="num">07</span>
-      <span class="titre">Course en spirale</span>
-      <span class="fam">duel</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="8-sol-qui-s-effrite/">
-      <span class="num">08</span>
-      <span class="titre">Le sol qui s'effrite</span>
-      <span class="fam">duel</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="9-grand-plongeon/">
-      <span class="num">09</span>
-      <span class="titre">Le grand plongeon</span>
-      <span class="fam">duel</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="10-guerre-de-territoire/">
-      <span class="num">10</span>
-      <span class="titre">Guerre de territoire</span>
-      <span class="fam">conquête</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="11-pointes-qui-poussent/">
-      <span class="num">11</span>
-      <span class="titre">Les pointes qui poussent</span>
-      <span class="fam">duel</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="12-sumo/">
-      <span class="num">12</span>
-      <span class="titre">Sumo</span>
-      <span class="fam">duel</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="13-les-portes/">
-      <span class="num">13</span>
-      <span class="titre">Les portes</span>
-      <span class="fam">duel</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="14-le-dernier-debout/">
-      <span class="num">14</span>
-      <span class="titre">Le dernier debout</span>
-      <span class="fam">taille</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="15-le-mur-qui-pousse/">
-      <span class="num">15</span>
-      <span class="titre">Le mur qui pousse</span>
-      <span class="fam">duel</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="17-le-parcours/">
-      <span class="num">17</span>
-      <span class="titre">Le parcours</span>
-      <span class="fam">course</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="22-la-spirale-rongee/">
-      <span class="num">22</span>
-      <span class="titre">La spirale rongée</span>
-      <span class="fam">érosion</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="24-le-cercle-plein/">
-      <span class="num">24</span>
-      <span class="titre">Le cercle plein</span>
-      <span class="fam">remplissage</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="25-le-trou-qui-glisse/">
-      <span class="num">25</span>
-      <span class="titre">Le trou qui glisse</span>
-      <span class="fam">essaimage</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="26-rayons-en-fusion/">
-      <span class="num">26</span>
-      <span class="titre">Rayons en fusion</span>
-      <span class="fam">boucle</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="27-ombre-contre-glace/">
-      <span class="num">27</span>
-      <span class="titre">Ombre contre Glace</span>
-      <span class="fam">duel</span>
-      <span class="fleche">→</span>
-    </a></li>
-  </ul>
-
-  <h2><span class="niv n2">level 2</span> en cours</h2>
-  <p>Reprises&nbsp;: réglages mesurés sur plusieurs dizaines de parties, mise en
-     scène travaillée — question posée au spectateur, compte à rebours,
-     équilibre vérifié entre les couleurs.</p>
+  <details class="niveau" open>
+    <summary>
+      <span class="chevron" aria-hidden="true"></span>
+      <span class="niv n2">level 2</span>
+      <span class="nom">en cours</span>
+      <span class="compte">6 animations</span>
+    </summary>
+    <p>Reprises&nbsp;: réglages mesurés sur plusieurs dizaines de parties,
+       mise en scène travaillée — question posée au spectateur, compte à
+       rebours, équilibre vérifié entre les couleurs.</p>
 
     <ul>
-    <li><a class="item" href="16-la-prison/">
-      <span class="num">16</span>
-      <span class="titre">La prison</span>
-      <span class="fam">évasion</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="18-les-deux-epreuves/">
-      <span class="num">18</span>
-      <span class="titre">Les deux épreuves</span>
-      <span class="fam">course</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="19-quatre-royaumes/">
-      <span class="num">19</span>
-      <span class="titre">Quatre royaumes</span>
-      <span class="fam">conquête</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="20-les-gloutons/">
-      <span class="num">20</span>
-      <span class="titre">Les gloutons</span>
-      <span class="fam">taille</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="21-l-anneau-perce/">
-      <span class="num">21</span>
-      <span class="titre">L'anneau percé</span>
-      <span class="fam">essaimage</span>
-      <span class="fleche">→</span>
-    </a></li>
-    <li><a class="item" href="23-la-boite-percee/">
-      <span class="num">23</span>
-      <span class="titre">La boîte percée</span>
-      <span class="fam">essaimage</span>
-      <span class="fleche">→</span>
-    </a></li>
-  </ul>
+      <li><a class="item" href="16-la-prison/">
+        <span class="num">16</span>
+        <span class="titre">La prison</span>
+        <span class="fam">évasion</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="18-les-deux-epreuves/">
+        <span class="num">18</span>
+        <span class="titre">Les deux épreuves</span>
+        <span class="fam">course</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="19-quatre-royaumes/">
+        <span class="num">19</span>
+        <span class="titre">Quatre royaumes</span>
+        <span class="fam">conquête</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="20-les-gloutons/">
+        <span class="num">20</span>
+        <span class="titre">Les gloutons</span>
+        <span class="fam">taille</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="21-l-anneau-perce/">
+        <span class="num">21</span>
+        <span class="titre">L'anneau percé</span>
+        <span class="fam">essaimage</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="23-la-boite-percee/">
+        <span class="num">23</span>
+        <span class="titre">La boîte percée</span>
+        <span class="fam">essaimage</span>
+        <span class="fleche">→</span>
+      </a></li>
+    </ul>
+  </details>
 
-  <h2><span class="niv n3">level 3</span> finalisée</h2>
-  <p>Rien à reprendre&nbsp;: bonne à publier telle quelle.</p>
+  <details class="niveau" open>
+    <summary>
+      <span class="chevron" aria-hidden="true"></span>
+      <span class="niv n1">level 1</span>
+      <span class="nom">brouillon</span>
+      <span class="compte">21 animations</span>
+    </summary>
+    <p>Le principe tient et la partie se termine, mais la mise en scène n'a
+       pas été reprise&nbsp;: ni question posée au spectateur, ni compte à
+       rebours, et les réglages n'ont eu qu'une passe de mesures.</p>
 
-  <p class="vide">Aucune pour l'instant.</p>
+    <ul>
+      <li><a class="item" href="1-vagues-de-pendule-intense/">
+        <span class="num">01</span>
+        <span class="titre">Vagues de pendule</span>
+        <span class="fam">boucle</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="2-billard-en-boucle/">
+        <span class="num">02</span>
+        <span class="titre">Billard en boucle</span>
+        <span class="fam">boucle</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="3-balle-qui-grossit/">
+        <span class="num">03</span>
+        <span class="titre">La balle qui grossit</span>
+        <span class="fam">boucle</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="4-rayons-de-rebond/">
+        <span class="num">04</span>
+        <span class="titre">Rayons de rebond</span>
+        <span class="fam">boucle</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="5-balle-et-pointes/">
+        <span class="num">05</span>
+        <span class="titre">La balle et les pointes</span>
+        <span class="fam">boucle</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="6-cinq-vies/">
+        <span class="num">06</span>
+        <span class="titre">Cinq vies</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="7-course-en-spirale/">
+        <span class="num">07</span>
+        <span class="titre">Course en spirale</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="8-sol-qui-s-effrite/">
+        <span class="num">08</span>
+        <span class="titre">Le sol qui s'effrite</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="9-grand-plongeon/">
+        <span class="num">09</span>
+        <span class="titre">Le grand plongeon</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="10-guerre-de-territoire/">
+        <span class="num">10</span>
+        <span class="titre">Guerre de territoire</span>
+        <span class="fam">conquête</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="11-pointes-qui-poussent/">
+        <span class="num">11</span>
+        <span class="titre">Les pointes qui poussent</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="12-sumo/">
+        <span class="num">12</span>
+        <span class="titre">Sumo</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="13-les-portes/">
+        <span class="num">13</span>
+        <span class="titre">Les portes</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="14-le-dernier-debout/">
+        <span class="num">14</span>
+        <span class="titre">Le dernier debout</span>
+        <span class="fam">taille</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="15-le-mur-qui-pousse/">
+        <span class="num">15</span>
+        <span class="titre">Le mur qui pousse</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="17-le-parcours/">
+        <span class="num">17</span>
+        <span class="titre">Le parcours</span>
+        <span class="fam">course</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="22-la-spirale-rongee/">
+        <span class="num">22</span>
+        <span class="titre">La spirale rongée</span>
+        <span class="fam">érosion</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="24-le-cercle-plein/">
+        <span class="num">24</span>
+        <span class="titre">Le cercle plein</span>
+        <span class="fam">remplissage</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="25-le-trou-qui-glisse/">
+        <span class="num">25</span>
+        <span class="titre">Le trou qui glisse</span>
+        <span class="fam">essaimage</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="26-rayons-en-fusion/">
+        <span class="num">26</span>
+        <span class="titre">Rayons en fusion</span>
+        <span class="fam">boucle</span>
+        <span class="fleche">→</span>
+      </a></li>
+      <li><a class="item" href="27-ombre-contre-glace/">
+        <span class="num">27</span>
+        <span class="titre">Ombre contre Glace</span>
+        <span class="fam">duel</span>
+        <span class="fleche">→</span>
+      </a></li>
+    </ul>
+  </details>
 </main>
 
 <footer>
