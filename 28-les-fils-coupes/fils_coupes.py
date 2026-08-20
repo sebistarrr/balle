@@ -71,38 +71,42 @@ N0 = 14
 OUVERTURE = 0.9
 MAX_FILS = 160
 
-#  Un fil n'est coupé que loin de son point d'attache : au ras de la balle qui
-#  le tient, toutes ses gerbes passent à portée d'un adversaire de passage et
-#  disparaîtraient d'un coup.
-GARDE = 3.2 * R
-
-#  Un passage = une coupe. La gerbe de l'adversaire balaie l'écran en même
-#  temps que lui : sans ce délai par paire, elle vient se présenter fil après
-#  fil sous la balle qui la coupe, et le saignement est continu au lieu d'être
-#  un coup de faux.
-PASSE_REPOS = 1.3
+#  Le pied de la gerbe est hors de portée, et ce n'est pas une exception à la
+#  règle : deux balles se repoussent dès qu'elles se touchent, donc aucune ne
+#  peut approcher le centre d'une autre à moins de deux rayons.
+GARDE = 2.2 * R
 
 #  Un rebond ne plante pas un point d'attache mais toute une grappe. Compté sur
 #  la vidéo, image par image, en dénombrant les paquets de couleur sur le bord :
 #  le vert passe de 15 points à 33 en une seconde, le jaune de 18 à 37.
 #
-#  La grappe maigrit ensuite, et c'est ce qui fait qu'il y a une fin. Mesuré sur
-#  quarante secondes : chaque balle gagnait 500 fils et en perdait 450. Or la
-#  perte est proportionnelle à la taille de la gerbe — plus on a de fils, plus
-#  on en présente à couper — tandis que le gain est fixe. Chaque balle converge
-#  donc vers le même équilibre, autour de cent fils, et personne ne descend
-#  jamais à zéro : aucune partie sur quarante ne se terminait en cinq minutes.
-#  Le plancher est zéro et non un : à deux, il ne reste que deux gerbes à
-#  traverser, les coupes se raréfient et l'équilibre remonte à quarante.
-GAIN0 = 12
-GAIN_PENTE = 0.26
-GAIN_ETALE = 0.16
+#  La grappe garde ensuite sa taille un moment, puis se tarit. Sans tarissement
+#  il n'y a pas de fin : la perte est proportionnelle à la taille de la gerbe —
+#  plus on a de fils, plus on en présente à couper — tandis que le gain est
+#  fixe, si bien que chaque balle converge vers le même équilibre et qu'aucune
+#  ne descend jamais à zéro. Mais le tarissement ne commence pas tout de suite :
+#  les premières secondes sont une hécatombe, ce qui est fidèle — dans la vidéo
+#  deux balles meurent avant la troisième seconde — et c'est le long
+#  face-à-face qui suit qui fait la partie.
+GAIN0 = 14
+GAIN_PLEIN = 50.0                   # s de débit constant
+GAIN_RAMPE = 22.0                   # s pour aller de GAIN0 à zéro
+GAIN_ETALE = 0.18
 
 NOMS = ("VERT", "VIOLET", "ROSE", "JAUNE", "BLEU")
 TEINTES = (125.0, 268.0, 335.0, 58.0, 195.0)
 
 DT = 1 / 240
-GRAINE = 2          # 54,7 s, le vert l'emporte de justesse — comme la vidéo
+GRAINE = 4          # 71,8 s et six fils au bout : la plus longue et la plus serrée
+
+
+def croise(ax, ay, bx, by, cx, cy, dx, dy):
+    """Les deux segments se croisent-ils ?"""
+    d1 = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+    d2 = (bx - ax) * (dy - ay) - (by - ay) * (dx - ax)
+    d3 = (dx - cx) * (ay - cy) - (dy - cy) * (ax - cx)
+    d4 = (dx - cx) * (by - cy) - (dy - cy) * (bx - cx)
+    return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
 
 
 class Balle:
@@ -117,7 +121,7 @@ class Balle:
         self.vivante = True
         self.mort = 0.0
         self.eclat = 0.0
-        self.repos = [0.0] * 5
+        self.px, self.py = self.x, self.y
 
 
 class Partie:
@@ -142,7 +146,8 @@ class Partie:
         return [b for b in self.b if b.vivante]
 
     def gain(self):
-        return max(0, round(GAIN0 - self.t * GAIN_PENTE))
+        return max(0, round(GAIN0 * (
+            1 - max(0.0, self.t - GAIN_PLEIN) / GAIN_RAMPE)))
 
     def bord(self, b):
         dx, dy = b.x - CX, b.y - CY
@@ -170,36 +175,36 @@ class Partie:
                                (b.x - W / 2) / (W / 2)))
 
     def couper(self, tueur, cible):
-        """Traverser une gerbe la tranche EN ENTIER : tous les fils que la
-        balle coupe à cet instant tombent d'un coup. Mesuré sur la vidéo : le
-        jaune perd quarante-quatre fils en une seconde, le rose treize. Seul le
-        début du fil est épargné — au ras de la balle qui le tient, toute sa
-        gerbe passe à portée d'un adversaire de passage."""
-        if tueur.repos[cible.i] > 0:
-            return
-        ax, ay = cible.x, cible.y
+        """Le principe même de l'animation : tout fil que la balle traverse
+        disparaît, à l'instant où elle le traverse, sans délai ni exception.
+        Une gerbe prise de plein fouet tombe donc en entier.
+
+        « Traverser » se teste sur le déplacement du pas : le segment parcouru
+        par la balle coupe-t-il le fil ? Et le fil est pris dans sa position du
+        DÉBUT du pas, si bien que seul le mouvement de la balle peut le
+        trancher. C'est toute la différence : à comparer simplement la distance
+        du centre au fil, une gerbe qui balaie une balle à l'arrêt s'y découpait
+        toute seule, fil après fil, et la partie médiane tombait à cinq secondes
+        contre cent à la vidéo. Ce n'était pas la balle qui traversait les fils,
+        c'étaient les fils qui venaient à elle."""
+        ax, ay = cible.px, cible.py
         n = 0
         for k in range(len(cible.fils) - 1, -1, -1):
             bx = CX + math.cos(cible.fils[k]) * RC
             by = CY + math.sin(cible.fils[k]) * RC
             ex, ey = bx - ax, by - ay
-            L = math.hypot(ex, ey)
-            if L < 1e-6:
-                continue
+            L = math.hypot(ex, ey) or 1e-9
             t = ((tueur.x - ax) * ex + (tueur.y - ay) * ey) / (L * L)
             if t * L < GARDE:
                 continue
-            t = min(1.0, t)
-            px, py = ax + ex * t, ay + ey * t
-            if math.hypot(tueur.x - px, tueur.y - py) > R:
+            if not croise(tueur.px, tueur.py, tueur.x, tueur.y, ax, ay, bx, by):
                 continue
-            self.coupes.append({"x": px, "y": py, "h": TEINTES[cible.i],
-                                "vie": 0.45})
+            self.coupes.append({"x": tueur.x, "y": tueur.y,
+                                "h": TEINTES[cible.i], "vie": 0.45})
             cible.fils.pop(k)
             n += 1
         if not n:
             return
-        tueur.repos[cible.i] = PASSE_REPOS
         if not cible.fils:
             cible.vivante = False
             cible.mort = self.t
@@ -234,8 +239,7 @@ class Partie:
             if not b.vivante:
                 continue
             b.eclat = max(0.0, b.eclat - DT)
-            for k in range(5):
-                b.repos[k] = max(0.0, b.repos[k] - DT)
+            b.px, b.py = b.x, b.y
             b.x += b.vx * DT
             b.y += b.vy * DT
             self.bord(b)
