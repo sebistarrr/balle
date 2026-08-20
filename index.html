@@ -15,10 +15,10 @@
   }
   main { max-width: 680px; margin: 0 auto; }
   h1 {
-    margin: 0 0 .5rem; font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 500;
+    margin: 0 0 clamp(1.6rem, 4vw, 2.4rem);
+    font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 500;
     letter-spacing: -.02em; color: #dde4e4;
   }
-  header p { margin: 0 0 clamp(2rem, 5vw, 3rem); max-width: 52ch; }
   ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid #16202c; }
   li { border-bottom: 1px solid #16202c; }
   /* Chaque niveau est un <details> : plier et déplier sans une ligne de
@@ -55,15 +55,15 @@
     margin-left: auto; font-size: 12px; letter-spacing: .06em; color: #55646e;
     flex: none;
   }
-  /* La pastille de niveau : trois teintes, du plus brut au plus abouti. */
+  /* La pastille porte le nom du bloc : trois teintes, du plus brut au plus
+     abouti. */
   .niv {
-    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
-    padding: .18rem .5rem; border-radius: 999px; font-weight: 600;
+    font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .1em; padding: .34rem .6rem; border-radius: 999px;
   }
   .n1 { color: #8a7f5c; background: #221f14; }
   .n2 { color: #49c4b9; background: #0e2422; }
   .n3 { color: #7fa8d8; background: #121d2a; }
-  summary + p { margin: 0 0 1.1rem; max-width: 52ch; }
   a.item {
     display: flex; align-items: baseline; gap: 1rem; padding: 1.1rem .25rem;
     text-decoration: none; color: #dde4e4;
@@ -92,35 +92,22 @@
 <main>
   <header>
     <h1>Animations</h1>
-    <p>Vingt-sept animations rangées par <strong>niveau d'avancement</strong>, de
-       la version finalisée au brouillon&nbsp;; chaque groupe se plie et se
-       déplie, le brouillon arrivant plié. La famille de chacune — boucle,
-       duel, course, conquête,
-       essaimage — est rappelée en bout de ligne. Aucune bibliothèque&nbsp;:
-       tout est calculé image par image.</p>
   </header>
 
   <details class="niveau" open>
     <summary>
       <span class="chevron" aria-hidden="true"></span>
-      <span class="niv n3">level 3</span>
-      <span class="nom">finalisée</span>
+      <span class="niv n3">READY</span>
       <span class="compte">aucune</span>
     </summary>
-    <p>Rien à reprendre&nbsp;: bonne à publier telle quelle.</p>
   </details>
 
   <details class="niveau" open>
     <summary>
       <span class="chevron" aria-hidden="true"></span>
-      <span class="niv n2">level 2</span>
-      <span class="nom">en cours</span>
+      <span class="niv n2">IN_PROCESS</span>
       <span class="compte">10 animations</span>
     </summary>
-    <p>Reprises&nbsp;: réglages mesurés sur plusieurs dizaines de parties,
-       mise en scène travaillée — question posée au spectateur, compte à
-       rebours, équilibre vérifié entre les couleurs.</p>
-
     <ul>
       <li><a class="item" href="16-la-prison/">
         <span class="num">16</span>
@@ -188,14 +175,9 @@
   <details class="niveau">
     <summary>
       <span class="chevron" aria-hidden="true"></span>
-      <span class="niv n1">level 1</span>
-      <span class="nom">brouillon</span>
+      <span class="niv n1">DRAFTS</span>
       <span class="compte">17 animations</span>
     </summary>
-    <p>Le principe tient et la partie se termine, mais la mise en scène n'a
-       pas été reprise&nbsp;: ni question posée au spectateur, ni compte à
-       rebours, et les réglages n'ont eu qu'une passe de mesures.</p>
-
     <ul>
       <li><a class="item" href="1-vagues-de-pendule-intense/">
         <span class="num">01</span>

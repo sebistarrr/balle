@@ -94,18 +94,19 @@ référence.
 **La page d'accueil range les animations par niveau d'avancement**, du plus
 abouti au plus brut, et non par famille — la famille reste indiquée en bout de
 ligne. Chaque groupe est un `<details>` : il se plie et se déplie, au clavier
-comme à la souris, sans une ligne de JavaScript. Les deux premiers arrivent
-dépliés ; le brouillon, qui est le plus gros tas et le moins intéressant,
+comme à la souris, sans une ligne de JavaScript. `READY` et `IN_PROCESS`
+arrivent dépliés ; `DRAFTS`, qui est le plus gros tas et le moins intéressant,
 arrive plié.
 
-| | | |
-|---|---|---|
-| **level 3** | finalisée | rien à reprendre — vide pour l'instant |
-| **level 2** | en cours | réglages mesurés sur des dizaines de parties, mise en scène travaillée |
-| **level 1** | brouillon | le principe tient et la partie se termine, mais la mise en scène n'a pas été reprise |
+| | |
+|---|---|
+| `READY` | rien à reprendre — vide pour l'instant |
+| `IN_PROCESS` | réglages mesurés sur des dizaines de parties, mise en scène travaillée |
+| `DRAFTS` | le principe tient et la partie se termine, mais la mise en scène n'a pas été reprise |
 
-Les tableaux ci-dessous restent classés par famille, qui est ce qui compte pour
-s'y retrouver dans le code.
+La page ne dit rien de plus : c'est un menu, pas un article. Les tableaux
+ci-dessous restent classés par famille, qui est ce qui compte pour s'y
+retrouver dans le code.
 
 ## Les animations
 
