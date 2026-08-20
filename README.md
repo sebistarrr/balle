@@ -58,6 +58,16 @@ Et trois **reproductions** de vidéos vues ailleurs, refaites de zéro :
 | 22 | La spirale rongée | [`22-la-spirale-rongee/`](22-la-spirale-rongee/) | `spirale_rongee.py` *(Cairo)* |
 | 23 | La boîte percée | [`23-la-boite-percee/`](23-la-boite-percee/) | `boite_percee.py` *(Cairo)* |
 
+Et trois **variantes**, qui reprennent chacune une animation existante et la
+poussent dans une direction — vers l'accumulation, vers le mouvement, vers la
+couleur :
+
+| | Animation | Reprise de | Dossier | Script |
+|---|---|---|---|---|
+| 24 | Le cercle plein | 05 | [`24-le-cercle-plein/`](24-le-cercle-plein/) | `cercle_plein.py` *(Cairo)* |
+| 25 | Le trou qui glisse | 23 | [`25-le-trou-qui-glisse/`](25-le-trou-qui-glisse/) | `trou_qui_glisse.py` *(Cairo)* |
+| 26 | Rayons en fusion | 04 | [`26-rayons-en-fusion/`](26-rayons-en-fusion/) | `rayons_fusion.py` *(Cairo)* |
+
 Et une **évasion**, seule de son espèce — c'est aussi la seule dont la vidéo
 n'est pas rendue par Manim, pour une raison mesurée plus bas :
 
@@ -578,6 +588,73 @@ plancher reçoit **une pincée de hasard**. Un plancher parfaitement horizontal
 range les balles en couches immobiles, plus rien ne se dirige vers le trou, et
 le tas se fige — la partie s'arrête d'elle-même.
 
+## Les variantes
+
+Trois animations existantes reprises et poussées dans une direction. Toutes
+trois passent par **Cairo**, pour la même raison que les reproductions : à
+chaque image elles dessinent des milliers d'objets.
+
+**24 — Le cercle plein.** Reprise de la 05. Les pointes sont presque quatre
+fois plus larges — 8,5 % du bord contre 2,3 % — et l'objectif change : il ne
+s'agit plus de survivre mais de **remplir le cercle**. Chaque pointe touchée
+éclate en cent cinquante billes qui tombent, s'entassent et ne disparaissent
+jamais ; la partie s'arrête quand la balle est enterrée. Le film retenu compte
+1 950 billes et 58 % du disque rempli, en 54 s.
+
+Le vrai sujet est le tas. Trois choses ont dû être corrigées, dans cet ordre :
+
+*Le calcul.* Les grilles écrites en Python pur mettaient plus de dix minutes
+par partie. Les contacts passent maintenant par un **arbre k-d** de SciPy
+(`cKDTree.query_pairs`), qui rend toutes les paires en collision d'un coup : une
+milliseconde pour deux mille points.
+
+*Les infinis.* Cent cinquante billes qui naissent sur un cercle de 90 px se
+chevauchent massivement. Résolu d'un coup, l'écartement les projetait à
+l'infini et les coordonnées devenaient `NaN` en trois images. Correction
+**bornée à 4 px** par passe, et vitesse plafonnée à 2 600 px/s.
+
+*Le remplissage à 121 %.* Impossible, donc les billes se traversaient. Deux
+causes : une seule passe de relaxation ne suffit pas — il en faut **trois** —
+et surtout, le portage Cairo avait oublié la **réaction des billes sur la
+balle**. C'est exactement ce terme qui finit par emprisonner la balle et donc
+par terminer la partie ; sans lui elle traversait le tas indéfiniment.
+
+Un dernier réglage, mesuré : la partie s'arrête après **neuf secondes** sans
+contact avec le bord. À cinq, elle se déclenchait alors que la balle était
+simplement déviée par le tas, et le cercle finissait à 30-40 % au lieu de 58.
+
+**25 — Le trou qui glisse.** Reprise de la 23. Le trou du plancher ne reste
+plus en place : il **fait la navette d'un bord à l'autre** en sept secondes,
+suivant un sinus. Deux repères verts marquent ses lèvres, qui glissent avec
+lui.
+
+Le déplacement change entièrement le jeu. Dans la 23 le tas finit par se ranger
+au-dessus de la partie pleine du plancher et seules les balles du bon tiers
+s'échappent ; ici le trou vient chercher les balles là où elles sont, si bien
+que le hasard ajouté à chaque rebond n'a plus à faire tout le travail. Le film
+retenu atteint les 1 600 balles en 26 s, avec 1 634 évasions.
+
+**26 — Rayons en fusion.** Reprise de la 04, avec la couleur et les effets
+poussés au maximum. Tout est à **l'échelle 1,5** pour occuper le cadre 9:16 en
+entier — longueurs, pesanteur et vitesses ensemble, ce qui préserve exactement
+le mouvement : avec *x′ = k·x* et *g′ = k·g*, la trajectoire est la même
+agrandie, aux mêmes instants.
+
+Le changement qui compte est d'un caractère : **chaque impact garde la teinte
+qu'il avait au moment où il s'est produit**, au lieu de prendre celle du
+moment. La couleur tournant deux fois plus vite qu'à la 04 et de onze crans par
+choc au lieu de quatre, l'éventail de rayons devient un arc-en-ciel au lieu
+d'un aplat. Les rayons sont tracés en **fusion additive**, par paquets de
+quinze degrés de teinte — regrouper est ici la seule façon de tenir soixante
+images par seconde avec plus de mille rayons.
+
+Autour : une traînée derrière la balle, une onde de choc et une gerbe
+d'étincelles à chaque contact, un éclair court sur les contacts du fond, un
+halo de fond qui prend la teinte courante, et la paroi doublée d'une passe
+additive de 16 px qui la fait rougeoyer. Huit tirages mesurés : le récipient se
+remplit à 100 % dans tous, entre 53 et 59 s ; le film retenu est le plus
+court.
+
 ## La prison, et le choix de la bibliothèque
 
 **16 — La prison.** Une balle au centre, quarante murs concentriques autour
@@ -647,9 +724,9 @@ lents ou gros. Les quatre premières jouent une gamme pentatonique mineure ; la
 
 ## Télécharger les vidéos
 
-Les quatre animations rendues par Cairo écrivent leur `mp4` directement au bon
-format ; leur `shorts.mp4` en est une copie, resserrée pour les deux plus
-lourdes. Chaque dossier contient `shorts.mp4` : l'animation rendue en **1080×1920, 60 fps,
+Les sept animations rendues par Cairo écrivent leur `mp4` directement au bon
+format ; leur `shorts.mp4` en est une copie, resserrée pour les plus lourdes.
+Chaque dossier contient `shorts.mp4` : l'animation rendue en **1080×1920, 60 fps,
 H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 « ↓ mp4 1080×1920 » de chaque page y renvoie.
 
@@ -678,6 +755,13 @@ H.264 + AAC**, prête à publier sur YouTube Shorts, TikTok ou Reels. Le bouton
 | 21 | L'anneau percé | 47 s | 13 Mo |
 | 22 | La spirale rongée | 64 s | 6,2 Mo |
 | 23 | La boîte percée | 25 s | 6,7 Mo |
+| 24 | Le cercle plein | 54 s | 41 Mo |
+| 25 | Le trou qui glisse | 26 s | 12 Mo |
+| 26 | Rayons en fusion | 55 s | 27 Mo |
+
+La 24 est de loin la plus lourde du lot, et c'est irréductible : deux mille
+disques colorés qui bougent chacun pour soi ne se compressent pas. Même
+resserrée bien plus fort que les autres, elle pèse encore quarante mégaoctets.
 
 Les animations 02 et 03 sont carrées, la 04 en 720:1244 : elles sont mises à
 l'échelle sans déformation puis complétées en noir jusqu'au cadre 9:16.
@@ -733,17 +817,20 @@ d'origine, ou `"sinus"` pour un mouvement physiquement correct).
 Aucun de ces scripts n'a besoin de LaTeX : les seuls textes affichés (les
 compteurs des 03 et 05, les légendes de la 04) passent par Pango.
 
-Les quatre animations rendues par **Cairo** se lancent autrement — elles
+Les sept animations rendues par **Cairo** se lancent autrement — elles
 produisent leur `mp4` directement, déjà en 1080 × 1920, sans passer par
 `vers-shorts.sh` :
 
 ```sh
-pip install pycairo numpy
+pip install pycairo numpy scipy   # scipy n'est utile qu'à la 24
 
-cd 16-la-prison        && python prison.py          && cd ..
-cd 21-l-anneau-perce   && python anneau_perce.py    && cd ..
-cd 22-la-spirale-rongee && python spirale_rongee.py && cd ..
-cd 23-la-boite-percee  && python boite_percee.py    && cd ..
+cd 16-la-prison         && python prison.py           && cd ..
+cd 21-l-anneau-perce    && python anneau_perce.py     && cd ..
+cd 22-la-spirale-rongee && python spirale_rongee.py   && cd ..
+cd 23-la-boite-percee   && python boite_percee.py     && cd ..
+cd 24-le-cercle-plein   && python cercle_plein.py     && cd ..
+cd 25-le-trou-qui-glisse && python trou_qui_glisse.py && cd ..
+cd 26-rayons-en-fusion  && python rayons_fusion.py    && cd ..
 ```
 
 Chacune accepte `--graines`, qui simule une série de tirages et dit ce qu'ils

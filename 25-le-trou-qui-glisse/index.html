@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le trou qui glisse</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a; background: #04060a;
+    font: 400 15px/1.6 ui-sans-serif, system-ui, sans-serif;
+    padding: 1.25rem 1.25rem 3rem;
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+  }
+  a { color: #49c4b9; }
+  canvas {
+    width: min(92vw, 46vh); aspect-ratio: 1080 / 1920; display: block;
+    background: #000; border-radius: 14px;
+  }
+  .cmd { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center;
+         align-items: center; max-width: 640px; }
+  button, .btn {
+    font: inherit; font-size: 14px; color: #dde4e4; background: #0d1622;
+    border: 1px solid #1d2b3a; border-radius: 999px; padding: .45rem .95rem;
+    cursor: pointer; text-decoration: none;
+  }
+  button:hover, .btn:hover { border-color: #49c4b9; color: #49c4b9; }
+  label { font-size: 13px; display: flex; align-items: center; gap: .4rem; }
+  input[type=range] { width: 110px; accent-color: #49c4b9; }
+  p { max-width: 58ch; margin: 0; }
+  .note { font-size: 13px; color: #5d6a6a; }
+  strong { color: #dde4e4; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<canvas id="c" width="1080" height="1920"></canvas>
+
+<div class="cmd">
+  <a class="btn" href="../">← animations</a>
+  <button id="snd" aria-pressed="false">♪ activer le son</button>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="raz">nouvelle partie</button>
+  <label>vitesse <input id="vit" type="range" min="0.5" max="3" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="trou_qui_glisse.py">code du rendu</a>
+  <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
+</div>
+
+<p>La boîte percée, mais <strong>la brèche ne reste plus en
+   place</strong>&nbsp;: elle glisse le long du plancher, d'un coin à l'autre et
+   retour, en sept secondes. Deux balles au départ, et deux de plus à chaque
+   sortie.</p>
+
+<p>Ce seul changement retourne la partie. Une brèche fixe finit par se
+   boucher&nbsp;: les balles s'entassent devant, celles du dessus ne la voient
+   jamais, et le débit tombe. Une brèche mobile va chercher les balles là où
+   elles sont — le tas se vide par la tranche qu'elle traverse, et l'on voit la
+   colonne de fuyardes balayer l'écran de gauche à droite.</p>
+
+<p class="note">Variante de la boîte percée (23). Chaque rebond sur le plancher
+   reçoit une pincée de hasard&nbsp;: sans elle, les balles se rangent en
+   couches immobiles. Les deux repères verts marquent les lèvres de la
+   brèche&nbsp;; sur un bord qui glisse, il faut voir où elle est.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  Le trou qui glisse — la boîte percée (23), mais la brèche se déplace.
+//
+//  Une brèche fixe finit par se boucher : les balles s'entassent devant, celles
+//  du dessus ne la voient jamais, et le débit tombe. Une brèche mobile va
+//  chercher les balles là où elles sont, et le tas se vide par la tranche
+//  qu'elle traverse.
+//
+//  Le reste est celui de la 23 : une pincée de hasard à chaque rebond sur le
+//  plancher, sans quoi les balles se rangent en couches immobiles ; des chocs
+//  par grille et un tracé par lots d'une même teinte, faute de quoi rien ne
+//  tient à mille cinq cents balles.
+//
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+const W = 1080, H = 1920;
+
+// ---------------------------------------------------------------------------
+//  Outils de dessin
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+function redimensionner() {
+  const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(b.width * d) || 1;
+  cv.height = Math.round(b.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+const couleur = (h, s = 100, l = 60, a = 1) => `hsl(${h} ${s}% ${l}% / ${a})`;
+
+//  Fond, accroche du haut. Toutes les pages de duel commencent pareil : la
+//  question posée doit être lisible dès la première image.
+function fond(accroche) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = '#04060a'; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '600 40px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(235,244,248,0.9)';
+  ctx.fillText(accroche, W / 2, 96);
+}
+
+//  Bandeau de fin : voile sombre, nom du vainqueur, et la ligne qui dit de
+//  combien. Sans cette dernière, on ne sait pas si c'était serré.
+function bandeau(nom, h, detail) {
+  const v = Math.min(1, fini / 0.4);
+  ctx.fillStyle = `rgba(4,6,10,${0.66 * v})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '400 44px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(200,215,220,${v})`;
+  ctx.fillText('vainqueur', W / 2, H / 2 - 120);
+  ctx.font = '800 118px system-ui, sans-serif';
+  ctx.fillStyle = couleur(h, 100, 64, v);
+  ctx.fillText(nom, W / 2, H / 2 + 10);
+  ctx.font = '400 40px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(160,180,190,${v})`;
+  ctx.fillText(detail, W / 2, H / 2 + 90);
+}
+
+// ---------------------------------------------------------------------------
+//  Son
+// ---------------------------------------------------------------------------
+let audio = null, son = false, sec = null, mouille = null;
+
+function preparerBus() {
+  sec = audio.createGain(); sec.gain.value = 1;
+  sec.connect(audio.destination);
+  const n = Math.floor(audio.sampleRate * 1.6);
+  const ri = audio.createBuffer(2, n, audio.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ri.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const u = i / audio.sampleRate;
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-u * 3.4) * Math.min(1, u / 0.008);
+    }
+  }
+  const conv = audio.createConvolver(); conv.buffer = ri;
+  mouille = audio.createGain(); mouille.gain.value = 0.35;
+  mouille.connect(conv); conv.connect(audio.destination);
+}
+
+function voix(pan, envoi = 1) {
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.connect(sp); sp.connect(sec);
+  if (envoi > 0) {
+    const e = audio.createGain(); e.gain.value = envoi;
+    sp.connect(e); e.connect(mouille);
+  }
+  return g;
+}
+
+//  Timbre de métal frappé : les harmoniques hautes s'éteignent plus vite que la
+//  fondamentale. Des partiels de même durée donneraient un orgue.
+function cloche(demi, pan, force = 0.20, duree = 1.0, base = 196) {
+  if (!audio || audio.state !== 'running') return;
+  const f = base * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  for (const [mult, amp, part] of [[1, 1, 1], [2, 0.34, 0.55], [3, 0.13, 0.35]]) {
+    const g = voix(pan);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(force * amp, t0 + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree * part);
+    const o = audio.createOscillator();
+    o.frequency.value = f * mult; o.connect(g);
+    o.start(t0); o.stop(t0 + duree * part + 0.05);
+  }
+}
+
+function souffle(pan, force = 0.40, duree = 0.45, coupe = 320, type = 'bandpass') {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime, g = voix(pan, 0.6);
+  const n = audio.createBufferSource();
+  const buf = audio.createBuffer(1, audio.sampleRate * duree, audio.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.2);
+  }
+  n.buffer = buf;
+  const f = audio.createBiquadFilter();
+  f.type = type; f.frequency.value = coupe; f.Q.value = 0.7;
+  g.gain.setValueAtTime(force, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
+  n.connect(f); f.connect(g); n.start(t0);
+}
+
+//  Un accord montant à la victoire : c'est le seul moment où le son quitte le
+//  rythme de la physique pour dire quelque chose.
+function fanfare(joueur) {
+  if (!audio || audio.state !== 'running') return;
+  [0, 4, 7, 12].forEach((demi, i) => {
+    setTimeout(() => cloche(demi + (joueur ? 5 : 0), 0, 0.24, 1.7, 220), i * 110);
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+//  Réglages
+// ---------------------------------------------------------------------------
+const X0 = 70, X1 = 1010, Y0 = 430, Y1 = 1430;
+//  La brèche ne reste pas en place : elle glisse le long du bord du bas, d'un
+//  coin à l'autre et retour. Ce seul changement transforme la partie. Fixe, la
+//  brèche se bouche : les balles s'entassent devant, celles du dessus ne la
+//  voient jamais, et le débit tombe. Mobile, elle vient chercher les balles là
+//  où elles sont, et le tas se vide par la tranche qu'elle traverse.
+const TROU_L = 330;                 // largeur de la brèche
+const TROU_PER = 7.0;               // s pour un aller-retour complet
+const trouX = t => (X0 + X1) / 2
+  + (X1 - X0 - TROU_L - 40) / 2 * Math.sin(2 * Math.PI * t / TROU_PER);
+const R_BALLE = 11;
+const G = 1500;                     // px/s² — ici il y a une pesanteur
+const REBOND = 0.86;
+const V_MAX = 2200;
+const PRIME = 2;                    // balles gagnées à chaque évasion
+const N_MAX = 1600;
+const EP = 3;                       // demi-épaisseur du trait de la boîte
+const DT = 1 / 240;
+const FIN_ECRAN = 4.0;
+const T_LIMITE = 60;
+
+// ---------------------------------------------------------------------------
+//  État
+// ---------------------------------------------------------------------------
+let balles, dehors, tps, fini, compte, evasions;
+
+function neuve(x, y) {
+  return { x, y, vx: (Math.random() - 0.5) * 700, vy: (Math.random() - 0.5) * 400,
+           h: Math.random() * 360 };
+}
+
+function reinitialiser() {
+  balles = [neuve(X0 + 180, Y0 + 120), neuve(X1 - 180, Y0 + 200)];
+  dehors = [];
+  tps = 0; fini = 0; compte = 2; evasions = 0;
+}
+reinitialiser();
+
+function pas() {
+  if (fini) { fini = Math.min(fini + DT, 99); return; }
+  tps += DT;
+
+  for (let i = balles.length - 1; i >= 0; i--) {
+    const b = balles[i];
+    b.vy += G * DT;
+    b.x += b.vx * DT;
+    b.y += b.vy * DT;
+    const s = Math.hypot(b.vx, b.vy);
+    if (s > V_MAX) { b.vx *= V_MAX / s; b.vy *= V_MAX / s; }
+
+    if (b.x < X0 + EP + R_BALLE) { b.x = X0 + EP + R_BALLE; b.vx = Math.abs(b.vx) * REBOND; }
+    if (b.x > X1 - EP - R_BALLE) { b.x = X1 - EP - R_BALLE; b.vx = -Math.abs(b.vx) * REBOND; }
+    if (b.y < Y0 + EP + R_BALLE) { b.y = Y0 + EP + R_BALLE; b.vy = Math.abs(b.vy) * REBOND; }
+
+    //  Le sol n'existe qu'en dehors de la brèche. Une balle qui la survole
+    //  continue sa chute et se retrouve dehors.
+    const tg = trouX(tps) - TROU_L / 2, td = trouX(tps) + TROU_L / 2;
+    if (b.y > Y1 - EP - R_BALLE && !(b.x > tg && b.x < td)) {
+      b.y = Y1 - EP - R_BALLE;
+      b.vy = -Math.abs(b.vy) * REBOND;
+      //  Un plancher parfaitement horizontal finit par ranger les balles en
+      //  couches immobiles : une pincée de hasard à chaque contact suffit à les
+      //  garder vivantes, et c'est ce qui les amène jusqu'au trou.
+      b.vx += (Math.random() - 0.5) * 120;
+      if (Math.abs(b.vy) < 260) b.vy = -260;
+      if (notesCeTour < 4 && balles.length < 300) {
+        cloche([0, 3, 7, 10, 12][(b.h | 0) % 5], (b.x - W / 2) / (W / 2), 0.09, 0.45);
+        notesCeTour++;
+      }
+    }
+
+    if (b.y > Y1 + 60) {
+      //  Sortie : la balle tombe hors de la boîte et en fait naître deux.
+      balles.splice(i, 1);
+      dehors.push(b);
+      evasions++;
+      if (balles.length + PRIME <= N_MAX) {
+        for (let k = 0; k < PRIME; k++)
+          balles.push(neuve(X0 + 60 + Math.random() * (X1 - X0 - 120), Y0 + 60));
+      }
+      souffle((b.x - W / 2) / (W / 2), 0.18, 0.22, 900, 'highpass');
+    }
+  }
+
+  //  Chocs entre balles, par grille.
+  const CASE = 4 * R_BALLE;
+  const grille = new Map();
+  for (let i = 0; i < balles.length; i++) {
+    const b = balles[i];
+    const k = ((b.x / CASE) | 0) + ',' + ((b.y / CASE) | 0);
+    let l = grille.get(k);
+    if (!l) grille.set(k, l = []);
+    l.push(i);
+  }
+  for (const [k, l] of grille) {
+    const [cx, cy] = k.split(',').map(Number);
+    for (let dx = 0; dx <= 1; dx++) {
+      for (let dy = (dx ? -1 : 0); dy <= 1; dy++) {
+        const v = grille.get((cx + dx) + ',' + (cy + dy));
+        if (!v) continue;
+        for (const i of l) for (const j of v) {
+          if (v === l && j <= i) continue;
+          const a = balles[i], b = balles[j];
+          const ex = b.x - a.x, ey = b.y - a.y;
+          const dd = Math.hypot(ex, ey);
+          if (dd >= 2 * R_BALLE || dd < 1e-9) continue;
+          const nx = ex / dd, ny = ey / dd, corr = (2 * R_BALLE - dd) / 2;
+          a.x -= nx * corr; a.y -= ny * corr;
+          b.x += nx * corr; b.y += ny * corr;
+          const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+          if (vn > 0) continue;
+          const p = 0.92 * vn;
+          a.vx += p * nx; a.vy += p * ny;
+          b.vx -= p * nx; b.vy -= p * ny;
+        }
+      }
+    }
+  }
+
+  //  Les fuyardes continuent leur chute sous la boîte.
+  for (let i = dehors.length - 1; i >= 0; i--) {
+    const b = dehors[i];
+    b.vy += G * DT;
+    b.x += b.vx * DT;
+    b.y += b.vy * DT;
+    if (b.y > H + 80) dehors.splice(i, 1);
+  }
+
+  compte = balles.length;
+  if (compte >= N_MAX || tps > T_LIMITE) { fini = 1; fanfare(0); }
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+function boite() {
+  ctx.strokeStyle = '#f2f6f8';
+  ctx.lineWidth = 2 * EP;
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  ctx.moveTo(X0, Y1); ctx.lineTo(X0, Y0);
+  ctx.lineTo(X1, Y0); ctx.lineTo(X1, Y1);
+  const tg = trouX(tps) - TROU_L / 2, td = trouX(tps) + TROU_L / 2;
+  ctx.moveTo(X0, Y1); ctx.lineTo(tg, Y1);
+  ctx.moveTo(td, Y1); ctx.lineTo(X1, Y1);
+  ctx.stroke();
+  //  Deux repères verts aux lèvres de la brèche : sur un bord qui glisse, il
+  //  faut voir où elle est avant qu'une balle n'y tombe.
+  ctx.strokeStyle = 'hsl(150 100% 60%)';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(tg, Y1 - 26); ctx.lineTo(tg, Y1 + 26);
+  ctx.moveTo(td, Y1 - 26); ctx.lineTo(td, Y1 + 26);
+  ctx.stroke();
+}
+
+//  Les balles sont dessinées par lots d'une même teinte : à mille cinq cents, un
+//  changement de style par balle coûte plus cher que le tracé lui-même.
+function troupeau(liste) {
+  const lots = new Map();
+  for (const b of liste) {
+    const t = (b.h / 12 | 0) * 12;
+    let l = lots.get(t);
+    if (!l) lots.set(t, l = new Path2D());
+    l.moveTo(b.x + R_BALLE, b.y);
+    l.arc(b.x, b.y, R_BALLE, 0, 6.2832);
+  }
+  ctx.lineWidth = 2.5;
+  for (const [t, p] of lots) {
+    ctx.fillStyle = couleur(t + 6, 76, 68);
+    ctx.fill(p);
+    ctx.strokeStyle = couleur(t + 6, 80, 28);
+    ctx.stroke(p);
+  }
+}
+
+
+//  Carte de fin. Le bandeau commun annonce un « vainqueur » : ici il n'y en a
+//  pas, il n'y a qu'un nombre.
+function carteFin(n, sous) {
+  const v = Math.min(1, fini / 0.4);
+  ctx.fillStyle = `rgba(4,6,10,${0.72 * v})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = '800 200px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(242,246,248,${v})`;
+  ctx.fillText(String(n), W / 2, H / 2 + 20);
+  ctx.font = '400 44px system-ui, sans-serif';
+  ctx.fillStyle = `rgba(160,182,192,${v})`;
+  ctx.fillText(sous, W / 2, H / 2 + 100);
+}
+
+function dessiner(dt) {
+  fond('+2 balles, et le trou qui glisse');
+  boite();
+  troupeau(dehors);
+  troupeau(balles);
+
+  ctx.textAlign = 'center';
+  ctx.font = '700 40px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(242,246,248,0.95)';
+  ctx.fillText(`Balles : ${compte}`, W / 2, Y0 - 46);
+
+  ctx.font = '400 30px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(150,170,182,0.7)';
+  ctx.fillText(`${evasions} évasions`, W / 2, H - 70);
+
+  if (fini) carteFin(compte, 'balles dans la boîte');
+}
+
+
+// ---------------------------------------------------------------------------
+//  Boucle
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, vitesse = 1, reste = 0, notesCeTour = 0;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+  if (actif) {
+    notesCeTour = 0;
+    reste += brut * vitesse;
+    let n = 0;
+    while (reste >= DT && n++ < 900) { pas(); reste -= DT; }
+    if (fini > FIN_ECRAN) reinitialiser();   // on relance un duel tout seul
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('raz').onclick = () => reinitialiser();
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre déjà
+  // actif, se fier à audio.state couperait le son dès le premier appui.
+  if (!audio) {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    preparerBus();
+  }
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+  e.target.textContent = son ? '♪ couper le son' : '♪ activer le son';
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>

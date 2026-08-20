@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le cercle plein</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a; background: #000;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 1rem; padding: 1rem;
+    font: 400 14px/1.5 ui-sans-serif, system-ui, sans-serif;
+  }
+  canvas {
+    display: block; height: min(80dvh, 92vw * 16 / 9); aspect-ratio: 9/16;
+    border-radius: 14px; background: #000;
+  }
+  .bar { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap;
+         justify-content: center; }
+  button, a.btn {
+    background: #0b1016; color: #9aa5a5; border: 1px solid #1e2a35;
+    border-radius: 7px; padding: .4rem .8rem; font: inherit;
+    cursor: pointer; text-decoration: none;
+  }
+  button[aria-pressed="true"] { color: #49c4b9; border-color: #2c4a49; }
+  label { display: flex; align-items: center; gap: .45rem; font-size: 13px; }
+  input[type=range] { accent-color: #49c4b9; width: 104px; }
+  p { margin: 0; max-width: 54ch; text-align: center; }
+  .note { font-size: 13px; color: #5d6a6a; max-width: 54ch; text-align: center; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div class="bar">
+  <a class="btn" href="../">← animations</a>
+  <button id="snd" aria-pressed="false">♪ activer le son</button>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="raz">recommencer</button>
+  <label>vitesse <input id="vit" type="range" min="0.3" max="2" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="cercle_plein.py">code du rendu</a>
+  <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
+</div>
+
+<p>Une balle file en ligne droite dans un cercle — <strong>pas de gravité</strong>,
+   elle atteint donc tout le bord. <strong>Chaque rebond joue la note
+   suivante</strong> d'une mélodie et <strong>la fait grossir</strong>, jusqu'à
+   ce qu'elle éclate en une centaine de billes qui gardent sa couleur. Une
+   nouvelle balle repart alors à la taille de départ, dans une autre teinte.
+   Trois pointes tournent sur le bord et peuvent l'attraper avant.</p>
+
+<p>Les billes se poussent entre elles et bousculent la balle au passage&nbsp;:
+   elle pèse quarante fois plus qu'une bille, chaque contact la dévie d'un rien
+   et projette la bille au loin.</p>
+
+<p class="note">La musique est écrite pour cette page et synthétisée dans le
+   navigateur&nbsp;: une suite d'accords de la mineur — Am, F, C, G — où chaque
+   rebond joue une note, une basse et une nappe tenue marquant les changements
+   d'accord tous les quatre rebonds. Rien n'est emprunté à un enregistrement.
+   Le son est coupé par défaut&nbsp;: <em>cliquez « activer le son »</em>.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  Une balle, un cercle, trois pointes qui tournent. Chaque contact avec le
+//  bord avance la mélodie d'une note ; toucher une pointe fait éclater la balle.
+//
+//  Les réglages viennent de mesures faites sur une vidéo de référence, ramenées
+//  d'un cadre de 576 x 1024 à celui-ci (facteur 1,875) : trois pointes espacées
+//  de 120°, tournant à −52 °/s, teinte du bord égale à l'angle, rebonds
+//  élastiques à vitesse à peu près constante.
+//
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+const W = 1080, H = 1920;
+const CX = 540, CY = 976, R = 514;      // le cercle
+
+//  Pas de gravité : la balle va tout droit, donc elle atteint tout le cercle
+//  au lieu de retomber toujours au même endroit.
+const V0 = 1000;                         // vitesse de la balle, px/s
+const DT = 1 / 480;                      // pas de temps fixe de la simulation
+
+//  Elle grossit à chaque rebond et finit par éclater. Huit rebonds séparent
+//  donc deux éclatements — sauf si une pointe l'attrape avant.
+//
+//  Ce n'est pas qu'un effet : en grossissant elle laisse moins de place, ses
+//  trajets raccourcissent, et les rebonds se rapprochent. La musique accélère
+//  toute seule à mesure que l'éclatement approche.
+const R0 = 24;                           // rayon au départ
+const PAS_RAYON = 11;                    // gain par rebond
+const R_MAX = 112;                       // au-delà, elle éclate
+
+//  Des pointes nettement plus grandes qu'à la 5 : elles y couvraient 2,3 % du
+//  bord, elles en couvrent ici 8,5 %. La balle en trouve donc une bien plus
+//  vite, éclate bien plus souvent, et c'est exactement ce qu'on veut — chaque
+//  éclatement est une poignée de billes de plus dans le cercle.
+const N_POINTES = 3;
+const DEMI_POINTE = 10.2 * Math.PI / 180; // demi-largeur angulaire d'une pointe
+const HAUT_POINTE = 96;                  // hauteur du triangle, vers l'intérieur
+const ROTATION = -52 * Math.PI / 180;    // rad/s
+
+const N_ECLATS = 150;                    // billes libérées par éclatement
+//  Rien ne s'efface : le cercle se remplit, et c'est le sujet. Le plafond n'est
+//  là que pour que le navigateur suive.
+const MAX_ECLATS = 4200;
+//  On n'arrête pas sur une cible, mais sur un palier — la mesure a montré
+//  pourquoi : le remplissage monte jusqu'à environ 70 %, puis s'arrête net. La
+//  balle, prisonnière du tas, ne peut plus atteindre le bord, donc plus toucher
+//  de pointe, donc plus éclater. Ce plafond n'est pas un réglage, c'est la
+//  saturation du cercle, et c'est exactement le maximum qu'on cherchait.
+//  Le signal d'arrêt n'est pas le remplissage lui-même — il monte par paliers,
+//  un éclatement à la fois, et une accalmie de quelques secondes ne veut rien
+//  dire — mais le fait que la balle ne touche plus le bord du tout. Quand elle
+//  ne l'atteint plus, elle ne rencontrera plus jamais de pointe : c'est fini.
+const PALIER = 9;                        // s sans toucher le bord
+const REMPLI_VISE = 0.72;                // pour l'échelle de la jauge seulement
+const AIRE_CERCLE = Math.PI * R * R;
+
+//  La musique, écrite pour cette page. Les demi-tons sont comptés depuis un la
+//  à 220 Hz : 0 = la, 3 = do, 7 = mi, 12 = le la du dessus.
+//
+//  Une suite d'accords de la mineur — Am, F, C, G, deux fois — avec quatre
+//  notes de mélodie par accord. L'accord change donc tous les quatre rebonds,
+//  et c'est la physique qui décide *quand*. Les quatre premiers accords
+//  montent, les quatre suivants redescendent : cela donne une arche, au lieu
+//  d'une gamme qui tourne en rond.
+//
+//  « basse » est la fondamentale, une à deux octaves plus bas ; « nappe » est
+//  la triade tenue. Les deux ne sonnent qu'au changement d'accord.
+const ACCORDS = [
+  //        basse  mélodie (4 notes)   triade tenue
+  /* Am */ [-12, [12, 15, 19, 24], [12, 15, 19]],
+  /* F  */ [-16, [8, 12, 15, 20], [8, 12, 15]],
+  /* C  */ [-9, [15, 19, 22, 27], [15, 19, 22]],
+  /* G  */ [-14, [10, 14, 17, 22], [10, 14, 17]],
+  /* Am */ [-12, [24, 19, 15, 12], [12, 15, 19]],
+  /* F  */ [-16, [20, 15, 12, 8], [8, 12, 15]],
+  /* C  */ [-9, [27, 22, 19, 15], [15, 19, 22]],
+  /* G  */ [-14, [22, 17, 14, 10], [10, 14, 17]],
+];
+const PAR_ACCORD = 4;                    // rebonds par accord
+const LA = 220;
+
+//  Timbre : rapport à la fondamentale, amplitude, durée. Les harmoniques
+//  hautes s'éteignent plus vite que la fondamentale — c'est ce qui fait
+//  entendre un métal frappé plutôt qu'un orgue. La dernière, inharmonique,
+//  donne le « ping » de l'attaque.
+const PARTIELS = [[1, 1, 1], [2, 0.38, 0.60],
+                  [3, 0.17, 0.40], [4.17, 0.11, 0.24]];
+
+const accordDe = i => ACCORDS[Math.floor(i / PAR_ACCORD) % ACCORDS.length];
+
+const teinteAngle = a => ((a * 180 / Math.PI) % 360 + 360) % 360;
+const couleur = (h, s = 100, l = 60, a = 1) => `hsl(${h} ${s}% ${l}% / ${a})`;
+
+// ---------------------------------------------------------------------------
+//  Son : une cloche par rebond, un fracas par pointe touchée
+// ---------------------------------------------------------------------------
+let audio = null, son = false, sec = null, mouille = null;
+
+//  Deux bus : le son direct, et un départ vers une réverbération. La même note
+//  sèche sonne comme un jouet, et dans une salle comme un instrument. Faute de
+//  salle, on convolue par un bruit qui décroît sur deux secondes — un canal par
+//  oreille, pour que la salle ait une largeur.
+function preparerBus() {
+  sec = audio.createGain(); sec.gain.value = 1;
+  sec.connect(audio.destination);
+
+  const duree = 1.9, n = Math.floor(audio.sampleRate * duree);
+  const ri = audio.createBuffer(2, n, audio.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ri.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const u = i / audio.sampleRate;
+      // les huit premières millisecondes montent, sinon la queue claque
+      d[i] = (Math.random() * 2 - 1) * Math.exp(-u * 3.1)
+             * Math.min(1, u / 0.008);
+    }
+  }
+  const conv = audio.createConvolver(); conv.buffer = ri;
+  mouille = audio.createGain(); mouille.gain.value = 0.42;
+  mouille.connect(conv); conv.connect(audio.destination);
+}
+
+//  Une voix = une enveloppe + un panoramique, branchée sur les deux bus.
+function voix(pan, envoi = 1) {
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.connect(sp);
+  sp.connect(sec);
+  if (envoi > 0) {
+    const e = audio.createGain(); e.gain.value = envoi;
+    sp.connect(e); e.connect(mouille);
+  }
+  return g;
+}
+
+function cloche(demi, pan, force = 0.26, duree = 1.4) {
+  if (!audio || audio.state !== 'running') return;
+  const f = LA * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  for (const [mult, amp, part] of PARTIELS) {
+    const g = voix(pan);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(force * amp, t0 + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree * part);
+    const o = audio.createOscillator();
+    o.frequency.value = f * mult;
+    o.connect(g);
+    o.start(t0); o.stop(t0 + duree * part + 0.05);
+  }
+}
+
+function basse(demi, pan, force = 0.16, duree = 2.8) {
+  if (!audio || audio.state !== 'running') return;
+  const f = LA * Math.pow(2, demi / 12), t0 = audio.currentTime;
+  const g = voix(pan, 0.35);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(force, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
+  for (const [mult, amp] of [[1, 1], [2, 0.45], [3, 0.16]]) {
+    const o = audio.createOscillator(), gg = audio.createGain();
+    o.frequency.value = f * mult; gg.gain.value = amp;
+    o.connect(gg); gg.connect(g);
+    o.start(t0); o.stop(t0 + duree + 0.05);
+  }
+}
+
+function nappe(triade, pan, force = 0.055, duree = 3.2) {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime;
+  const g = voix(pan, 1.2);
+  // entrée et sortie en cloche : une nappe qui démarre net s'entend comme un
+  // événement, et c'est le rebond qui doit tenir ce rôle
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(force, t0 + duree * 0.4);
+  g.gain.linearRampToValueAtTime(0.0001, t0 + duree);
+  for (const demi of triade) {
+    const f = LA * Math.pow(2, (demi - 12) / 12);
+    // deux voix par note, légèrement désaccordées : le battement lent épaissit
+    // le son sans ajouter de note
+    for (const det of [0, 5]) {
+      const o = audio.createOscillator(), gg = audio.createGain();
+      o.frequency.value = f; o.detune.value = det;
+      gg.gain.value = (det ? 0.7 : 1) / triade.length;
+      o.connect(gg); gg.connect(g);
+      o.start(t0); o.stop(t0 + duree + 0.05);
+    }
+  }
+}
+
+//  L'éclatement doit s'entendre comme un accident, mais rester dans le ton : on
+//  prend la triade en cours montée de deux octaves, plus un souffle.
+function fracas(pan, triade) {
+  if (!audio || audio.state !== 'running') return;
+  const t0 = audio.currentTime;
+  const grappe = [...triade].sort((a, b) => a - b).concat(triade[0] + 12);
+  grappe.forEach((demi, i) => {
+    setTimeout(() => cloche(demi + 12, pan, 0.11, 1.8), i * 16);
+  });
+  const g = voix(pan, 0.8);
+  const n = audio.createBufferSource();
+  const buf = audio.createBuffer(1, audio.sampleRate * 0.5, audio.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) {
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+  }
+  n.buffer = buf;
+  const filtre = audio.createBiquadFilter();
+  filtre.type = 'highpass'; filtre.frequency.value = 1400;
+  g.gain.setValueAtTime(0.15, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
+  n.connect(filtre); filtre.connect(g);
+  n.start(t0);
+}
+
+// ---------------------------------------------------------------------------
+//  État
+// ---------------------------------------------------------------------------
+let bx, by, vx, vy, rBalle, teinteBalle, note, rebonds, eclatements, tps;
+let eclats, ondes, trace, etincelles, flash, fini, rempli, tPalier;
+
+//  Les billes ne s'endorment jamais : elles roulent, se poussent et se
+//  réarrangent sans arrêt. Il faut donc de vraies collisions entre elles — et
+//  une grille, sinon le test coûterait le carré du nombre.
+//
+//  Sans gravité elles ne s'entassent plus au fond : elles occupent tout le
+//  disque. D'où une restitution bien plus haute qu'avant et un frottement
+//  presque nul — sinon tout s'immobiliserait au milieu du cercle.
+//
+//  Elles avancent à pas plus grossier que la balle principale : celle-ci a
+//  besoin d'un pas fin pour que l'instant du rebond, donc la note, tombe juste ;
+//  un millier de billes à la même cadence coûterait cent fois trop cher.
+const CASE = 44;
+const COLS = Math.ceil(2 * R / CASE) + 2;
+const DT_BILLES = 1 / 240;
+const REBOND_BORD = 0.94;      // restitution sur le bord
+const REBOND_BILLE = 0.92;     // restitution entre billes
+const FROTTEMENT = 0.99985;
+//  La balle principale pèse quarante billes : chaque contact projette la bille
+//  et ne dévie la balle qu'un peu. Sans ce rapport, elle serait ballottée par
+//  le nuage, n'atteindrait plus le bord, et la musique s'arrêterait.
+const MASSE_BALLE = 40;
+let cases = Array.from({ length: COLS * COLS }, () => []);
+let resteBilles = 0;
+
+function caseDe(x, y) {
+  const gx = Math.min(COLS - 1, Math.max(0, ((x - CX + R) / CASE) | 0));
+  const gy = Math.min(COLS - 1, Math.max(0, ((y - CY + R) / CASE) | 0));
+  return gy * COLS + gx;
+}
+
+function tauxRemplissage() {
+  let a = 0;
+  for (const e of eclats) a += Math.PI * e.r * e.r;
+  return a / AIRE_CERCLE;
+}
+
+function reinitialiser() {
+  teinteBalle = 150;
+  lancerBalle(0.6);
+  note = 0; rebonds = 0; eclatements = 0; tps = 0; resteBilles = 0;
+  eclats = []; ondes = []; trace = []; etincelles = []; flash = 0;
+  fini = 0; rempli = 0; tPalier = 0;
+}
+
+function lancerBalle(cap) {
+  bx = CX; by = CY - R * 0.45;
+  vx = Math.cos(cap) * V0; vy = Math.sin(cap) * V0;
+  rBalle = R0;                 // la nouvelle balle repart à la taille de départ
+  trace = [];
+}
+reinitialiser();
+
+//  Les pointes tournent ; celle-ci est-elle sous l'angle donné ?
+function surUnePointe(angle) {
+  for (let i = 0; i < N_POINTES; i++) {
+    const a = ROTATION * tps + i * 2 * Math.PI / N_POINTES;
+    let d = (angle - a) % (2 * Math.PI);
+    if (d > Math.PI) d -= 2 * Math.PI;
+    if (d < -Math.PI) d += 2 * Math.PI;
+    if (Math.abs(d) < DEMI_POINTE) return true;
+  }
+  return false;
+}
+
+function eclater(x, y) {
+  eclatements++;
+  tPalier = tps;
+  const base = teinteBalle, rayon = rBalle;
+  for (let i = 0; i < N_ECLATS; i++) {
+    const a = Math.random() * 2 * Math.PI;
+    const v = 260 + Math.random() * 900;
+    eclats.push({
+      //  Elles partent de la surface de la balle, pas de son centre : sur une
+      //  balle devenue large, un jet issu d'un point serait un artifice visible.
+      x: x + Math.cos(a) * rayon * 0.85,
+      y: y + Math.sin(a) * rayon * 0.85,
+      vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+      r: 5 + Math.random() * 7,
+      //  Chaque bille garde la teinte de la balle éclatée. Seule la clarté
+      //  varie un peu, sinon le nuage serait un aplat.
+      h: base, l: 48 + Math.random() * 26,
+    });
+  }
+  if (eclats.length > MAX_ECLATS) eclats.splice(0, eclats.length - MAX_ECLATS);
+  ondes.push({ x, y, r: rayon, vie: 1, h: base });
+  flash = 1;
+  fracas((x - CX) / R, accordDe(note)[2]);
+  //  Nouvelle balle au centre, couleur avancée, taille de départ : c'est ce qui
+  //  fait « évoluer » la partie plutôt que la remettre à zéro.
+  teinteBalle = (teinteBalle + 47) % 360;
+  lancerBalle(Math.random() * 2 * Math.PI);
+}
+
+function pas() {
+  tps += DT;
+  bx += vx * DT;
+  by += vy * DT;
+
+  const dx = bx - CX, dy = by - CY;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d > R - rBalle) {
+    const nx = dx / d, ny = dy / d;
+    const angle = Math.atan2(-ny, nx);
+    if (surUnePointe(angle)) { eclater(bx, by); return; }
+
+    //  On grossit d'abord, on repositionne ensuite : replacée à l'ancien
+    //  rayon puis grossie, la balle mordrait encore le bord et déclencherait
+    //  un second rebond au pas suivant.
+    rBalle += PAS_RAYON;
+    bx = CX + nx * (R - rBalle);
+    by = CY + ny * (R - rBalle);
+    const p = 2 * (vx * nx + vy * ny);
+    vx -= p * nx; vy -= p * ny;          // rebond élastique
+    //  La vitesse est maintenue : sans cela la balle se traîne et la mélodie
+    //  s'éteint avec elle.
+    const s = Math.sqrt(vx * vx + vy * vy);
+    vx *= V0 / s; vy *= V0 / s;
+    rebonds++;
+    tPalier = tps;
+    if (notesCeTour < 3) {
+      const pan = (bx - CX) / R;
+      const [graveDemi, melodie, triade] = accordDe(note);
+      cloche(melodie[note % PAR_ACCORD], pan);
+      if (note % PAR_ACCORD === 0) {      // changement d'accord
+        basse(graveDemi, pan * 0.25);
+        nappe(triade, -pan * 0.5);
+      }
+      notesCeTour++;
+    }
+    note++;
+    ondes.push({ x: bx, y: by, r: rBalle, vie: 1, h: teinteAngle(angle) });
+    for (let i = 0; i < 14; i++) {        // gerbe d'étincelles au point d'impact
+      const a = Math.atan2(vy, vx) + (Math.random() - 0.5) * 2.4;
+      const v = 240 + Math.random() * 620;
+      etincelles.push({ x: bx, y: by, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+                        vie: 1, h: teinteBalle });
+    }
+    if (rBalle >= R_MAX) { eclater(bx, by); return; }
+  }
+
+  //  Les billes avancent dans la même horloge que la balle, mais deux fois
+  //  moins souvent.
+  resteBilles += DT;
+  while (resteBilles >= DT_BILLES) { resteBilles -= DT_BILLES; pasEclats(); }
+
+  //  Le cercle est plein : on s'arrête là. C'est la seule fin de cette
+  //  animation — il n'y a rien à gagner, il y a un cercle à remplir.
+  if (fini) { fini += DT; return; }
+  if (eclats.length >= MAX_ECLATS || (tps > 8 && tps - tPalier > PALIER)) {
+    fini = 1e-6;
+    rempli = tauxRemplissage();
+  }
+}
+
+function pasEclats() {
+  {
+    const h = DT_BILLES;
+
+    // --- vol libre et contact avec le bord --------------------------------
+    for (const c of cases) c.length = 0;
+    for (let i = 0; i < eclats.length; i++) {
+      const e = eclats[i];
+      e.vx *= FROTTEMENT; e.vy *= FROTTEMENT;
+      e.x += e.vx * h; e.y += e.vy * h;
+      const dx = e.x - CX, dy = e.y - CY;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > R - e.r) {
+        const nx = dx / d, ny = dy / d;
+        e.x = CX + nx * (R - e.r); e.y = CY + ny * (R - e.r);
+        const p = (1 + REBOND_BORD) * (e.vx * nx + e.vy * ny);
+        e.vx -= p * nx; e.vy -= p * ny;
+      }
+      cases[caseDe(e.x, e.y)].push(i);
+    }
+
+    // --- contacts entre billes -------------------------------------------
+    //  Chaque paire n'est examinée qu'une fois : on ne regarde que les cases
+    //  suivantes, et dans la case courante que les indices supérieurs.
+    for (let gy = 0; gy < COLS; gy++) {
+      for (let gx = 0; gx < COLS; gx++) {
+        const ici = cases[gy * COLS + gx];
+        if (!ici.length) continue;
+        for (const [ax, ay] of [[0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
+          const jx = gx + ax, jy = gy + ay;
+          if (jx < 0 || jx >= COLS || jy >= COLS) continue;
+          const la = cases[jy * COLS + jx];
+          for (let m = 0; m < ici.length; m++) {
+            const memeCase = ax === 0 && ay === 0;
+            for (let n = memeCase ? m + 1 : 0; n < la.length; n++) {
+              const a = eclats[ici[m]], b = eclats[la[n]];
+              const dx = b.x - a.x, dy = b.y - a.y;
+              const dd = Math.sqrt(dx * dx + dy * dy), mini = a.r + b.r;
+              if (dd >= mini || dd < 1e-9) continue;
+              const nx = dx / dd, ny = dy / dd;
+              // on les sépare à parts égales, puis on échange la vitesse
+              // normale : c'est ce qui fait rouler le tas au lieu de le figer
+              const corr = (mini - dd) / 2;
+              a.x -= nx * corr; a.y -= ny * corr;
+              b.x += nx * corr; b.y += ny * corr;
+              const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+              if (vn > 0) continue;
+              const j = -(1 + REBOND_BILLE) * vn / 2;
+              a.vx -= j * nx; a.vy -= j * ny;
+              b.vx += j * nx; b.vy += j * ny;
+            }
+          }
+        }
+      }
+    }
+
+    // --- contact avec la balle principale ---------------------------------
+    //  Même échange qu'entre billes, mais avec un rapport de masse : la bille
+    //  part, la balle n'est que déviée. Sa vitesse est ensuite ramenée à V0,
+    //  seule sa direction retient le choc.
+    for (const e of eclats) {
+      const dx = e.x - bx, dy = e.y - by;
+      const dd = Math.sqrt(dx * dx + dy * dy), mini = rBalle + e.r;
+      if (dd >= mini || dd < 1e-9) continue;
+      const nx = dx / dd, ny = dy / dd;
+      e.x = bx + nx * mini; e.y = by + ny * mini;
+      const vn = (e.vx - vx) * nx + (e.vy - vy) * ny;
+      if (vn > 0) continue;
+      const j = -(1 + REBOND_BILLE) * vn / (1 + 1 / MASSE_BALLE);
+      e.vx += j * nx; e.vy += j * ny;
+      vx -= j * nx / MASSE_BALLE; vy -= j * ny / MASSE_BALLE;
+    }
+    const s = Math.sqrt(vx * vx + vy * vy);
+    if (s > 1e-9) { vx *= V0 / s; vy *= V0 / s; }
+
+    //  Une bille poussée par ses voisines ou par la balle peut passer le bord :
+    //  on la ramène dedans en fin de pas, et on annule sa vitesse sortante.
+    for (const e of eclats) {
+      const dx = e.x - CX, dy = e.y - CY;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > R - e.r) {
+        const nx = dx / d, ny = dy / d;
+        e.x = CX + nx * (R - e.r); e.y = CY + ny * (R - e.r);
+        const sortant = e.vx * nx + e.vy * ny;
+        if (sortant > 0) { e.vx -= sortant * nx; e.vy -= sortant * ny; }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+function redimensionner() {
+  const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(b.width * d) || 1;
+  cv.height = Math.round(b.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+function dessiner(dt) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  // --- le bord, en arc-en-ciel : la teinte suit l'angle -------------------
+  ctx.lineWidth = 7; ctx.lineCap = 'butt';
+  const PAS = 3;
+  for (let a = 0; a < 360; a += PAS) {
+    ctx.strokeStyle = couleur(a, 100, 58);
+    //  Départ puis arrivée dans le sens antihoraire : inversés, chaque arc
+    //  faisait presque le tour complet et le dernier recouvrait tous les autres.
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, -a * Math.PI / 180,
+            -(a + PAS + 0.6) * Math.PI / 180, true);
+    ctx.stroke();
+  }
+  ctx.shadowColor = 'rgba(255,255,255,0.25)'; ctx.shadowBlur = 26;
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 9;
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // --- les pointes ---------------------------------------------------------
+  for (let i = 0; i < N_POINTES; i++) {
+    const a = ROTATION * tps + i * 2 * Math.PI / N_POINTES;
+    const p = (ang, ray) => [CX + ray * Math.cos(ang), CY - ray * Math.sin(ang)];
+    const g1 = p(a - DEMI_POINTE, R), g2 = p(a + DEMI_POINTE, R);
+    const sommet = p(a, R - HAUT_POINTE);
+    ctx.fillStyle = '#fff';
+    ctx.shadowColor = '#fff'; ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.moveTo(g1[0], g1[1]); ctx.lineTo(g2[0], g2[1]);
+    ctx.lineTo(sommet[0], sommet[1]); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  //  Tout ce qui suit est découpé au disque : le halo de la balle, sa traînée
+  //  et les ondes débordent largement de son rayon, et une lueur qui bave
+  //  hors du cercle défait le décor.
+  ctx.save();
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.clip();
+
+  // --- les billes ----------------------------------------------------------
+  for (const e of eclats) {
+    ctx.fillStyle = couleur(e.h, 95, e.l);
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 6.2832); ctx.fill();
+  }
+
+  // --- les ondes de contact ------------------------------------------------
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = ondes.length - 1; i >= 0; i--) {
+    const o = ondes[i];
+    o.vie -= dt * 2.2; o.r += dt * 620;
+    if (o.vie <= 0) { ondes.splice(i, 1); continue; }
+    ctx.strokeStyle = couleur(o.h, 100, 65);
+    ctx.globalAlpha = 0.5 * o.vie;
+    ctx.lineWidth = 2 + 7 * o.vie;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.2832); ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  // --- la balle ------------------------------------------------------------
+  //  « tension » va de 0 juste après un éclatement à 1 juste avant le suivant.
+  //  Tout l'habillage s'y accroche : plus elle est grosse, plus elle est prête
+  //  à céder, et plus elle le montre.
+  const tension = Math.min(1, (rBalle - R0) / (R_MAX - R0));
+
+  //  Traînée : les positions récentes. Sans gravité la trajectoire est
+  //  rectiligne, elle se lit comme un trait de lumière.
+  //
+  //  Un disque par position perlait — les disques se recomposent en « lighter »
+  //  et on compte les grains. On trace donc un seul trait continu, et c'est un
+  //  dégradé le long du parcours qui fait l'estompe : trois épaisseurs
+  //  superposées tiennent lieu du flou que Canvas n'a pas.
+  trace.push([bx, by]);
+  if (trace.length > 22) trace.shift();
+  ctx.globalCompositeOperation = 'lighter';
+  if (trace.length > 3) {
+    const [x0, y0] = trace[0], [x1, y1] = trace[trace.length - 1];
+    const chemin = new Path2D();
+    chemin.moveTo(x0, y0);
+    for (let i = 1; i < trace.length; i++) chemin.lineTo(trace[i][0], trace[i][1]);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    for (const [k, a] of [[1.35, 0.10], [0.85, 0.16], [0.42, 0.30]]) {
+      const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+      grad.addColorStop(0, couleur(teinteBalle, 100, 60, 0));
+      grad.addColorStop(1, couleur(teinteBalle, 100, 66));
+      ctx.strokeStyle = grad;
+      ctx.globalAlpha = a;
+      ctx.lineWidth = rBalle * 2 * k;
+      ctx.stroke(chemin);
+    }
+    ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+  }
+
+  //  Étincelles du dernier rebond.
+  for (let i = etincelles.length - 1; i >= 0; i--) {
+    const p = etincelles[i];
+    p.vie -= dt * 1.9;
+    if (p.vie <= 0) { etincelles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.94; p.vy *= 0.94;
+    ctx.globalAlpha = p.vie;
+    ctx.fillStyle = couleur(p.h, 100, 72);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 1.5 + 4 * p.vie, 0, 6.2832); ctx.fill();
+  }
+
+  //  Halo : trois cercles de plus en plus larges et pâles. Canvas n'a pas de
+  //  flou, on le fabrique en superposant — et il enfle avec la tension.
+  for (const [k, a] of [[1.55, 0.16], [2.25, 0.09], [3.2, 0.05]]) {
+    ctx.globalAlpha = a * (0.45 + 0.85 * tension);
+    ctx.fillStyle = couleur(teinteBalle, 100, 58);
+    ctx.beginPath(); ctx.arc(bx, by, rBalle * k, 0, 6.2832); ctx.fill();
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  ctx.shadowColor = couleur(teinteBalle); ctx.shadowBlur = 38 + 46 * tension;
+  const g = ctx.createRadialGradient(bx - rBalle * 0.3, by - rBalle * 0.35,
+                                     rBalle * 0.1, bx, by, rBalle);
+  g.addColorStop(0, couleur(teinteBalle, 100, 92));
+  g.addColorStop(1, couleur(teinteBalle, 100, 52));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(bx, by, rBalle, 0, 6.2832); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2.5; ctx.stroke();
+
+  //  Anneau de charge : la part du tour parcourue dit ce qu'il reste avant
+  //  l'éclatement. On voit venir, et c'est ce qui fait tenir jusqu'au bout.
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 3 + 5 * tension;
+  ctx.beginPath();
+  ctx.arc(bx, by, rBalle + 15, -Math.PI / 2, -Math.PI / 2 + tension * 6.2832);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();                       // fin du découpage au disque
+
+  //  Éclair : une nappe blanche au moment de l'éclatement, qui s'efface vite.
+  //  Court et sec : plus long, il délave l'image au lieu de la ponctuer.
+  if (flash > 0) {
+    flash = Math.max(0, flash - dt / 0.18);
+    ctx.fillStyle = `rgba(255,255,255,${0.42 * flash * flash})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // --- compteurs -----------------------------------------------------------
+  ctx.textAlign = 'center';
+  ctx.font = '600 44px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(240,248,252,0.92)';
+  ctx.fillText('remplir le cercle', CX, 250);
+
+  //  La jauge de remplissage : c'est le seul chiffre qui compte ici.
+  const t = fini ? rempli : tauxRemplissage();
+  const LARG = 2 * R * 0.78, XG = CX - LARG / 2, YG = H - 232;
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.beginPath(); ctx.roundRect(XG, YG, LARG, 26, 13); ctx.fill();
+  ctx.fillStyle = couleur(teinteBalle, 100, 58);
+  ctx.beginPath();
+  ctx.roundRect(XG, YG, Math.max(26, LARG * Math.min(1, t / REMPLI_VISE)), 26, 13);
+  ctx.fill();
+  ctx.font = '700 38px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(240,248,252,0.92)';
+  ctx.fillText(`${Math.round(100 * t)} % du cercle`, CX, H - 168);
+  ctx.font = '400 30px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(190,205,210,0.6)';
+  ctx.fillText(`${eclats.length} billes   ·   ${eclatements} éclatements`,
+               CX, H - 118);
+
+  if (fini) {
+    const v = Math.min(1, fini / 0.5);
+    ctx.fillStyle = `rgba(0,0,0,${0.68 * v})`;
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = '800 190px system-ui, sans-serif';
+    ctx.fillStyle = `rgba(242,248,252,${v})`;
+    ctx.fillText(`${Math.round(100 * rempli)} %`, CX, H / 2 + 10);
+    ctx.font = '400 44px system-ui, sans-serif';
+    ctx.fillStyle = `rgba(170,190,200,${v})`;
+    ctx.fillText(`${eclats.length} billes dans le cercle`, CX, H / 2 + 96);
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Boucle : temps réel converti en un nombre entier de pas fixes
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, vitesse = 1, reste = 0, notesCeTour = 0;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+
+  if (actif) {
+    notesCeTour = 0;
+    reste += brut * vitesse;
+    let n = 0;
+    while (reste >= DT && n++ < 600) { pas(); reste -= DT; }
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('raz').onclick = () => reinitialiser();
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre
+  // déjà actif, se fier à audio.state couperait le son dès le 1er appui.
+  if (!audio) {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    preparerBus();
+  }
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+  e.target.textContent = son ? '♪ couper le son' : '♪ activer le son';
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>

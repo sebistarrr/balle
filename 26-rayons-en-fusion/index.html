@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rayons en fusion</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; color: #7f8a8a; background: #000;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 1rem; padding: 1rem;
+    font: 400 14px/1.5 ui-sans-serif, system-ui, sans-serif;
+  }
+  canvas {
+    display: block; height: min(80dvh, 92vw * 1244 / 720);
+    aspect-ratio: 720/1244; border-radius: 12px;
+  }
+  .bar { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap;
+         justify-content: center; }
+  button, a.btn {
+    background: #0b1016; color: #9aa5a5; border: 1px solid #1e2a35;
+    border-radius: 7px; padding: .4rem .8rem; font: inherit;
+    cursor: pointer; text-decoration: none;
+  }
+  button[aria-pressed="true"] { color: #49c4b9; border-color: #2c4a49; }
+  label { display: flex; align-items: center; gap: .45rem; font-size: 13px; }
+  input[type=range] { accent-color: #49c4b9; width: 108px; }
+  p { margin: 0; max-width: 54ch; text-align: center; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div class="bar">
+  <a class="btn" href="../">← animations</a>
+  <button id="play" aria-pressed="true">❚❚ pause</button>
+  <button id="snd" aria-pressed="false">♪ son</button>
+  <button id="trc" aria-pressed="true">rayons</button>
+  <label>vitesse <input id="vit" type="range" min="0.2" max="4" step="0.1" value="1">
+    <span id="vitval">1,0×</span></label>
+  <a class="btn" href="rayons_fusion.py">code du rendu</a>
+  <a class="btn" href="shorts.mp4" download>↓ mp4 1080×1920</a>
+</div>
+
+<p>Une balle tombe dans un récipient en U et gagne un cran de rayon chaque fois
+   qu'elle retombe sur le fond. Chaque choc laisse un point fixe sur la paroi, et l'on
+   relie en permanence le centre de la balle à tous ces points&nbsp;: un éventail
+   de droites qui balaie l'espace au lieu d'une trajectoire figée. Le dessin se
+   densifie à mesure que la balle grossit et que les chocs s'accélèrent.</p>
+
+<script>
+// ---------------------------------------------------------------------------
+//  Récipient en U, balle qui grossit à chaque fond touché. Le sujet, ici,
+//  c'est le tracé.
+//
+//  Ce n'est pas la trajectoire qui est dessinée : chaque choc laisse un point
+//  fixe sur la paroi, et à chaque image on relie le centre de la balle à tous
+//  ces points. L'éventail balaie donc l'espace à mesure qu'elle se déplace, et
+//  les traits sont rigoureusement droits.
+//
+//  Le pas de temps est FIXE. Un billard sous gravité est chaotique : avec un
+//  pas lié à la cadence d'affichage, deux lectures de la même page ne
+//  donneraient pas la même partie, ni la même durée.
+//
+//  Page autonome : rien n'est partagé avec les autres animations.
+// ---------------------------------------------------------------------------
+//  Tout est à l'échelle 1,5 de la 4, pour occuper le cadre 9:16 en entier —
+//  longueurs, pesanteur et vitesses ensemble. C'est ce qui préserve le
+//  mouvement : avec x' = k·x et g' = k·g, la trajectoire est la même agrandie,
+//  aux mêmes instants. Multiplier les longueurs sans la pesanteur donnerait une
+//  balle molle, la multiplier seule une balle folle.
+const W = 1080, H = 1920;
+const CX = 540, RC = 412;           // axe et demi-largeur du récipient
+const HAUT = 640;                   // sommet des parois
+const ARC_CY = 1052;                // centre du demi-cercle du bas
+const R0 = 19.5;                    // rayon de départ de la balle
+const G = 9750;                     // pesanteur, px/s²
+const SOMMET = 880;                 // le centre de la balle ne monte jamais
+                                    // au-dessus : elle ne peut pas s'échapper
+//  Le rayon grandit quand la balle retombe sur le fond, pas sur les parois
+//  latérales. C'est ce que donne la mesure de la vidéo d'origine : le rayon y
+//  croît presque linéairement, or les contacts avec le fond gardent une
+//  cadence à peu près constante alors que ceux des parois s'emballent quand
+//  l'espace se referme.
+const PAS_RAYON = 1.95;              // ce que gagne le rayon à chaque fond touché
+const GAIN = 1.004;                 // et ce que gagne sa vitesse, jusqu'au plafond
+const DT = 1 / 480;                 // pas de temps de la simulation
+const ATTENTE = 1.5;                // pause une fois le récipient rempli
+
+//  La couleur tourne deux fois plus vite qu'à la 4, et de trois crans par choc
+//  au lieu d'un. Comme chaque impact garde la teinte qu'il avait au moment où il
+//  s'est produit, l'éventail devient un arc-en-ciel au lieu d'un aplat : c'est
+//  le premier des effets, et de loin le plus efficace.
+const TEINTE_PAR_S = 72;
+const TEINTE_PAR_CHOC = 11;
+
+const couleur = (h, l = 55, a = 1) =>
+  `hsl(${((h % 360) + 360) % 360} 100% ${l}% / ${a})`;
+
+const MAX_TRACE = 130;              // longueur de la traînée de la balle
+const MAX_ONDES = 40, MAX_ETINCELLES = 700;
+
+// ---------------------------------------------------------------------------
+//  Son : une note par choc, d'autant plus grave que la balle est grosse.
+// ---------------------------------------------------------------------------
+let audio = null;
+const DEMI_TONS = [0, 3, 5, 7, 10];
+const NOTES = Array.from({ length: 16 }, (_, i) =>
+  165 * Math.pow(2, (DEMI_TONS[i % 5] + 12 * Math.floor(i / 5)) / 12)).reverse();
+
+function note(p, pan) {
+  if (!audio || audio.state !== 'running') return;
+  const f = NOTES[Math.min(NOTES.length - 1, Math.floor(p * NOTES.length))];
+  const t0 = audio.currentTime;
+  const g = audio.createGain(), sp = audio.createStereoPanner();
+  sp.pan.value = Math.max(-1, Math.min(1, pan));
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(0.09, t0 + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.9);
+  g.connect(sp); sp.connect(audio.destination);
+  for (const [mult, amp] of [[1, 1], [2, 0.25]]) {
+    const o = audio.createOscillator(), gg = audio.createGain();
+    o.frequency.value = f * mult; gg.gain.value = amp;
+    o.connect(gg); gg.connect(g);
+    o.start(t0); o.stop(t0 + 1);
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Simulation
+// ---------------------------------------------------------------------------
+let x, y, vx, vy, r, teinte, chocs, plein, impacts, notesCeTour;
+let trace, ondes, etincelles, eclair, tps;
+
+function reinitialiser() {
+  x = CX + 60; y = SOMMET; vx = 975; vy = 0;
+  r = R0; teinte = 268; chocs = 0; plein = 0;
+  impacts = [];
+  trace = []; ondes = []; etincelles = []; eclair = 0; tps = 0;
+}
+reinitialiser();
+
+function contact(nx, ny, fond) {
+  const d = 2 * (vx * nx + vy * ny);
+  vx -= d * nx; vy -= d * ny;         // rebond parfaitement élastique
+
+  // Le point touché sur la paroi. Le centre est à RC - r du centre du fond,
+  // donc le contact est à RC pile : il tombe sur le tracé du récipient.
+  const ix = CX + nx * RC, iy = fond ? ARC_CY + ny * RC : y;
+  impacts.push([ix, iy, teinte]);
+  //  Une onde et une gerbe d'étincelles à chaque contact. Ce sont elles qui
+  //  donnent au choc son poids : sans elles, la balle rebondit en silence.
+  ondes.push({ x: ix, y: iy, r: r * 0.6, vie: 1, h: teinte, dur: fond ? 1 : 0.6 });
+  if (ondes.length > MAX_ONDES) ondes.shift();
+  const nEt = fond ? 26 : 12;
+  for (let i = 0; i < nEt; i++) {
+    const a = Math.atan2(-ny, -nx) + (Math.random() - 0.5) * 2.2;
+    const v = (300 + Math.random() * 900) * (fond ? 1.25 : 0.8);
+    etincelles.push({ x: ix, y: iy, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+                      vie: 1, h: teinte + Math.random() * 40 });
+  }
+  if (etincelles.length > MAX_ETINCELLES)
+    etincelles.splice(0, etincelles.length - MAX_ETINCELLES);
+  if (fond) eclair = 1;
+  chocs++;
+  teinte -= TEINTE_PAR_CHOC;
+  if (fond) { r = Math.min(RC, r + PAS_RAYON); vx *= GAIN; vy *= GAIN; }
+
+  // On repose la balle sur la paroi APRÈS l'avoir fait grossir. Sans cela elle
+  // la chevauche encore d'un cran, le choc se redéclenche à l'image suivante,
+  // et ce doublon aléatoire rend toute la partie imprévisible.
+  x = CX + nx * (RC - r);
+  if (fond) y = ARC_CY + ny * (RC - r);
+
+  // l'énergie est bornée : le centre ne doit jamais dépasser SOMMET, sans quoi
+  // la balle sortirait par le haut, qui est ouvert
+  const vmax = Math.sqrt(Math.max(0, 2 * G * (y - SOMMET)));
+  const s = Math.sqrt(vx * vx + vy * vy);
+  if (s > vmax && vmax > 0) { vx *= vmax / s; vy *= vmax / s; }
+
+  if (notesCeTour < 3) {
+    note((r - R0) / (RC - R0), (x - CX) / RC);
+    notesCeTour++;
+  }
+}
+
+function pas() {
+  tps += DT;
+  //  La traînée est relevée toutes les huit images de calcul : à quatre cent
+  //  quatre-vingts par seconde, en garder une sur une ferait une bouillie de
+  //  points et coûterait cher pour rien.
+  if ((tps * 480 | 0) % 8 === 0) {
+    trace.push([x, y, teinte]);
+    if (trace.length > MAX_TRACE) trace.shift();
+  }
+  vy += G * DT;
+  x += vx * DT;
+  y += vy * DT;
+  teinte -= TEINTE_PAR_S * DT;
+
+  if (y >= ARC_CY) {                  // partie ronde du fond
+    // sqrt(dx*dx+dy*dy) et non Math.hypot : hypot n'a pas d'arrondi
+    // spécifié, il diffère d'un langage à l'autre, et sur un système
+    // chaotique cela suffit à faire diverger la page du script Manim.
+    const dx = x - CX, dy = y - ARC_CY, d = Math.sqrt(dx * dx + dy * dy);
+    if (d > RC - r) {
+      const nx = dx / d, ny = dy / d;
+      x = CX + nx * (RC - r); y = ARC_CY + ny * (RC - r);
+      contact(nx, ny, true);
+    }
+  } else if (x < CX - RC + r) {       // paroi gauche
+    x = CX - RC + r; contact(-1, 0, false);
+  } else if (x > CX + RC - r) {       // paroi droite
+    x = CX + RC - r; contact(1, 0, false);
+  }
+
+  if (r >= RC - 1e-9) plein = 1e-6;
+}
+
+// ---------------------------------------------------------------------------
+//  Rendu
+// ---------------------------------------------------------------------------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+
+function redimensionner() {
+  const b = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  cv.width = Math.round(b.width * d) || 1;
+  cv.height = Math.round(b.height * d) || 1;
+}
+redimensionner();
+addEventListener('resize', redimensionner);
+
+function dessiner(dt) {
+  ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+
+  const c = couleur(teinte);
+  const p = (r - R0) / (RC - R0);        // avancement, de 0 à 1
+
+  // --- fond : un halo teinté qui monte avec l'avancement -------------------
+  //  Un fond noir plat laisse l'éventail flotter dans le vide. Ce halo, centré
+  //  sur le récipient et de la couleur du moment, rattache l'image au sujet et
+  //  s'intensifie à mesure que la balle grossit.
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  const halo = ctx.createRadialGradient(CX, ARC_CY, 0, CX, ARC_CY, RC * 2.4);
+  halo.addColorStop(0, couleur(teinte, 50, 0.16 + 0.20 * p));
+  halo.addColorStop(0.5, couleur(teinte + 40, 45, 0.05 + 0.08 * p));
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, W, H);
+
+  // --- légende --------------------------------------------------------------
+  ctx.textAlign = 'center';
+  ctx.font = '700 46px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.fillText('plus grosse à chaque rebond', CX, 300);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  // --- les rayons ------------------------------------------------------------
+  //  Chaque impact garde sa teinte : l'éventail est un arc-en-ciel, et l'on y
+  //  lit l'ordre des chocs. Ils sont tracés par lots de teinte proche — un
+  //  changement de style par rayon coûterait plus cher que le rayon.
+  if (montrerTrace && impacts.length) {
+    const lots = new Map();
+    for (const [ix, iy, h] of impacts) {
+      const t = (((h % 360) + 360) % 360 / 15 | 0) * 15;
+      let l = lots.get(t);
+      if (!l) lots.set(t, l = new Path2D());
+      l.moveTo(x, y); l.lineTo(ix, iy);
+    }
+    for (const [t, ch] of lots) {
+      ctx.strokeStyle = couleur(t + 7, 62, 0.46);
+      ctx.lineWidth = 2.4;
+      ctx.stroke(ch);
+      ctx.strokeStyle = couleur(t + 7, 74, 0.16);
+      ctx.lineWidth = 7;
+      ctx.stroke(ch);
+    }
+  }
+
+  // --- la traînée de la balle ------------------------------------------------
+  if (trace.length > 1) {
+    for (let i = 1; i < trace.length; i++) {
+      const a = i / trace.length;
+      //  Traînée volontairement discrète : à pleine force elle forme une nappe
+      //  blanche qui avale l'éventail, et c'est l'éventail le sujet.
+      ctx.strokeStyle = couleur(trace[i][2], 62, 0.22 * a * a);
+      ctx.lineWidth = r * 0.75 * a;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(trace[i - 1][0], trace[i - 1][1]);
+      ctx.lineTo(trace[i][0], trace[i][1]);
+      ctx.stroke();
+    }
+  }
+
+  // --- ondes de choc ---------------------------------------------------------
+  for (let i = ondes.length - 1; i >= 0; i--) {
+    const o = ondes[i];
+    o.vie -= dt * 2.2 / o.dur; o.r += dt * 900 * o.dur;
+    if (o.vie <= 0) { ondes.splice(i, 1); continue; }
+    ctx.strokeStyle = couleur(o.h, 66, 0.55 * o.vie * o.vie);
+    ctx.lineWidth = 3 + 9 * o.vie;
+    ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 6.2832); ctx.stroke();
+  }
+
+  // --- étincelles ------------------------------------------------------------
+  for (let i = etincelles.length - 1; i >= 0; i--) {
+    const e = etincelles[i];
+    e.vie -= dt * 1.6;
+    if (e.vie <= 0) { etincelles.splice(i, 1); continue; }
+    e.x += e.vx * dt; e.y += e.vy * dt;
+    e.vy += G * 0.25 * dt;
+    e.vx *= 0.985; e.vy *= 0.985;
+    ctx.fillStyle = couleur(e.h, 70, e.vie);
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, 2 + 5 * e.vie, 0, 6.2832);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // --- le récipient, en dégradé et cerné de lumière -------------------------
+  const par = ctx.createLinearGradient(CX - RC, HAUT, CX + RC, ARC_CY + RC);
+  par.addColorStop(0, couleur(teinte + 60, 62));
+  par.addColorStop(0.5, couleur(teinte, 58));
+  par.addColorStop(1, couleur(teinte - 60, 62));
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  ctx.moveTo(CX - RC, HAUT);
+  ctx.lineTo(CX - RC, ARC_CY);
+  ctx.arc(CX, ARC_CY, RC, Math.PI, 0, true);
+  ctx.lineTo(CX + RC, HAUT);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = par; ctx.lineWidth = 16; ctx.globalAlpha = 0.18;
+  ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = par; ctx.lineWidth = 5; ctx.stroke();
+
+  // --- la balle --------------------------------------------------------------
+  const souffle = plein > 0 ? 1 + 0.012 * Math.sin(plein * 16) : 1;
+  const rr = r * souffle;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const [k, a] of [[2.4, 0.14], [1.6, 0.22]]) {
+    ctx.fillStyle = couleur(teinte, 58, a);
+    ctx.beginPath(); ctx.arc(x, y, rr * k, 0, 6.2832); ctx.fill();
+  }
+  ctx.restore();
+  const g = ctx.createRadialGradient(x - rr * 0.35, y - rr * 0.4, rr * 0.05,
+                                     x, y, rr);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.45, couleur(teinte, 70));
+  g.addColorStop(1, couleur(teinte - 25, 44));
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, rr, 0, 6.2832); ctx.fill();
+  ctx.strokeStyle = couleur(teinte, 88, 0.8);
+  ctx.lineWidth = 2.5; ctx.stroke();
+
+  // --- éclair sur les contacts avec le fond ----------------------------------
+  //  Court et sec : plus long, il délave l'image au lieu de la ponctuer.
+  if (eclair > 0) {
+    eclair = Math.max(0, eclair - dt / 0.14);
+    ctx.fillStyle = couleur(teinte, 80, 0.20 * eclair * eclair);
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // --- avancement ------------------------------------------------------------
+  const LARG = 2 * RC, XG = CX - RC, YG = H - 210;
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  ctx.beginPath(); ctx.roundRect(XG, YG, LARG, 14, 7); ctx.fill();
+  const jauge = ctx.createLinearGradient(XG, 0, XG + LARG, 0);
+  jauge.addColorStop(0, couleur(teinte + 50, 60));
+  jauge.addColorStop(1, couleur(teinte - 50, 60));
+  ctx.fillStyle = jauge;
+  ctx.beginPath();
+  ctx.roundRect(XG, YG, Math.max(14, LARG * p), 14, 7);
+  ctx.fill();
+  ctx.font = '700 40px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(245,250,252,0.95)';
+  ctx.fillText(`${Math.round(100 * p)} %`, CX, H - 138);
+  ctx.font = '400 30px system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(190,205,210,0.62)';
+  ctx.fillText(`${chocs} rebonds`, CX, H - 92);
+}
+
+// ---------------------------------------------------------------------------
+//  Boucle : temps réel converti en un nombre entier de pas fixes
+// ---------------------------------------------------------------------------
+let dernier = null, actif = true, montrerTrace = true, vitesse = 1, reste = 0;
+
+function boucle(now) {
+  requestAnimationFrame(boucle);
+  if (dernier === null) dernier = now;
+  const brut = Math.min((now - dernier) / 1000, 0.1);
+  dernier = now;
+
+  if (actif) {
+    notesCeTour = 0;
+    if (plein > 0) {
+      plein += brut * vitesse;
+      if (plein > ATTENTE) reinitialiser();
+    } else {
+      reste += brut * vitesse;
+      let n = 0;
+      while (reste >= DT && n++ < 400 && plein === 0) { pas(); reste -= DT; }
+    }
+  }
+  dessiner(brut);
+}
+requestAnimationFrame(boucle);
+
+// ---------------------------------------------------------------------------
+//  Commandes
+// ---------------------------------------------------------------------------
+document.getElementById('play').onclick = e => {
+  actif = !actif;
+  e.target.setAttribute('aria-pressed', actif);
+  e.target.textContent = actif ? '❚❚ pause' : '▶ lecture';
+};
+document.getElementById('trc').onclick = e => {
+  montrerTrace = !montrerTrace;
+  e.target.setAttribute('aria-pressed', montrerTrace);
+};
+let son = false;
+document.getElementById('snd').onclick = e => {
+  // On suit l'état voulu à part : un contexte créé pendant un clic démarre
+  // déjà actif, se fier à audio.state suspendrait le son dès le 1er appui.
+  if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+  son = !son;
+  if (son) audio.resume(); else audio.suspend();
+  e.target.setAttribute('aria-pressed', son);
+};
+const vit = document.getElementById('vit'), vitval = document.getElementById('vitval');
+vit.oninput = () => {
+  vitesse = +vit.value;
+  vitval.textContent = vitesse.toFixed(1).replace('.', ',') + '×';
+};
+</script>
+</body>
+</html>
