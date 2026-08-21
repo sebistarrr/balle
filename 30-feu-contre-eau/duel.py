@@ -74,8 +74,13 @@ Y_JAUGE, H_JAUGE, L_JAUGE = 1452.0, 48.0, 402.0
 Y_STAT = 1545.0
 
 R = 67.0
-BRAS = 125.0
-TETE = 46.0
+#  L'arme est ancrée près de son manche : le manche disparaît sous le disque et
+#  seule la tête dépasse, comme dans la 27.
+CELL = 7.2
+ANCRE = 55.0
+PIVOT = 0.16
+FRAPPE = 170.0
+TETE = 44.0
 REPOS = 0.40
 T_LIMITE = 95.0
 DT = 1 / 240
@@ -83,7 +88,7 @@ GRAINE = 0
 
 #  Les deux fiches, recopiées du codex. Elles ne changent pas d'une affiche à
 #  l'autre : c'est toute la raison d'être du codex.
-FICHES = [{"cle": "feu", "nom": "FEU", "cotes": 0, "teinte": 14, "sat": 95, "pv": 95, "vitesse": 560, "contact": 6, "charge": 10.0, "pouvoir": "brasier", "force": 0.818}, {"cle": "eau", "nom": "EAU", "cotes": 0, "teinte": 218, "sat": 92, "pv": 115, "vitesse": 520, "contact": 6, "charge": 8.0, "pouvoir": "ressac", "force": 1.183}]
+FICHES = [{"cle": "feu", "nom": "FEU", "cotes": 0, "teinte": 14, "sat": 95, "arme": ["..........................", "..............oooo........", "..........ooooobbo.ooo....", ".........oobboobwooobooo..", "oooooooooobwwbbbbbobwbboo.", "hhhhhhgghbwbbwwbbwbwbwwbo.", "hhhhhhhhhwbbbbbbbbwbbbbwo.", "oooooooooobwbbbbbbobwbboo.", ".........oobwoobwooobooo..", "..........ooooobwo.ooo....", "..............oooo........", "..........................", ".........................."], "palette": {"o": "hsl(14 60% 10%)", "h": "hsl(14 12% 24%)", "g": "hsl(14 100% 62%)", "b": "hsl(14 95% 42%)", "w": "hsl(14 83% 70%)"}, "pv": 95, "vitesse": 560, "contact": 6, "charge": 10.0, "pouvoir": "brasier", "force": 0.818, "palette_rgb": {"o": [0.16000000000000003, 0.06799999999999999, 0.03999999999999998], "h": [0.26880000000000004, 0.22463999999999995, 0.21119999999999994], "g": [1.0, 0.41733333333333333, 0.24], "b": [0.819, 0.2072, 0.02100000000000002], "w": [0.9489999999999998, 0.5672, 0.45100000000000007]}}, {"cle": "eau", "nom": "EAU", "cotes": 0, "teinte": 218, "sat": 92, "arme": ["..............oooo..oooo..", "..............obbo..obboo.", "..............obwo..obwbo.", "..............obwo..obwoo.", "ooooooooooooooobwoooobwoo.", "hhhhhhgghbbbbbbbbbbbbbbbo.", "hhhhhhhhhwwwwwwbbwwwwbbwo.", "ooooooooooooooobwoooobwoo.", "..............obwo..obwoo.", "..............obwo..obwbo.", "..............obwo..obwoo.", "..............oooo..oooo..", ".........................."], "palette": {"o": "hsl(218 60% 10%)", "h": "hsl(218 12% 24%)", "g": "hsl(218 100% 62%)", "b": "hsl(218 92% 42%)", "w": "hsl(218 80% 70%)"}, "pv": 115, "vitesse": 520, "contact": 6, "charge": 8.0, "pouvoir": "ressac", "force": 1.183, "palette_rgb": {"o": [0.03999999999999998, 0.08399999999999999, 0.16000000000000003], "h": [0.21119999999999994, 0.23231999999999997, 0.26880000000000004], "g": [0.24, 0.5186666666666666, 1.0], "b": [0.033600000000000074, 0.31696, 0.8063999999999999], "w": [0.45999999999999985, 0.6359999999999999, 0.9400000000000001]}}]
 
 
 class Combattant:
@@ -104,6 +109,12 @@ class Combattant:
         self.etats = {k: 0.0 for k in ("repos", "flash", "rapide", "blinde",
                                        "gele", "regen", "reflet", "embusque",
                                        "rayon", "brasier", "semis")}
+        #  Les traces que laissent les pouvoirs à l'écran.
+        self.sillage = []
+        self.ghost = []
+        self.vrilles = []
+        self.givre = []
+        self.facettes = []
 
 
 class Partie:
@@ -178,10 +189,28 @@ class Partie:
         elif p == "carapace":
             b.etats["blinde"] = 5.5 * force
         elif p == "eclair":
-            self.traits.append({"ax": b.x, "ay": b.y, "bx": e.x, "by": e.y,
-                                "h": b.f["teinte"], "s": b.f["sat"], "vie": 0.3})
+            #  Un éclair ne va pas droit : sept segments décalés au hasard de
+            #  part et d'autre de la ligne de visée.
+            pts = [(b.x, b.y)]
+            dx, dy = e.x - b.x, e.y - b.y
+            L = math.hypot(dx, dy) or 1e-9
+            for k in range(1, 7):
+                u = k / 7
+                dd = self.rng.uniform(-35, 35) * math.sin(u * math.pi)
+                pts.append((b.x + dx * u - dy / L * dd,
+                            b.y + dy * u + dx / L * dd))
+            pts.append((e.x, e.y))
+            self.traits.append({"pts": pts, "h": b.f["teinte"],
+                                "s": b.f["sat"], "vie": 0.3})
             self.blesser(e, 17 * force, "eclair")
         elif p == "gel":
+            #  Des cristaux poussent sur la cible : le gel se voit sur qui le
+            #  subit, pas sur qui le lance.
+            for _ in range(9):
+                e.givre.append({"a": self.rng.uniform(0, TAU),
+                                "d": R * self.rng.uniform(0.72, 1.32),
+                                "t": self.rng.uniform(13, 28),
+                                "vie": 2.6 * force})
             #  Un gelé est cassant : il encaisse moitié plus. Sans cela le gel
             #  n'était qu'une pause et la glace perdait tous ses duels.
             e.etats["gele"] = 2.6 * force
@@ -197,13 +226,25 @@ class Partie:
                     "vie": 3.2, "deg": 5.5 * force})
         elif p == "racines":
             b.etats["regen"] = 4.0 * force
+            #  Des vrilles poussent depuis la balle : on doit voir la sève.
+            for _ in range(7):
+                b.vrilles.append({"a": self.rng.uniform(0, TAU), "l": 0.0,
+                                  "lmax": self.rng.uniform(70, 160),
+                                  "courbe": self.rng.uniform(-0.8, 0.8),
+                                  "vie": 4.0 * force})
         elif p == "pas":
             #  Le bond frappe lui-même : simple repositionnement, il ne valait
             #  rien — le corps à corps est trop rare pour qu'une mise en place
             #  paie, et l'ombre restait à 18 % de victoires.
+            ax, ay = b.x, b.y
             s = math.hypot(e.vx, e.vy) or 1e-9
             b.x = min(max(e.x - e.vx / s * 2.2 * R, X0 + EP + R), X1 - EP - R)
             b.y = min(max(e.y - e.vy / s * 2.2 * R, Y0 + EP + R), Y1 - EP - R)
+            #  Le bond laisse un sillage et un fantôme — le pas de l'ombre de
+            #  la 27, repris tel quel.
+            b.sillage.append({"ax": ax, "ay": ay, "bx": b.x, "by": b.y,
+                              "vie": 0.55})
+            b.ghost.append({"x": ax, "y": ay, "vie": 0.5})
             self.blesser(e, 12 * force, "pas")
             b.etats["embusque"] = 3.0 * force
         elif p == "rayon":
@@ -213,6 +254,9 @@ class Partie:
                                 "h": b.f["teinte"], "s": b.f["sat"], "i": b.i,
                                 "vie": 10.0, "deg": 12 * force})
         elif p == "reflet":
+            #  Six facettes tournent autour d'elle le temps du reflet.
+            b.facettes = [{"a": k * math.pi / 3, "vie": 5.0 * force}
+                          for k in range(6)]
             b.etats["reflet"] = 5.0 * force
 
     # -- physique ---------------------------------------------------------
@@ -249,8 +293,8 @@ class Partie:
             if b.etats["repos"] > 0 or b.etats["gele"] > 0:
                 continue
             c = self.autre(b)
-            hx = b.x + math.cos(b.ang) * (BRAS + 32)
-            hy = b.y + math.sin(b.ang) * (BRAS + 32)
+            hx = b.x + math.cos(b.ang) * FRAPPE
+            hy = b.y + math.sin(b.ang) * FRAPPE
             if math.hypot(c.x - hx, c.y - hy) < R + TETE:
                 b.etats["repos"] = REPOS
                 mult = 2.5 if b.etats["embusque"] > 0 else 1.0
@@ -335,6 +379,16 @@ class Partie:
                 self.blesser(c, o["deg"] * DT, "nuage")
         self.nuages = [o for o in self.nuages if o["vie"] > 0]
 
+        for b in self.duo:
+            for nom, duree in (("sillage", None), ("ghost", None),
+                               ("givre", None), ("facettes", None)):
+                for o in getattr(b, nom):
+                    o["vie"] -= DT
+                setattr(b, nom, [o for o in getattr(b, nom) if o["vie"] > 0])
+            for o in b.vrilles:
+                o["vie"] -= DT
+                o["l"] = min(o["lmax"], o["l"] + 190 * DT)
+            b.vrilles = [o for o in b.vrilles if o["vie"] > 0]
         for o in self.traits:
             o["vie"] -= DT
         self.traits = [o for o in self.traits if o["vie"] > 0]
@@ -410,29 +464,38 @@ def cerne(ctx, s, x, y, taille, coul, align="gauche", ep=7.0):
     ctx.fill()
 
 
-def arme(ctx, b, mort):
-    """Le manche part du centre de la balle et sort du disque, et la tête est
-    la forme de l'élément : c'est à elle qu'on le reconnaît d'un duel à
-    l'autre, avant même de lire son nom."""
-    ax = b.x + math.cos(b.ang) * BRAS
-    ay = b.y + math.sin(b.ang) * BRAS
-    ctx.set_source_rgb(*(GRIS_MORT if mort else (0.169, 0.169, 0.200)))
-    ctx.set_line_width(15)
-    ctx.set_line_cap(cairo.LINE_CAP_ROUND)
-    ctx.new_path()
-    ctx.move_to(b.x, b.y)
-    ctx.line_to(ax + math.cos(b.ang) * 18, ay + math.sin(b.ang) * 18)
-    ctx.stroke()
-    forme(ctx, ax + math.cos(b.ang) * 30, ay + math.sin(b.ang) * 30, TETE,
-          b.f["cotes"], b.ang)
-    if mort:
-        ctx.set_source_rgb(*GRIS_MORT)
-    else:
-        ctx.set_source_rgba(*coul(b.f["teinte"], b.f["sat"], 55))
-    ctx.fill_preserve()
-    ctx.set_source_rgb(*NOIR)
-    ctx.set_line_width(5)
-    ctx.stroke()
+def pixels(ctx, grille, pal, cx, cy, ang, cell):
+    """Les armes sont dessinées case par case, comme dans la 27 : c'est ce qui
+    leur donne leur allure. La grille vient du codex, rastérisée une fois pour
+    toutes depuis un jeu de polygones."""
+    h, w = len(grille), len(grille[0])
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.rotate(ang)
+    #  L'arme pivote près de son manche, pas en son centre : ancrée au milieu,
+    #  elle restait cachée derrière la balle.
+    ctx.translate(-w * cell * PIVOT, -h * cell / 2)
+    for cle, coul in pal.items():
+        ctx.new_path()
+        vide = True
+        for j in range(h):
+            ligne = grille[j]
+            for i in range(w):
+                if ligne[i] == cle:
+                    #  Un demi-pixel de recouvrement : sans lui la rotation
+                    #  laisse des fentes claires entre les cases.
+                    ctx.rectangle(i * cell, j * cell, cell + 0.6, cell + 0.6)
+                    vide = False
+        if not vide:
+            ctx.set_source_rgb(*coul)
+            ctx.fill()
+    ctx.restore()
+
+
+def arme(ctx, b):
+    pixels(ctx, b.f["arme"], b.f["palette_rgb"],
+           b.x + math.cos(b.ang) * ANCRE, b.y + math.sin(b.ang) * ANCRE,
+           b.ang, CELL)
 
 
 def jauge(ctx, x, gauche, frac, c, nom, mort):
@@ -489,10 +552,18 @@ def dessiner(ctx, jeu, dt):
         ctx.stroke()
     for o in jeu.traits:
         v = o["vie"] / 0.3
-        ctx.set_source_rgba(*coul(o["h"], o["s"], 50, v))
-        ctx.set_line_width(11 * v)
-        ctx.new_path(); ctx.move_to(o["ax"], o["ay"]); ctx.line_to(o["bx"], o["by"])
-        ctx.stroke()
+        #  L'éclair est tracé deux fois : un trait large dans la teinte, un
+        #  trait blanc plus fin par-dessus. C'est ce doublage qui fait sa
+        #  violence.
+        for ep, c in ((13 * v, coul(o["h"], o["s"], 50, v)),
+                      (4.5 * v, (1.0, 1.0, 1.0, v))):
+            ctx.set_source_rgba(*c)
+            ctx.set_line_width(ep)
+            ctx.set_line_join(cairo.LINE_JOIN_ROUND)
+            ctx.new_path()
+            for k, (x, y) in enumerate(o["pts"]):
+                (ctx.line_to if k else ctx.move_to)(x, y)
+            ctx.stroke()
     for b in jeu.duo:
         if b.etats["rayon"] <= 0:
             continue
@@ -509,6 +580,43 @@ def dessiner(ctx, jeu, dt):
         ctx.set_line_width(6 * v)
         ctx.new_path(); ctx.arc(o["x"], o["y"], R + 210 * (1 - v), 0, TAU)
         ctx.stroke()
+
+    #  Les traces propres à chaque pouvoir : effets de terrain, pas parures.
+    for b in jeu.duo:
+        T, S = b.f["teinte"], b.f["sat"]
+        for o in b.sillage:
+            v = o["vie"] / 0.55
+            deg = cairo.LinearGradient(o["ax"], o["ay"], o["bx"], o["by"])
+            r, g, bl = teinte(T, S / 100.0, 0.45)
+            deg.add_color_stop_rgba(0, r, g, bl, 0.04 * v)
+            deg.add_color_stop_rgba(1, r, g, bl, 0.72 * v)
+            ctx.set_source(deg)
+            ctx.set_line_width(R * 0.95 * v)
+            ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+            ctx.new_path()
+            ctx.move_to(o["ax"], o["ay"]); ctx.line_to(o["bx"], o["by"])
+            ctx.stroke()
+        for o in b.ghost:
+            v = o["vie"] / 0.5
+            ctx.set_source_rgba(*coul(T, S, 50, 0.5 * v))
+            ctx.new_path(); ctx.arc(o["x"], o["y"], R * v, 0, TAU); ctx.fill()
+        for o in b.vrilles:
+            v = min(1.0, o["vie"])
+            ctx.set_source_rgba(*coul(T, S, 32, 0.85 * v))
+            ctx.set_line_width(6)
+            ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+            ctx.new_path()
+            ctx.move_to(b.x, b.y)
+            px, py = b.x, b.y
+            for k in range(1, 7):
+                u = k / 6
+                a = o["a"] + o["courbe"] * u * u
+                px = b.x + math.cos(a) * o["l"] * u
+                py = b.y + math.sin(a) * o["l"] * u
+                ctx.line_to(px, py)
+            ctx.stroke()
+            ctx.set_source_rgba(*coul(T, S, 48, 0.9 * v))
+            ctx.new_path(); ctx.arc(px, py, 9 * v, 0, TAU); ctx.fill()
     ctx.restore()
 
     ctx.set_source_rgb(*NOIR)
@@ -530,13 +638,34 @@ def dessiner(ctx, jeu, dt):
             continue
         #  Les auras d'état : on doit pouvoir lire d'un coup d'œil ce qui
         #  protège ou entrave chacun.
-        auras = []
+        #  La carapace n'est pas un cercle de plus : c'est une coquille de
+        #  blocs de pierre, posés à plat et non en rayons — en rayons ils
+        #  faisaient une roue dentée au lieu d'un mur.
         if b.etats["blinde"] > 0:
-            auras.append(((0.659, 0.455, 0.122), b.etats["blinde"]))
-        if b.etats["reflet"] > 0:
-            auras.append((teinte(322, 0.88, 0.50), b.etats["reflet"]))
+            v = min(1.0, b.etats["blinde"])
+            for k in range(10):
+                a = k * math.pi / 5 + jeu.t * 0.35
+                px = b.x + math.cos(a) * (R + 16)
+                py = b.y + math.sin(a) * (R + 16)
+                ctx.save()
+                ctx.translate(px, py)
+                ctx.rotate(a + math.pi / 2)
+                ctx.set_source_rgba(*coul(30, 42, 42, 0.95 * v))
+                ctx.new_path(); ctx.rectangle(-16, -9, 32, 18)
+                ctx.fill_preserve()
+                ctx.set_source_rgb(*NOIR); ctx.set_line_width(3); ctx.stroke()
+                ctx.restore()
+        #  La bourrasque : des arcs qui tournent vite autour de l'air.
         if b.etats["rapide"] > 0:
-            auras.append((teinte(172, 0.60, 0.45), b.etats["rapide"]))
+            v = min(1.0, b.etats["rapide"])
+            ctx.set_source_rgba(*coul(172, 60, 40, 0.8 * v))
+            ctx.set_line_width(5)
+            for k in range(3):
+                a = jeu.t * 7 + k * 2.1
+                ctx.new_path()
+                ctx.arc(b.x, b.y, R + 16 + k * 11, a, a + 1.5)
+                ctx.stroke()
+        auras = []
         if b.etats["regen"] > 0:
             auras.append((teinte(108, 0.85, 0.40), b.etats["regen"]))
         if b.etats["gele"] > 0:
@@ -548,7 +677,28 @@ def dessiner(ctx, jeu, dt):
             ctx.arc(b.x, b.y, R + 12 + k * 10, 0, TAU)
             ctx.stroke()
 
-        arme(ctx, b, False)
+        #  Le givre pousse sur la cible gelée, pas sur qui l'a lancé.
+        for o in b.givre:
+            v = min(1.0, o["vie"])
+            px = b.x + math.cos(o["a"]) * o["d"]
+            py = b.y + math.sin(o["a"]) * o["d"]
+            forme(ctx, px, py, o["t"] * v, 4, o["a"])
+            ctx.set_source_rgba(*coul(196, 88, 72, 0.9 * v))
+            ctx.fill_preserve()
+            ctx.set_source_rgba(*coul(200, 70, 28, 0.9 * v))
+            ctx.set_line_width(2.5); ctx.stroke()
+        #  Les facettes du cristal tournent autour de lui le temps du reflet.
+        for o in b.facettes:
+            v = min(1.0, o["vie"])
+            a = o["a"] + jeu.t * 2.2
+            px = b.x + math.cos(a) * (R + 30)
+            py = b.y + math.sin(a) * (R + 30)
+            forme(ctx, px, py, 15 * v, 4, a)
+            ctx.set_source_rgba(*coul(322, 88, 62, 0.85 * v))
+            ctx.fill_preserve()
+            ctx.set_source_rgb(*NOIR); ctx.set_line_width(3); ctx.stroke()
+
+        arme(ctx, b)
         if b.etats["flash"] > 0:
             ctx.set_source_rgb(1, 1, 1)
         else:

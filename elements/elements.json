@@ -13,7 +13,29 @@
       "pouvoir": "brasier",
       "force": 0.818,
       "devise": "laisse derrière elle une traînée qui brûle",
-      "detail": "Une traînée de braises se dépose sur son passage et blesse qui la traverse. Le feu ne frappe pas : il occupe."
+      "detail": "Une traînée de braises se dépose sur son passage et blesse qui la traverse. Le feu ne frappe pas : il occupe.",
+      "arme": [
+        "..........................",
+        "..............oooo........",
+        "..........ooooobbo.ooo....",
+        ".........oobboobwooobooo..",
+        "oooooooooobwwbbbbbobwbboo.",
+        "hhhhhhgghbwbbwwbbwbwbwwbo.",
+        "hhhhhhhhhwbbbbbbbbwbbbbwo.",
+        "oooooooooobwbbbbbbobwbboo.",
+        ".........oobwoobwooobooo..",
+        "..........ooooobwo.ooo....",
+        "..............oooo........",
+        "..........................",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(14 60% 10%)",
+        "h": "hsl(14 12% 24%)",
+        "g": "hsl(14 100% 62%)",
+        "b": "hsl(14 95% 42%)",
+        "w": "hsl(14 83% 70%)"
+      }
     },
     {
       "cle": "eau",
@@ -28,7 +50,29 @@
       "pouvoir": "ressac",
       "force": 1.183,
       "devise": "pousse l'adversaire et le rend à la paroi",
-      "detail": "Une onde circulaire chasse l'adversaire vers le bord. Elle ne blesse presque pas, elle déplace — et un élément plaqué à la paroi encaisse tout ce qui vient."
+      "detail": "Une onde circulaire chasse l'adversaire vers le bord. Elle ne blesse presque pas, elle déplace — et un élément plaqué à la paroi encaisse tout ce qui vient.",
+      "arme": [
+        "..............oooo..oooo..",
+        "..............obbo..obboo.",
+        "..............obwo..obwbo.",
+        "..............obwo..obwoo.",
+        "ooooooooooooooobwoooobwoo.",
+        "hhhhhhgghbbbbbbbbbbbbbbbo.",
+        "hhhhhhhhhwwwwwwbbwwwwbbwo.",
+        "ooooooooooooooobwoooobwoo.",
+        "..............obwo..obwoo.",
+        "..............obwo..obwbo.",
+        "..............obwo..obwoo.",
+        "..............oooo..oooo..",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(218 60% 10%)",
+        "h": "hsl(218 12% 24%)",
+        "g": "hsl(218 100% 62%)",
+        "b": "hsl(218 92% 42%)",
+        "w": "hsl(218 80% 70%)"
+      }
     },
     {
       "cle": "air",
@@ -43,7 +87,29 @@
       "pouvoir": "bourrasque",
       "force": 1.366,
       "devise": "double sa vitesse et traverse tout",
-      "detail": "Le plus rapide et le plus fragile. Sa bourrasque le rend insaisissable quelques secondes : il double sa vitesse et ne subit plus les chocs."
+      "detail": "Le plus rapide et le plus fragile. Sa bourrasque le rend insaisissable quelques secondes : il double sa vitesse et ne subit plus les chocs.",
+      "arme": [
+        "..................ooooooo.",
+        "................ooobbbbbo.",
+        "..............ooobbwwwwwo.",
+        ".............oobbwwbbbboo.",
+        "oooooooooo.ooobwwbbooooo..",
+        "hhhhhhgghooobbwbbooo......",
+        "hhhhhhhhhbbbwwbooo........",
+        "oooooooooooooooo..........",
+        "..........................",
+        "..........................",
+        "..........................",
+        "..........................",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(172 48% 10%)",
+        "h": "hsl(172 12% 24%)",
+        "g": "hsl(172 63% 62%)",
+        "b": "hsl(172 48% 42%)",
+        "w": "hsl(172 36% 70%)"
+      }
     },
     {
       "cle": "terre",
@@ -58,7 +124,29 @@
       "pouvoir": "carapace",
       "force": 1.149,
       "devise": "se couvre et ne prend plus qu'un quart",
-      "detail": "Lente, lourde, endurante. Sa carapace divise par quatre tout ce qu'elle encaisse le temps qu'elle tienne."
+      "detail": "Lente, lourde, endurante. Sa carapace divise par quatre tout ce qu'elle encaisse le temps qu'elle tienne.",
+      "arme": [
+        ".............ooo..........",
+        ".............oboooooooooo.",
+        ".............obbbbbbbbbbo.",
+        ".............obwwwwwwwwwo.",
+        "oooooooooooooobwbbbbbbbbo.",
+        "hhhhhhgghbbbbbbbbbbbbbbbo.",
+        "hhhhhhhhhwwwwwbbbbbbbbbbo.",
+        "oooooooooooooobwbbbbbbbbo.",
+        ".............obwbbbbbbbbo.",
+        ".............obwbbbbbbbbo.",
+        ".............oboooooooooo.",
+        ".............ooo..........",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(30 42% 10%)",
+        "h": "hsl(30 12% 24%)",
+        "g": "hsl(30 57% 62%)",
+        "b": "hsl(30 42% 42%)",
+        "w": "hsl(30 30% 70%)"
+      }
     },
     {
       "cle": "foudre",
@@ -73,7 +161,29 @@
       "pouvoir": "eclair",
       "force": 1.413,
       "devise": "frappe à distance, instantanément",
-      "detail": "Un éclair part vers l'adversaire où qu'il soit et frappe sans délai. Le seul pouvoir qui n'a pas besoin d'approcher."
+      "detail": "Un éclair part vers l'adversaire où qu'il soit et frappe sans délai. Le seul pouvoir qui n'a pas besoin d'approcher.",
+      "arme": [
+        "..........................",
+        "...............ooo........",
+        "............oooobooo......",
+        "............obboobbooo....",
+        "ooooooooooooobwbbwwbbooo..",
+        "hhhhhhgghbbbbbbwwbbwwbbo..",
+        "hhhhhhhhhooooobwbbbbbwwo..",
+        "oooooooooo..obwbbbbbbooo..",
+        "............obwoobwooo....",
+        "............oooobooo......",
+        "...............ooo........",
+        "..........................",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(52 60% 10%)",
+        "h": "hsl(52 12% 24%)",
+        "g": "hsl(52 100% 62%)",
+        "b": "hsl(52 96% 42%)",
+        "w": "hsl(52 84% 70%)"
+      }
     },
     {
       "cle": "glace",
@@ -88,7 +198,29 @@
       "pouvoir": "gel",
       "force": 0.763,
       "devise": "fige l'adversaire sur place",
-      "detail": "L'adversaire est cloué quelques secondes. Il ne bouge plus, ne charge plus, et prend tout ce qu'on lui donne."
+      "detail": "L'adversaire est cloué quelques secondes. Il ne bouge plus, ne charge plus, et prend tout ce qu'on lui donne.",
+      "arme": [
+        "...............oooooo.....",
+        ".............ooobbbboo....",
+        ".............obbwwwwboo...",
+        ".............obwbbbbwboo..",
+        "oooooooooooooobwbbbbbwboo.",
+        "hhhhhhgghbbbbbbbbbbbbbwbo.",
+        "hhhhhhhhhwwwwwbbbbbbbbbwo.",
+        "oooooooooooooobwbbbbbbboo.",
+        ".............obwbbbbbboo..",
+        ".............obwbbbbboo...",
+        ".............ooobwbboo....",
+        "...............oooooo.....",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(196 60% 10%)",
+        "h": "hsl(196 12% 24%)",
+        "g": "hsl(196 100% 62%)",
+        "b": "hsl(196 88% 42%)",
+        "w": "hsl(196 76% 70%)"
+      }
     },
     {
       "cle": "metal",
@@ -103,7 +235,29 @@
       "pouvoir": "eclats",
       "force": 1.503,
       "devise": "projette une volée d'éclats tranchants",
-      "detail": "Six éclats partent en éventail et rebondissent sur la paroi. Ils vivent longtemps : le terrain devient dangereux."
+      "detail": "Six éclats partent en éventail et rebondissent sur la paroi. Ils vivent longtemps : le terrain devient dangereux.",
+      "arme": [
+        "..............ooooobboo...",
+        "..............obbbbwwboo..",
+        "..............obwwwbbwboo.",
+        "..............obwbbbbbwbo.",
+        "ooooooooooooooobwbbbbbbwo.",
+        "hhhhhhgghbbbbbbbbbbbbbbbo.",
+        "hhhhhhhhhwwwwwwbbbbbbbbbo.",
+        "ooooooooooooooobwbbbbbbbo.",
+        "..............obwbbbbbbbo.",
+        "..............obwbbbbbboo.",
+        "..............obwbbbbboo..",
+        "..............ooooobwoo...",
+        "..................oooo...."
+      ],
+      "palette": {
+        "o": "hsl(222 14% 10%)",
+        "h": "hsl(222 12% 24%)",
+        "g": "hsl(222 29% 62%)",
+        "b": "hsl(222 14% 42%)",
+        "w": "hsl(222 25% 70%)"
+      }
     },
     {
       "cle": "nature",
@@ -118,7 +272,29 @@
       "pouvoir": "racines",
       "force": 1.188,
       "devise": "reprend ce qu'elle a perdu",
-      "detail": "Elle se régénère lentement pendant plusieurs secondes. Seul élément qui remonte : les duels contre elle se gagnent vite ou pas du tout."
+      "detail": "Elle se régénère lentement pendant plusieurs secondes. Seul élément qui remonte : les duels contre elle se gagnent vite ou pas du tout.",
+      "arme": [
+        ".................oboo.....",
+        "................oobbooooo.",
+        "..............ooobwwboobo.",
+        "..............obbwbbwbobo.",
+        "ooooooooooooooobwbbbbwboo.",
+        "hhhhhhgghbbbbbbbbbbbbbwbo.",
+        "hhhhhhhhhwwwwwwbbbbbbbbwo.",
+        "ooooooooooooooobwbbbbbboo.",
+        "..............obwbbbbbobo.",
+        "..............ooobwbboobo.",
+        "................oobwooooo.",
+        ".................oboo.....",
+        ".................ooo......"
+      ],
+      "palette": {
+        "o": "hsl(108 60% 10%)",
+        "h": "hsl(108 12% 24%)",
+        "g": "hsl(108 100% 62%)",
+        "b": "hsl(108 85% 42%)",
+        "w": "hsl(108 73% 70%)"
+      }
     },
     {
       "cle": "ombre",
@@ -133,7 +309,29 @@
       "pouvoir": "pas",
       "force": 0.744,
       "devise": "disparaît et reparaît derrière",
-      "detail": "Un bond instantané qui la replace dans le dos de l'adversaire, et le choc qui suit compte double."
+      "detail": "Un bond instantané qui la replace dans le dos de l'adversaire, et le choc qui suit compte double.",
+      "arme": [
+        "..........................",
+        "...........oooo...........",
+        "...........obbo...........",
+        "...........obwooooooooo...",
+        "oooooooooooobwbbbbbbbbooo.",
+        "hhhhhhgghbbbbbwwwwwwwwbbo.",
+        "hhhhhhhhhwwwbbbbbbbbbbwwo.",
+        "oooooooooooobwbbbbbbbbooo.",
+        "...........obwooooooooo...",
+        "...........obwo...........",
+        "...........oooo...........",
+        "..........................",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(285 60% 10%)",
+        "h": "hsl(285 12% 24%)",
+        "g": "hsl(285 87% 62%)",
+        "b": "hsl(285 72% 42%)",
+        "w": "hsl(285 60% 70%)"
+      }
     },
     {
       "cle": "lumiere",
@@ -148,7 +346,29 @@
       "pouvoir": "rayon",
       "force": 1.057,
       "devise": "tend un rayon qui brûle tant qu'il touche",
-      "detail": "Un rayon continu vers l'adversaire pendant quelques secondes. Il ne fait mal que tant que la ligne reste libre : c'est le pouvoir le plus dépendant du placement."
+      "detail": "Un rayon continu vers l'adversaire pendant quelques secondes. Il ne fait mal que tant que la ligne reste libre : c'est le pouvoir le plus dépendant du placement.",
+      "arme": [
+        "..................oooo....",
+        "..................obbo....",
+        ".................oobwoo...",
+        "................oobwbbo...",
+        "ooooooooooooooooobwbbwooo.",
+        "hhhhhhgghbbbbbobbwbbbbbbo.",
+        "hhhhhhhhhwwwwwobwbbbbbwwo.",
+        "ooooooooooooooooobwbbbooo.",
+        "................oobwbbo...",
+        ".................oobwoo...",
+        "..................obwo....",
+        "..................oooo....",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(44 30% 10%)",
+        "h": "hsl(44 12% 24%)",
+        "g": "hsl(44 45% 62%)",
+        "b": "hsl(44 30% 42%)",
+        "w": "hsl(44 25% 70%)"
+      }
     },
     {
       "cle": "poison",
@@ -163,7 +383,29 @@
       "pouvoir": "nuage",
       "force": 1.218,
       "devise": "laisse une nappe qui ronge",
-      "detail": "Une nappe immobile s'installe et ronge qui s'y attarde. Elle dure longtemps et finit par couvrir les couloirs."
+      "detail": "Une nappe immobile s'installe et ronge qui s'y attarde. Elle dure longtemps et finit par couvrir les couloirs.",
+      "arme": [
+        "..........................",
+        "..............oooo........",
+        "............ooobbo........",
+        "............obbwwoooo.....",
+        "ooooooooooooobwbbbbboooo..",
+        "hhhhhhgghbbbbbbbbwwwbbbo..",
+        "hhhhhhhhhwwwwbbbbbbbwwwo..",
+        "ooooooooooooobwbbbbboooo..",
+        "............obwbboooo.....",
+        "............ooobwo........",
+        "..............oooo........",
+        "..........................",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(78 60% 10%)",
+        "h": "hsl(78 12% 24%)",
+        "g": "hsl(78 93% 62%)",
+        "b": "hsl(78 78% 42%)",
+        "w": "hsl(78 66% 70%)"
+      }
     },
     {
       "cle": "cristal",
@@ -178,7 +420,29 @@
       "pouvoir": "reflet",
       "force": 1.587,
       "devise": "renvoie la moitié de ce qu'elle reçoit",
-      "detail": "Le temps du reflet, la moitié des dégâts encaissés repart vers celui qui les a donnés. Le contre pur."
+      "detail": "Le temps du reflet, la moitié des dégâts encaissés repart vers celui qui les a donnés. Le contre pur.",
+      "arme": [
+        "...............ooo........",
+        ".............oooboooo.....",
+        "............oobbwbbboo....",
+        "............obwwbwwwbooo..",
+        "ooooooooooooobwbbbbbwbboo.",
+        "hhhhhhgghbbbbbbbbbbbbwwbo.",
+        "hhhhhhhhhwwwwbbbbbbbbbbwo.",
+        "ooooooooooooobwbbbbbbbboo.",
+        "............obwbbbbbbooo..",
+        "............oobwbbbboo....",
+        ".............oooboooo.....",
+        "...............ooo........",
+        ".........................."
+      ],
+      "palette": {
+        "o": "hsl(322 60% 10%)",
+        "h": "hsl(322 12% 24%)",
+        "g": "hsl(322 100% 62%)",
+        "b": "hsl(322 88% 42%)",
+        "w": "hsl(322 76% 70%)"
+      }
     }
   ],
   "affiches": [

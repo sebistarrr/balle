@@ -548,8 +548,7 @@ Trente duels, douze éléments. Ils reprennent **la charte et la mécanique de l
 pouvoir, et surtout deux balles qui portent chacune une arme au bout d'un bras
 qui tourne. C'est la tête de l'arme qui blesse, pas le corps.
 
-Ce qui change d'un élément à l'autre tient dans sa fiche : **la forme de sa tête
-d'arme**, sa couleur, sa vie, sa vitesse, son coup et son pouvoir. Chacun les
+Ce qui change d'un élément à l'autre tient dans sa fiche : **son arme**, sa couleur, sa vie, sa vitesse, son coup et son pouvoir. Chacun les
 garde d'une affiche à l'autre — un seul fichier les décrit,
 [`elements/elements.json`](elements/elements.json), et les trente pages en sont
 engendrées. La fiche est recopiée dans chaque page (elles restent autonomes,
@@ -561,20 +560,59 @@ fois** et qu'aucune paire ne se répète : trente duels, soixante places, douze
 éléments. Une vérification refuse le jeu d'affiches sinon — elle a d'ailleurs
 attrapé une première version où l'eau passait six fois et le cristal quatre.
 
-| Élément | Tête d'arme | Vie | Vitesse | Coup | Charge | Pouvoir |
+| Élément | Arme | Vie | Vitesse | Coup | Charge | Pouvoir |
 |---|---|---|---|---|---|---|
-| **FEU** | disque | 95 | 560 | 6 | 10 s | `brasier` — laisse derrière elle une traînée qui brûle |
-| **EAU** | disque | 115 | 520 | 6 | 8 s | `ressac` — pousse l'adversaire et le rend à la paroi |
-| **AIR** | triangle | 100 | 760 | 7 | 6.5 s | `bourrasque` — double sa vitesse et traverse tout |
-| **TERRE** | hexagone | 145 | 400 | 9 | 11 s | `carapace` — se couvre et ne prend plus qu'un quart |
-| **FOUDRE** | étoile | 80 | 700 | 6 | 6.5 s | `eclair` — frappe à distance, instantanément |
-| **GLACE** | losange | 105 | 540 | 7 | 9.5 s | `gel` — fige l'adversaire sur place |
-| **MÉTAL** | octogone | 112 | 470 | 8 | 11 s | `eclats` — projette une volée d'éclats tranchants |
-| **NATURE** | pentagone | 110 | 500 | 6 | 8.5 s | `racines` — reprend ce qu'elle a perdu |
-| **OMBRE** | disque | 100 | 600 | 8 | 6.5 s | `pas` — disparaît et reparaît derrière |
-| **LUMIÈRE** | étoile | 90 | 580 | 6 | 10 s | `rayon` — tend un rayon qui brûle tant qu'il touche |
-| **POISON** | pentagone | 108 | 530 | 6 | 7.5 s | `nuage` — laisse une nappe qui ronge |
-| **CRISTAL** | losange | 112 | 510 | 7 | 8 s | `reflet` — renvoie la moitié de ce qu'elle reçoit |
+| **FEU** | flamme | 95 | 560 | 6 | 10 s | `brasier` — laisse derrière elle une traînée qui brûle |
+| **EAU** | trident | 115 | 520 | 6 | 8 s | `ressac` — pousse l'adversaire et le rend à la paroi |
+| **AIR** | faux | 100 | 760 | 7 | 6.5 s | `bourrasque` — double sa vitesse et traverse tout |
+| **TERRE** | masse | 145 | 400 | 9 | 11 s | `carapace` — se couvre et ne prend plus qu'un quart |
+| **FOUDRE** | lance dentelée | 80 | 700 | 6 | 6.5 s | `eclair` — frappe à distance, instantanément |
+| **GLACE** | pioche | 105 | 540 | 7 | 9.5 s | `gel` — fige l'adversaire sur place |
+| **MÉTAL** | hache | 112 | 470 | 8 | 11 s | `eclats` — projette une volée d'éclats tranchants |
+| **NATURE** | bâton d'épines | 110 | 500 | 6 | 8.5 s | `racines` — reprend ce qu'elle a perdu |
+| **OMBRE** | épée | 100 | 600 | 8 | 6.5 s | `pas` — disparaît et reparaît derrière |
+| **LUMIÈRE** | masse étoilée | 90 | 580 | 6 | 10 s | `rayon` — tend un rayon qui brûle tant qu'il touche |
+| **POISON** | dague à fiole | 108 | 530 | 6 | 7.5 s | `nuage` — laisse une nappe qui ronge |
+| **CRISTAL** | lame de cristal | 112 | 510 | 7 | 8 s | `reflet` — renvoie la moitié de ce qu'elle reçoit |
+
+### Les armes
+
+L'animation 27 dessine ses armes **case par case**, et c'est de là que vient
+leur allure. Les douze éléments en ont chacun une, du même genre : une flamme
+pour le feu, un trident pour l'eau, une faux pour l'air, une masse pour la
+terre, une lance dentelée pour la foudre, une pioche pour la glace, une hache
+pour le métal, un bâton d'épines pour la nature, une épée pour l'ombre, une
+masse étoilée pour la lumière, une dague à fiole pour le poison, une lame
+facettée pour le cristal.
+
+Elles ne sont pas tracées à la main — long et fragile pour douze grilles.
+Chacune est décrite par **des polygones dans un repère de 26 × 13 cases**, puis
+rastérisée : remplissage, cerne d'une case tout autour, reflets sur le bord
+intérieur haut-gauche, gemme au creux du manche. Le manche est commun à tous,
+la tête est propre à l'élément. Les cinq couleurs de la grille sont tirées de la
+teinte de l'élément, avec un cerne presque noir et un manche neutre pour tout le
+monde : c'est ce qui fait que les douze armes se ressemblent en facture tout en
+se distinguant au premier coup d'œil.
+
+L'arme est ancrée **près de son manche** et non en son milieu : le manche
+disparaît sous le disque et seule la tête dépasse, comme dans la 27. Ancrée au
+centre, elle restait cachée derrière la balle.
+
+### Les pouvoirs, chacun le sien
+
+Aucun ne se contente d'un cercle qui grandit. Le **brasier** sème des braises
+qui rougeoient et s'éteignent. Le **ressac** chasse l'adversaire à la paroi.
+La **bourrasque** fait tourner trois arcs autour de l'air. La **carapace** pose
+une coquille de blocs de pierre — à plat, tangents : posés en rayons ils
+faisaient une roue dentée au lieu d'un mur. L'**éclair** est une polyligne
+brisée en sept segments, doublée d'un trait blanc plus fin, parce qu'un éclair
+ne va pas droit. Le **gel** fait pousser des cristaux **sur la cible**, pas sur
+qui le lance. Les **éclats** partent en éventail et rebondissent. Les **racines**
+font sortir des vrilles qui s'incurvent en poussant et portent une feuille au
+bout. Le **pas** laisse un sillage dégradé et un fantôme qui s'efface — celui de
+la 27, repris tel quel. Le **rayon** tend un faisceau large à cœur blanc. Le
+**nuage** installe une nappe qui ronge. Le **reflet** fait tourner six facettes
+autour du cristal.
 
 ### L'équilibrage
 
@@ -604,16 +642,15 @@ dégâts reçus. Pas borné à 12 pour cent par tour, exposant ramené à 0,18.
 
 Le passage à la mécanique de la 27 a rebattu les cartes — l'arme au bout du bras
 ne porte pas comme le corps à corps — et la boucle a été relancée de zéro sur le
-nouveau moteur. Après quoi, sur **trente-quatre duels par affiche**, cent
-soixante-dix par élément :
+nouveau moteur. Après quoi, sur **vingt-six duels par affiche**, cent trente par élément :
 
 | | | | | | |
 |---|---|---|---|---|---|
-| **FOUDRE** 57 % | **POISON** 56 % | **LUMIÈRE** 55 % | **AIR** 54 % | **GLACE** 53 % | **FEU** 52 % |
-| **NATURE** 51 % | **MÉTAL** 48 % | **OMBRE** 46 % | **CRISTAL** 45 % | **TERRE** 43 % | **EAU** 41 % |
+| **FOUDRE** 60 % | **OMBRE** 60 % | **AIR** 55 % | **POISON** 55 % | **LUMIÈRE** 54 % | **NATURE** 53 % |
+| **MÉTAL** 47 % | **EAU** 46 % | **FEU** 45 % | **GLACE** 44 % | **TERRE** 42 % | **CRISTAL** 40 % |
 
-Les douze tiennent entre **41 et 57 pour cent**. À cent soixante-dix duels
-l'écart-type est de 3,8 points : tous sont à moins de deux écarts-types et demi
+Les douze tiennent entre **40 et 60 pour cent**. À cent trente duels
+l'écart-type est de 4,4 points : tous sont à moins de deux écarts-types et demi
 de la parité, et ce qui reste ne se distingue plus du bruit — trois mesures
 successives ont classé le feu à 48, 65 puis 52 pour cent sans qu'on ait touché à
 sa fiche entre-temps.
