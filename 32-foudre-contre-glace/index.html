@@ -189,17 +189,32 @@ function fanfare(joueur) {
 // ---------------------------------------------------------------------------
 //  Réglages communs à tous les duels d'éléments
 // ---------------------------------------------------------------------------
+//  La charte et la mécanique sont celles de l'animation 27 : fond crème, carré
+//  noir, deux jauges en bas, et surtout deux balles qui portent chacune une
+//  arme au bout d'un bras qui tourne. Ce qui change d'un élément à l'autre est
+//  dans sa fiche — la forme de sa tête d'arme, sa couleur, et son pouvoir.
 const DT = 1 / 240;
 const FIN_ECRAN = 3.6;
 
-const CX = 540, CY = 1120, RC = 560;  // l'arène
-const R = 44;                         // demi-taille d'un élément
-const REPOS_CHOC = 0.55;              // s entre deux chocs corps à corps
-const T_LIMITE = 95;                  // s — au-delà, le plus vaillant l'emporte
+const CREME = '#faf3d9';
+const NOIR = '#000000';
+const GRIS_MORT = '#8a8678';
+
+const X0 = 60, X1 = 1020, Y0 = 477, Y1 = 1437;   // le carré
+const EP = 9;
+const Y_TITRE = 440;
+const Y_JAUGE = 1452, H_JAUGE = 48, L_JAUGE = 402;
+const Y_STAT = 1545;
+
+const R = 67;                       // rayon d'une balle
+const BRAS = 125;                   // distance du centre de l'arme à la balle
+const TETE = 46;                    // demi-portée de la partie qui blesse
+const REPOS = 0.40;                 // s entre deux touches de la même arme
+const T_LIMITE = 95;                // s — au-delà, le plus vaillant l'emporte
 
 //  Les deux fiches, recopiées du codex. Elles ne changent pas d'une affiche à
 //  l'autre : c'est toute la raison d'être du codex.
-const FICHES = [{"cle": "foudre", "nom": "FOUDRE", "cotes": -1, "teinte": 52, "sat": 96, "pv": 80, "vitesse": 700, "contact": 6, "charge": 6.5, "pouvoir": "eclair", "force": 1.475}, {"cle": "glace", "nom": "GLACE", "cotes": 4, "teinte": 196, "sat": 88, "pv": 105, "vitesse": 540, "contact": 7, "charge": 9.5, "pouvoir": "gel", "force": 0.837}];
+const FICHES = [{"cle": "foudre", "nom": "FOUDRE", "cotes": -1, "teinte": 52, "sat": 96, "pv": 80, "vitesse": 700, "contact": 6, "charge": 6.5, "pouvoir": "eclair", "force": 1.413}, {"cle": "glace", "nom": "GLACE", "cotes": 4, "teinte": 196, "sat": 88, "pv": 105, "vitesse": 540, "contact": 7, "charge": 9.5, "pouvoir": "gel", "force": 0.763}];
 
 // ---------------------------------------------------------------------------
 //  L'état
@@ -209,21 +224,22 @@ let tps, fini, vainqueur, duo, braises, eclats, nuages, traits, ondes;
 function reinitialiser() {
   tps = 0; fini = 0; vainqueur = -1;
   braises = []; eclats = []; nuages = []; traits = []; ondes = [];
-  const a0 = Math.random() * Math.PI * 2;
   duo = FICHES.map((f, i) => {
-    const a = a0 + i * Math.PI;
     const cap = Math.random() * Math.PI * 2;
     return {
       i, f,
-      x: CX + Math.cos(a) * RC * 0.5, y: CY + Math.sin(a) * RC * 0.5,
+      x: i ? X1 - 280 : X0 + 280, y: (Y0 + Y1) / 2,
       vx: Math.cos(cap) * f.vitesse, vy: Math.sin(cap) * f.vitesse,
       pv: f.pv, pvMax: f.pv,
+      //  Les deux armes ne tournent ni à la même vitesse ni dans le même sens :
+      //  à vitesses égales elles se croisent toujours dans la même figure.
       ang: Math.random() * Math.PI * 2,
-      charge: 0, repos: 0, flash: 0,
-      //  Les états que posent les pouvoirs. Ils sont tous des durées : à zéro
-      //  l'élément est nu, et rien ne peut rester actif par accident.
+      omega: (i ? -1 : 1) * (1.5 + f.vitesse / 700),
+      charge: 0, repos: 0, flash: 0, lancers: 0,
+      //  Les états que posent les pouvoirs. Tous des durées : à zéro l'élément
+      //  est nu, et rien ne peut rester actif par accident.
       rapide: 0, blinde: 0, gele: 0, regen: 0, reflet: 0, embusque: 0,
-      rayon: 0,
+      rayon: 0, brasier: 0, semis: 0,
     };
   });
 }
@@ -237,14 +253,14 @@ function blesser(cible, degats, source) {
   if (fini || degats <= 0) return;
   if (cible.blinde > 0) degats /= 4;      // carapace
   if (cible.gele > 0) degats *= 1.5;      // un gelé est cassant
-  //  La bourrasque esquive tout ce qui traîne sur le terrain — chocs, braises,
-//  éclats — mais pas les pouvoirs qui visent. Limitée aux seuls chocs, l'air
-//  ne gagnait que 7 duels sur 100.
-  if (cible.rapide > 0 && ['choc', 'braise', 'eclat'].includes(source)) return;
+  //  La bourrasque esquive tout ce qui traîne sur le terrain — coups d'arme,
+  //  braises, éclats — mais pas les pouvoirs qui visent.
+  if (cible.rapide > 0 && (source === 'arme' || source === 'braise'
+                           || source === 'eclat')) return;
   cible.pv = Math.max(0, cible.pv - degats);
   cible.flash = 0.14;
-  //  Le reflet renvoie la moitié, et ne se reflète pas lui-même : sans ce
-  //  garde-fou deux cristaux se renverraient un coup à l'infini.
+  //  Le reflet ne se reflète pas lui-même : sans ce garde-fou deux cristaux se
+  //  renverraient un coup à l'infini.
   if (cible.reflet > 0 && source !== 'reflet') {
     blesser(autre(cible), degats * 0.75, 'reflet');
   }
@@ -265,83 +281,72 @@ function blesser(cible, degats, source) {
 // ---------------------------------------------------------------------------
 function lancerPouvoir(b) {
   const e = autre(b);
-  const p = b.f.pouvoir;
-  ondes.push({ x: b.x, y: b.y, h: b.f.teinte, vie: 0.6, r0: R });
+  const p = b.f.pouvoir, F = b.f.force;
+  b.lancers++;
+  ondes.push({ x: b.x, y: b.y, h: b.f.teinte, s: b.f.sat, vie: 0.6 });
   if (p === 'brasier') {
-    b.brasier = 4.2 * b.f.force;                       // la traînée se dépose en marchant
+    b.brasier = 4.2 * F;                 // la traînée se dépose en marchant
   } else if (p === 'ressac') {
-    //  Pousse l'adversaire vers la paroi, et l'y maintient un instant.
     const d = Math.hypot(e.x - b.x, e.y - b.y) || 1e-9;
     const nx = (e.x - b.x) / d, ny = (e.y - b.y) / d;
     const s = Math.hypot(e.vx, e.vy);
     e.vx = nx * s; e.vy = ny * s;
-    e.x += nx * 190; e.y += ny * 190;
-    blesser(e, 14 * b.f.force, 'ressac');
+    e.x = Math.max(X0 + EP + R, Math.min(X1 - EP - R, e.x + nx * 190));
+    e.y = Math.max(Y0 + EP + R, Math.min(Y1 - EP - R, e.y + ny * 190));
+    blesser(e, 14 * F, 'ressac');
   } else if (p === 'bourrasque') {
-    b.rapide = 3.2 * b.f.force;
+    b.rapide = 3.2 * F;
   } else if (p === 'carapace') {
-    b.blinde = 5.5 * b.f.force;
+    b.blinde = 5.5 * F;
   } else if (p === 'eclair') {
-    traits.push({ ax: b.x, ay: b.y, bx: e.x, by: e.y, h: b.f.teinte, vie: 0.3 });
-    blesser(e, 17 * b.f.force, 'eclair');
+    traits.push({ ax: b.x, ay: b.y, bx: e.x, by: e.y, h: b.f.teinte,
+                  s: b.f.sat, vie: 0.3 });
+    blesser(e, 17 * F, 'eclair');
   } else if (p === 'gel') {
-    //  Un gelé est cassant : il encaisse moitié plus. Sans cela le gel n'était
-    //  qu'une pause — la glace clouait l'adversaire sans pouvoir en profiter,
-    //  et perdait ses soixante-dix duels sur soixante-dix.
-    e.gele = 2.6 * b.f.force;
-    blesser(e, 13 * b.f.force, 'gel');
+    e.gele = 2.6 * F;
+    blesser(e, 13 * F, 'gel');
   } else if (p === 'eclats') {
     const a0 = Math.atan2(e.y - b.y, e.x - b.x);
     for (let k = 0; k < 6; k++) {
       const a = a0 + (k - 2.5) * 0.30;
       eclats.push({ x: b.x + Math.cos(a) * R, y: b.y + Math.sin(a) * R,
                     vx: Math.cos(a) * 720, vy: Math.sin(a) * 720,
-                    h: b.f.teinte, i: b.i, vie: 3.2, deg: 5.5 * b.f.force });
+                    h: b.f.teinte, s: b.f.sat, i: b.i, vie: 3.2, deg: 5.5 * F });
     }
   } else if (p === 'racines') {
-    b.regen = 4.0 * b.f.force;
+    b.regen = 4.0 * F;
   } else if (p === 'pas') {
-    //  Réapparaît dans le dos de l'adversaire, et le choc suivant compte
-    //  double.
     const s = Math.hypot(e.vx, e.vy) || 1e-9;
-    b.x = Math.max(CX - RC + R, Math.min(CX + RC - R, e.x - e.vx / s * (2.2 * R)));
-    b.y = Math.max(CY - RC + R, Math.min(CY + RC - R, e.y - e.vy / s * (2.2 * R)));
-    //  Le bond frappe lui-même. Simple repositionnement, il ne valait rien —
-    //  le corps à corps est trop rare pour qu'une mise en place paie : l'ombre
-    //  restait à 18 % de victoires même en poussant sa force au plafond.
-    blesser(e, 12 * b.f.force, 'pas');
-    b.embusque = 3.0 * b.f.force;
+    b.x = Math.max(X0 + EP + R, Math.min(X1 - EP - R, e.x - e.vx / s * 2.2 * R));
+    b.y = Math.max(Y0 + EP + R, Math.min(Y1 - EP - R, e.y - e.vy / s * 2.2 * R));
+    //  Le bond frappe lui-même : simple repositionnement, il ne valait rien.
+    blesser(e, 12 * F, 'pas');
+    b.embusque = 3.0 * F;
   } else if (p === 'rayon') {
-    b.rayon = 3.2 * b.f.force;
+    b.rayon = 3.2 * F;
   } else if (p === 'nuage') {
-    nuages.push({ x: e.x, y: e.y, r: 180, h: b.f.teinte, i: b.i, vie: 10.0,
-                  deg: 12 * b.f.force });
+    nuages.push({ x: e.x, y: e.y, r: 180, h: b.f.teinte, s: b.f.sat, i: b.i,
+                  vie: 10.0, deg: 12 * F });
   } else if (p === 'reflet') {
-    b.reflet = 5.0 * b.f.force;
+    b.reflet = 5.0 * F;
   }
-  if (notesCeTour < 3) { notesCeTour++; souffle((b.x - W / 2) / (W / 2), 0.3, 0.5, 700); }
+  if (notesCeTour < 3) {
+    notesCeTour++;
+    souffle((b.x - W / 2) / (W / 2), 0.3, 0.5, 700);
+  }
 }
 
 // ---------------------------------------------------------------------------
-//  Physique
+//  Physique — celle de la 27 : pas de pesanteur, vitesse tenue, murs du carré
 // ---------------------------------------------------------------------------
-function paroi(b) {
-  const dx = b.x - CX, dy = b.y - CY;
-  const d = Math.hypot(dx, dy);
-  if (d <= RC - R) return;
-  const nx = dx / d, ny = dy / d;
-  b.x = CX + nx * (RC - R);
-  b.y = CY + ny * (RC - R);
-  const p = 2 * (b.vx * nx + b.vy * ny);
-  if (p > 0) { b.vx -= p * nx; b.vy -= p * ny; }
-  //  Une pincée de hasard, sans quoi un élément finit sur une corde
-  //  périodique et ne rencontre plus jamais l'autre.
-  const s = Math.hypot(b.vx, b.vy) || 1e-9;
-  const c = Math.atan2(b.vy, b.vx) + (Math.random() - 0.5) * 0.12;
-  b.vx = Math.cos(c) * s; b.vy = Math.sin(c) * s;
+function murs(b) {
+  if (b.x < X0 + EP + R) { b.x = X0 + EP + R; b.vx = Math.abs(b.vx); }
+  if (b.x > X1 - EP - R) { b.x = X1 - EP - R; b.vx = -Math.abs(b.vx); }
+  if (b.y < Y0 + EP + R) { b.y = Y0 + EP + R; b.vy = Math.abs(b.vy); }
+  if (b.y > Y1 - EP - R) { b.y = Y1 - EP - R; b.vy = -Math.abs(b.vy); }
 }
 
-function corpsACorps() {
+function entreElles() {
   const [a, b] = duo;
   const dx = b.x - a.x, dy = b.y - a.y;
   const d = Math.hypot(dx, dy);
@@ -350,18 +355,13 @@ function corpsACorps() {
   a.x -= nx * corr; a.y -= ny * corr;
   b.x += nx * corr; b.y += ny * corr;
   const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
-  if (vn < 0) {
-    a.vx += vn * nx; a.vy += vn * ny;
-    b.vx -= vn * nx; b.vy -= vn * ny;
-  }
-  for (const t of duo) {
-    if (t.repos > 0) continue;
-    t.repos = REPOS_CHOC;
-    const mult = t.embusque > 0 ? 2.5 : 1;
-    if (mult > 1) t.embusque = 0;
-    blesser(autre(t), t.f.contact * mult, 'choc');
-  }
+  if (vn > 0) return;
+  a.vx += vn * nx; a.vy += vn * ny;
+  b.vx -= vn * nx; b.vy -= vn * ny;
 }
+
+const teteArme = b => [b.x + Math.cos(b.ang) * (BRAS + 32),
+                       b.y + Math.sin(b.ang) * (BRAS + 32)];
 
 function pas() {
   tps += DT;
@@ -377,14 +377,12 @@ function pas() {
     }
     if (b.brasier > 0) {
       //  Une braise tous les dixièmes de seconde, pas à chaque pas de calcul.
-      //  Tirée au hasard par pas, elle tombait soixante-douze fois par
-      //  seconde et le feu gagnait 99 duels sur 100.
       b.brasier -= DT;
-      b.semis = (b.semis || 0) + DT;
+      b.semis += DT;
       if (b.semis >= 0.11) {
         b.semis = 0;
-        braises.push({ x: b.x, y: b.y, h: b.f.teinte, i: b.i, vie: 4.0,
-                       deg: 5 * b.f.force });
+        braises.push({ x: b.x, y: b.y, h: b.f.teinte, s: b.f.sat, i: b.i,
+                       vie: 4.0, deg: 5 * b.f.force });
       }
     }
     if (b.regen > 0) b.pv = Math.min(b.pvMax, b.pv + 4.2 * b.f.force * DT);
@@ -396,14 +394,26 @@ function pas() {
     const v = b.f.vitesse * (b.rapide > 0 ? 2 : 1);
     const s = Math.hypot(b.vx, b.vy) || 1e-9;
     b.vx *= v / s; b.vy *= v / s;
-    b.ang += (b.rapide > 0 ? 4.5 : 1.6) * DT;
+    b.ang += b.omega * (b.rapide > 0 ? 2 : 1) * DT;
     b.x += b.vx * DT;
     b.y += b.vy * DT;
-    paroi(b);
+    murs(b);
   }
-  corpsACorps();
+  entreElles();
 
-  // --- le rayon, tant qu'il dure -------------------------------------------
+  // --- corps à corps : la tête de l'arme contre la balle d'en face ---------
+  for (const b of duo) {
+    if (b.repos > 0 || b.gele > 0) continue;
+    const c = autre(b);
+    const [hx, hy] = teteArme(b);
+    if (Math.hypot(c.x - hx, c.y - hy) < R + TETE) {
+      b.repos = REPOS;
+      const mult = b.embusque > 0 ? 2.5 : 1;
+      if (mult > 1) b.embusque = 0;
+      blesser(c, b.f.contact * mult, 'arme');
+    }
+  }
+
   for (const b of duo) {
     if (b.rayon > 0) blesser(autre(b), 10 * b.f.force * DT, 'rayon');
   }
@@ -422,13 +432,8 @@ function pas() {
   for (const o of eclats) {
     o.vie -= DT;
     o.x += o.vx * DT; o.y += o.vy * DT;
-    const d = Math.hypot(o.x - CX, o.y - CY);
-    if (d > RC - 8) {
-      const nx = (o.x - CX) / d, ny = (o.y - CY) / d;
-      o.x = CX + nx * (RC - 8); o.y = CY + ny * (RC - 8);
-      const p = 2 * (o.vx * nx + o.vy * ny);
-      o.vx -= p * nx; o.vy -= p * ny;
-    }
+    if (o.x < X0 + EP || o.x > X1 - EP) { o.vx = -o.vx; o.x = Math.max(X0 + EP, Math.min(X1 - EP, o.x)); }
+    if (o.y < Y0 + EP || o.y > Y1 - EP) { o.vy = -o.vy; o.y = Math.max(Y0 + EP, Math.min(Y1 - EP, o.y)); }
     const c = duo[1 - o.i];
     if (o.vie > 0 && Math.hypot(c.x - o.x, c.y - o.y) < R + 10) {
       o.vie = 0;
@@ -449,9 +454,8 @@ function pas() {
   for (const o of ondes) o.vie -= DT;
   ondes = ondes.filter(o => o.vie > 0);
 
-  //  Un duel ne peut pas durer indéfiniment : deux éléments très défensifs
-  //  s'annulent. Au bout du compte, celui qui a la plus grosse part de vie
-  //  restante l'emporte.
+  //  Deux éléments très défensifs s'annulent : au bout du compte, la plus
+  //  grosse part de vie restante l'emporte.
   if (tps > T_LIMITE && !fini) {
     fini = 1e-6;
     const [a, b] = duo;
@@ -462,11 +466,23 @@ function pas() {
 }
 
 // ---------------------------------------------------------------------------
-//  Rendu
+//  Rendu — la charte de la 27
 // ---------------------------------------------------------------------------
-//  La forme est portée par la fiche : disque, polygone ou étoile. C'est elle
-//  qui fait qu'on reconnaît un élément d'un duel à l'autre, avant même de lire
-//  son nom.
+function texte(s, x, y, taille, coul, align = 'center', cerne = 7) {
+  ctx.font = `900 ${taille}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textAlign = align;
+  if (cerne) {
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = cerne;
+    ctx.strokeStyle = NOIR;
+    ctx.strokeText(s, x, y);
+  }
+  ctx.fillStyle = coul;
+  ctx.fillText(s, x, y);
+}
+
+//  La tête de l'arme est la forme de l'élément : c'est à elle qu'on le
+//  reconnaît d'un duel à l'autre, avant même de lire son nom.
 function tracerForme(x, y, r, cotes, ang) {
   ctx.beginPath();
   if (cotes === 0) { ctx.arc(x, y, r, 0, Math.PI * 2); return; }
@@ -488,64 +504,70 @@ function tracerForme(x, y, r, cotes, ang) {
   ctx.closePath();
 }
 
-function jauge(x, y, l, h, frac, coul, fond) {
-  ctx.fillStyle = fond;
-  ctx.fillRect(x, y, l, h);
-  ctx.fillStyle = coul;
-  ctx.fillRect(x, y, l * Math.max(0, Math.min(1, frac)), h);
+function arme(b, mort) {
+  const ax = b.x + Math.cos(b.ang) * BRAS, ay = b.y + Math.sin(b.ang) * BRAS;
+  //  Le manche part du centre de la balle et sort du disque, comme dans la 27.
+  ctx.strokeStyle = mort ? GRIS_MORT : '#2b2b33';
+  ctx.lineWidth = 15;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(b.x, b.y);
+  ctx.lineTo(ax + Math.cos(b.ang) * 18, ay + Math.sin(b.ang) * 18);
+  ctx.stroke();
+  tracerForme(ax + Math.cos(b.ang) * 30, ay + Math.sin(b.ang) * 30, TETE,
+              b.f.cotes, b.ang);
+  ctx.fillStyle = mort ? GRIS_MORT : couleur(b.f.teinte, b.f.sat, 55);
+  ctx.fill();
+  ctx.strokeStyle = NOIR;
+  ctx.lineWidth = 5;
+  ctx.stroke();
+}
+
+function jauge(x, gauche, frac, coul, nom, mort) {
+  ctx.fillStyle = CREME;
+  ctx.fillRect(x, Y_JAUGE, L_JAUGE, H_JAUGE);
+  const l = L_JAUGE * Math.min(1, frac);
+  ctx.fillStyle = mort ? GRIS_MORT : coul;
+  ctx.fillRect(gauche ? x : x + L_JAUGE - l, Y_JAUGE, l, H_JAUGE);
+  ctx.strokeStyle = NOIR;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x + 2, Y_JAUGE + 2, L_JAUGE - 4, H_JAUGE - 4);
+  texte(nom, gauche ? x + 12 : x + L_JAUGE - 12, Y_JAUGE + 35, 30,
+        mort ? GRIS_MORT : '#ffffff', gauche ? 'left' : 'right', 6);
 }
 
 function dessiner(dt) {
   ctx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
-  ctx.fillStyle = '#05070c';
+  ctx.fillStyle = CREME;
   ctx.fillRect(0, 0, W, H);
 
-  // --- l'affiche -----------------------------------------------------------
-  ctx.textAlign = 'center';
-  ctx.font = '800 62px ui-sans-serif, system-ui, sans-serif';
   const [A, B] = FICHES;
-  const lA = ctx.measureText(A.nom).width, lB = ctx.measureText(B.nom).width;
-  ctx.font = '700 34px ui-sans-serif, system-ui, sans-serif';
-  const lV = ctx.measureText('vs').width;
-  let x = W / 2 - (lA + 60 + lV + 60 + lB) / 2;
-  ctx.textAlign = 'left';
-  ctx.font = '800 62px ui-sans-serif, system-ui, sans-serif';
-  ctx.fillStyle = couleur(A.teinte, A.sat, 62);
-  ctx.fillText(A.nom, x, 250);
-  ctx.font = '700 34px ui-sans-serif, system-ui, sans-serif';
-  ctx.fillStyle = '#5a6470';
-  ctx.fillText('vs', x + lA + 30, 244);
-  ctx.font = '800 62px ui-sans-serif, system-ui, sans-serif';
-  ctx.fillStyle = couleur(B.teinte, B.sat, 62);
-  ctx.fillText(B.nom, x + lA + 60 + lV + 30, 250);
-  ctx.textAlign = 'center';
+  const mortA = fini && vainqueur === 1, mortB = fini && vainqueur === 0;
 
-  // --- l'arène -------------------------------------------------------------
+  // --- l'arène et ce qu'elle enferme ---------------------------------------
   ctx.save();
   ctx.beginPath();
-  ctx.arc(CX, CY, RC, 0, Math.PI * 2);
-  ctx.fillStyle = '#080b12';
+  ctx.rect(X0 + EP, Y0 + EP, X1 - X0 - 2 * EP, Y1 - Y0 - 2 * EP);
+  ctx.fillStyle = '#ffffff';
   ctx.fill();
   ctx.clip();
 
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
   for (const o of nuages) {
     const v = Math.min(1, o.vie / 1.5);
     const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
-    g.addColorStop(0, couleur(o.h, 80, 40, 0.42 * v));
-    g.addColorStop(1, couleur(o.h, 80, 40, 0));
+    g.addColorStop(0, couleur(o.h, o.s, 52, 0.45 * v));
+    g.addColorStop(1, couleur(o.h, o.s, 52, 0));
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 7); ctx.fill();
   }
   for (const o of braises) {
     const v = Math.min(1, o.vie / 1.2);
-    ctx.fillStyle = couleur(o.h, 100, 58, 0.75 * v);
+    ctx.fillStyle = couleur(o.h, o.s, 52, 0.8 * v);
     ctx.beginPath(); ctx.arc(o.x, o.y, 13 * v + 4, 0, 7); ctx.fill();
   }
   for (const o of eclats) {
-    ctx.strokeStyle = couleur(o.h, 90, 70, Math.min(1, o.vie));
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = couleur(o.h, o.s, 45, Math.min(1, o.vie));
+    ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.moveTo(o.x, o.y);
     ctx.lineTo(o.x - o.vx * 0.022, o.y - o.vy * 0.022);
@@ -553,94 +575,100 @@ function dessiner(dt) {
   }
   for (const o of traits) {
     const v = o.vie / 0.3;
-    ctx.strokeStyle = couleur(o.h, 100, 78, v);
-    ctx.lineWidth = 9 * v;
+    ctx.strokeStyle = couleur(o.h, o.s, 50, v);
+    ctx.lineWidth = 11 * v;
     ctx.beginPath(); ctx.moveTo(o.ax, o.ay); ctx.lineTo(o.bx, o.by); ctx.stroke();
   }
   for (const b of duo) {
     if (b.rayon <= 0) continue;
     const e = autre(b);
-    ctx.strokeStyle = couleur(b.f.teinte, b.f.sat, 72, 0.85);
-    ctx.lineWidth = 16;
+    ctx.strokeStyle = couleur(b.f.teinte, b.f.sat, 55, 0.9);
+    ctx.lineWidth = 18;
     ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(e.x, e.y); ctx.stroke();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 5;
     ctx.stroke();
   }
   for (const o of ondes) {
     const v = o.vie / 0.6;
-    ctx.strokeStyle = couleur(o.h, 100, 68, 0.6 * v);
-    ctx.lineWidth = 5 * v;
-    ctx.beginPath(); ctx.arc(o.x, o.y, o.r0 + 210 * (1 - v), 0, 7); ctx.stroke();
+    ctx.strokeStyle = couleur(o.h, o.s, 50, 0.65 * v);
+    ctx.lineWidth = 6 * v;
+    ctx.beginPath(); ctx.arc(o.x, o.y, R + 210 * (1 - v), 0, 7); ctx.stroke();
   }
   ctx.restore();
 
-  for (const b of duo) {
+  ctx.strokeStyle = NOIR;
+  ctx.lineWidth = EP * 2;
+  ctx.strokeRect(X0, Y0, X1 - X0, Y1 - Y0);
+
+  // --- les deux éléments, par-dessus le cadre comme dans la 27 -------------
+  duo.forEach((b, k) => {
+    const mort = fini && vainqueur === 1 - b.i;
+    if (mort) {
+      const v = 1 - Math.min(1, fini / 0.7);
+      if (v <= 0) return;
+      ctx.globalAlpha = v;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(b.x, b.y, R * (1 + (1 - v) * 0.5), 0, 7); ctx.fill();
+      ctx.globalAlpha = 1;
+      return;
+    }
     //  Les auras d'état, empilées : on doit pouvoir lire d'un coup d'œil ce
     //  qui protège ou entrave chacun.
     const auras = [];
-    if (b.blinde > 0) auras.push(['#c98b3a', b.blinde]);
-    if (b.reflet > 0) auras.push([couleur(322, 88, 70), b.reflet]);
-    if (b.rapide > 0) auras.push([couleur(172, 60, 70), b.rapide]);
-    if (b.regen > 0) auras.push([couleur(108, 85, 60), b.regen]);
-    if (b.gele > 0) auras.push([couleur(196, 88, 75), b.gele]);
-    auras.forEach(([c, v], k) => {
+    if (b.blinde > 0) auras.push(['#a8741f', b.blinde]);
+    if (b.reflet > 0) auras.push([couleur(322, 88, 50), b.reflet]);
+    if (b.rapide > 0) auras.push([couleur(172, 60, 45), b.rapide]);
+    if (b.regen > 0) auras.push([couleur(108, 85, 40), b.regen]);
+    if (b.gele > 0) auras.push([couleur(196, 88, 50), b.gele]);
+    auras.forEach(([c, v], j) => {
       ctx.strokeStyle = c;
-      ctx.globalAlpha = Math.min(1, v) * 0.8;
-      ctx.lineWidth = 3;
-      tracerForme(b.x, b.y, R + 12 + k * 9, b.f.cotes, b.ang);
-      ctx.stroke();
+      ctx.globalAlpha = Math.min(1, v) * 0.85;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(b.x, b.y, R + 12 + j * 10, 0, 7); ctx.stroke();
       ctx.globalAlpha = 1;
     });
 
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createRadialGradient(b.x, b.y, R * 0.4, b.x, b.y, R * 2.2);
-    g.addColorStop(0, couleur(b.f.teinte, b.f.sat, 55, 0.42));
-    g.addColorStop(1, couleur(b.f.teinte, b.f.sat, 55, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(b.x, b.y, R * 2.2, 0, 7); ctx.fill();
-    ctx.restore();
-
-    tracerForme(b.x, b.y, R, b.f.cotes, b.ang);
-    ctx.fillStyle = b.flash > 0 ? '#ffffff' : couleur(b.f.teinte, b.f.sat, 52);
-    ctx.fill();
-    ctx.strokeStyle = couleur(b.f.teinte, b.f.sat, 80);
-    ctx.lineWidth = 3.5;
+    arme(b, false);
+    ctx.fillStyle = b.flash > 0 ? '#ffffff' : couleur(b.f.teinte, b.f.sat, 55);
+    ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, 7); ctx.fill();
+    ctx.strokeStyle = NOIR;
+    ctx.lineWidth = 5;
     ctx.stroke();
-  }
-  ctx.restore();
-
-  ctx.strokeStyle = 'rgba(190,205,220,0.5)';
-  ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.arc(CX, CY, RC, 0, Math.PI * 2); ctx.stroke();
-
-  // --- les jauges ----------------------------------------------------------
-  duo.forEach(b => {
-    const gauche = b.i === 0;
-    const x0 = gauche ? 70 : W / 2 + 30;
-    const l = W / 2 - 100;
-    jauge(x0, 320, l, 26, b.pv / b.pvMax, couleur(b.f.teinte, b.f.sat, 55), '#141a24');
-    ctx.strokeStyle = '#2a3442'; ctx.lineWidth = 2;
-    ctx.strokeRect(x0, 320, l, 26);
-    jauge(x0, 354, l, 10, b.charge / b.f.charge,
-          couleur(b.f.teinte, b.f.sat, 72), '#141a24');
-
-    ctx.textAlign = gauche ? 'left' : 'right';
-    const xt = gauche ? x0 : x0 + l;
-    ctx.font = '800 34px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillStyle = couleur(b.f.teinte, b.f.sat, 62);
-    ctx.fillText(Math.ceil(b.pv) + ' pv', xt, 400);
-    ctx.font = '600 25px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillStyle = '#7c8898';
-    ctx.fillText(b.f.pouvoir, xt, 432);
+    texte(String(Math.ceil(b.pv)), b.x, b.y + 21, 58, NOIR, 'center', 0);
   });
-  ctx.textAlign = 'center';
 
-  if (fini) {
-    bandeau(FICHES[vainqueur].nom, FICHES[vainqueur].teinte,
-            Math.ceil(duo[vainqueur].pv) + ' pv sur ' + duo[vainqueur].pvMax);
-  }
+  // --- jauges et compteurs -------------------------------------------------
+  jauge(X0, true, duo[0].charge / A.charge, couleur(A.teinte, A.sat, 50),
+        A.pouvoir.toUpperCase(), mortA);
+  jauge(X1 - L_JAUGE, false, duo[1].charge / B.charge,
+        couleur(B.teinte, B.sat, 50), B.pouvoir.toUpperCase(), mortB);
+
+  texte(A.pouvoir + ' × ' + duo[0].lancers, X0, Y_STAT, 40,
+        mortA ? GRIS_MORT : couleur(A.teinte, A.sat, 45), 'left');
+  texte(B.pouvoir + ' × ' + duo[1].lancers, X1, Y_STAT, 40,
+        mortB ? GRIS_MORT : couleur(B.teinte, B.sat, 45), 'right');
+
+  // --- titre, en dernier ---------------------------------------------------
+  ctx.font = '900 76px ui-sans-serif, system-ui, sans-serif';
+  const lA = ctx.measureText(A.nom).width, lB = ctx.measureText(B.nom).width;
+  const lV = ctx.measureText('VS').width + 16;
+  let x = W / 2 - (lA + 112 + lV + 112 + lB) / 2;
+  texte(A.nom, x, Y_TITRE, 76, mortA ? GRIS_MORT : couleur(A.teinte, A.sat, 50), 'left');
+  x += lA + 22;
+  tracerForme(x + 34, Y_TITRE - 24, 32, A.cotes, 0);
+  ctx.fillStyle = mortA ? GRIS_MORT : couleur(A.teinte, A.sat, 55);
+  ctx.fill();
+  ctx.strokeStyle = NOIR; ctx.lineWidth = 5; ctx.stroke();
+  x += 90;
+  texte('VS', x, Y_TITRE - 6, 47, '#3b3b3b', 'left', 5);
+  x += lV + 22;
+  tracerForme(x + 34, Y_TITRE - 24, 32, B.cotes, 0);
+  ctx.fillStyle = mortB ? GRIS_MORT : couleur(B.teinte, B.sat, 55);
+  ctx.fill();
+  ctx.strokeStyle = NOIR; ctx.lineWidth = 5; ctx.stroke();
+  x += 90;
+  texte(B.nom, x, Y_TITRE, 76, mortB ? GRIS_MORT : couleur(B.teinte, B.sat, 50), 'left');
 }
 
 reinitialiser();

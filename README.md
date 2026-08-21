@@ -543,19 +543,25 @@ balles. Le film retenu se termine à 107 px, soit deux balles.
 
 ## Les duels d'éléments
 
-Trente duels, douze éléments. Chacun garde **sa forme, sa couleur, ses
-caractéristiques et son pouvoir d'une affiche à l'autre** : un seul fichier les
-décrit, [`elements/elements.json`](elements/elements.json), et les trente pages
-en sont engendrées. La fiche est recopiée dans chaque page — elles restent
-autonomes, rien n'est chargé à l'exécution — mais elle vient toujours du même
-endroit. [`elements/`](elements/) en donne la version lisible.
+Trente duels, douze éléments. Ils reprennent **la charte et la mécanique de la
+27** : fond crème, carré noir sur blanc, deux jauges en bas avec le nom du
+pouvoir, et surtout deux balles qui portent chacune une arme au bout d'un bras
+qui tourne. C'est la tête de l'arme qui blesse, pas le corps.
+
+Ce qui change d'un élément à l'autre tient dans sa fiche : **la forme de sa tête
+d'arme**, sa couleur, sa vie, sa vitesse, son coup et son pouvoir. Chacun les
+garde d'une affiche à l'autre — un seul fichier les décrit,
+[`elements/elements.json`](elements/elements.json), et les trente pages en sont
+engendrées. La fiche est recopiée dans chaque page (elles restent autonomes,
+rien n'est chargé à l'exécution) mais elle vient toujours du même endroit.
+[`elements/`](elements/) en donne la version lisible.
 
 Les affiches sont choisies pour que **chaque élément apparaisse exactement cinq
 fois** et qu'aucune paire ne se répète : trente duels, soixante places, douze
-éléments. Une vérification refuse le jeu d'affiches si ce n'est pas le cas — une
-affiche déséquilibrée fausserait la lecture du tournoi.
+éléments. Une vérification refuse le jeu d'affiches sinon — elle a d'ailleurs
+attrapé une première version où l'eau passait six fois et le cristal quatre.
 
-| Élément | Forme | Vie | Vitesse | Choc | Charge | Pouvoir |
+| Élément | Tête d'arme | Vie | Vitesse | Coup | Charge | Pouvoir |
 |---|---|---|---|---|---|---|
 | **FEU** | disque | 95 | 560 | 6 | 10 s | `brasier` — laisse derrière elle une traînée qui brûle |
 | **EAU** | disque | 115 | 520 | 6 | 8 s | `ressac` — pousse l'adversaire et le rend à la paroi |
@@ -572,43 +578,45 @@ affiche déséquilibrée fausserait la lecture du tournoi.
 
 ### L'équilibrage
 
-Le moteur est commun : arène circulaire, pas de pesanteur, vitesse constante,
-dégâts au contact avec un délai, et une jauge qui déclenche le pouvoir. Ce qui
-change d'un élément à l'autre tient dans sa fiche. Chaque élément a un unique
-bouton de réglage, `force`, qui multiplie l'intensité de son pouvoir — durée
-comme dégâts.
+Chaque élément a un unique bouton de réglage, `force`, qui multiplie
+l'intensité de son pouvoir — durée comme dégâts. L'équilibrage est mesuré, pas
+estimé : un **tournoi toutes rondes** joue les trente affiches N fois chacune
+sans rien afficher, relève le taux de victoire de chaque élément et corrige les
+forces dans le sens inverse.
 
-L'équilibrage est mesuré, pas estimé : un **tournoi toutes rondes** joue les
-trente affiches N fois chacune sans rien afficher, relève le taux de victoire de
-chaque élément et corrige les forces dans le sens inverse. Quelques tours
-suffisent — mais il a fallu régler trois choses avant que la boucle serve à
-quelque chose.
+Trois choses ont dû être réparées avant que la boucle serve à quelque chose.
 
 *Une traînée par pas de calcul.* Le brasier du feu déposait une braise à chaque
 pas, soit **soixante-douze braises par seconde**. Le feu gagnait 99 duels sur
 100. Une braise tous les dixièmes de seconde suffit.
 
-*Un pouvoir qui ne fait rien.* Le gel de la glace clouait l'adversaire sans que
-la glace puisse en profiter : elle perdait **soixante-dix duels sur soixante-dix**.
-Un gelé encaisse désormais moitié plus. Même diagnostic pour le pas de l'ombre,
-simple repositionnement : le corps à corps est trop rare pour qu'une mise en
-place paie, et l'ombre restait à 18 pour cent de victoires **même en poussant sa
-force au plafond**. Le bond frappe maintenant lui-même.
+*Un pouvoir qui ne fait rien.* Le gel de la glace clouait l'adversaire sans
+qu'elle puisse en profiter : elle perdait **soixante-dix duels sur
+soixante-dix**. Un gelé encaisse désormais moitié plus. Même diagnostic pour le
+pas de l'ombre, simple repositionnement — le corps à corps est trop rare pour
+qu'une mise en place paie, et l'ombre restait à 18 pour cent de victoires **même
+en poussant sa force au plafond**. Le bond frappe maintenant lui-même.
 
 *Un pas de correction trop grand.* Avec une correction vive, la boucle oscillait
 au lieu de converger — la nature basculait d'un tour à l'autre entre 24 et
 89 pour cent de victoires, sa régénération passant ou ne passant pas devant les
 dégâts reçus. Pas borné à 12 pour cent par tour, exposant ramené à 0,18.
 
-Après quoi, sur **trente duels par affiche** — cent trente par élément :
+Le passage à la mécanique de la 27 a rebattu les cartes — l'arme au bout du bras
+ne porte pas comme le corps à corps — et la boucle a été relancée de zéro sur le
+nouveau moteur. Après quoi, sur **trente-quatre duels par affiche**, cent
+soixante-dix par élément :
 
 | | | | | | |
 |---|---|---|---|---|---|
-| **LUMIÈRE** 59 % | **NATURE** 58 % | **FOUDRE** 56 % | **FEU** 54 % | **POISON** 54 % | **MÉTAL** 50 % |
-| **CRISTAL** 48 % | **OMBRE** 46 % | **AIR** 45 % | **EAU** 45 % | **TERRE** 42 % | **GLACE** 42 % |
+| **FOUDRE** 57 % | **POISON** 56 % | **LUMIÈRE** 55 % | **AIR** 54 % | **GLACE** 53 % | **FEU** 52 % |
+| **NATURE** 51 % | **MÉTAL** 48 % | **OMBRE** 46 % | **CRISTAL** 45 % | **TERRE** 43 % | **EAU** 41 % |
 
-Les douze tiennent entre **42 et 59 pour cent**. À cent trente duels
-l'écart-type est de 4,4 points : ce qui reste est de l'ordre du bruit.
+Les douze tiennent entre **41 et 57 pour cent**. À cent soixante-dix duels
+l'écart-type est de 3,8 points : tous sont à moins de deux écarts-types et demi
+de la parité, et ce qui reste ne se distingue plus du bruit — trois mesures
+successives ont classé le feu à 48, 65 puis 52 pour cent sans qu'on ait touché à
+sa fiche entre-temps.
 
 ## Les reproductions
 

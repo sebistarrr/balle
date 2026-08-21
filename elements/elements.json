@@ -11,7 +11,7 @@
       "contact": 6,
       "charge": 10.0,
       "pouvoir": "brasier",
-      "force": 0.892,
+      "force": 0.818,
       "devise": "laisse derrière elle une traînée qui brûle",
       "detail": "Une traînée de braises se dépose sur son passage et blesse qui la traverse. Le feu ne frappe pas : il occupe."
     },
@@ -26,7 +26,7 @@
       "contact": 6,
       "charge": 8.0,
       "pouvoir": "ressac",
-      "force": 1.285,
+      "force": 1.183,
       "devise": "pousse l'adversaire et le rend à la paroi",
       "detail": "Une onde circulaire chasse l'adversaire vers le bord. Elle ne blesse presque pas, elle déplace — et un élément plaqué à la paroi encaisse tout ce qui vient."
     },
@@ -41,7 +41,7 @@
       "contact": 7,
       "charge": 6.5,
       "pouvoir": "bourrasque",
-      "force": 1.253,
+      "force": 1.366,
       "devise": "double sa vitesse et traverse tout",
       "detail": "Le plus rapide et le plus fragile. Sa bourrasque le rend insaisissable quelques secondes : il double sa vitesse et ne subit plus les chocs."
     },
@@ -56,7 +56,7 @@
       "contact": 9,
       "charge": 11.0,
       "pouvoir": "carapace",
-      "force": 0.883,
+      "force": 1.149,
       "devise": "se couvre et ne prend plus qu'un quart",
       "detail": "Lente, lourde, endurante. Sa carapace divise par quatre tout ce qu'elle encaisse le temps qu'elle tienne."
     },
@@ -71,7 +71,7 @@
       "contact": 6,
       "charge": 6.5,
       "pouvoir": "eclair",
-      "force": 1.475,
+      "force": 1.413,
       "devise": "frappe à distance, instantanément",
       "detail": "Un éclair part vers l'adversaire où qu'il soit et frappe sans délai. Le seul pouvoir qui n'a pas besoin d'approcher."
     },
@@ -86,7 +86,7 @@
       "contact": 7,
       "charge": 9.5,
       "pouvoir": "gel",
-      "force": 0.837,
+      "force": 0.763,
       "devise": "fige l'adversaire sur place",
       "detail": "L'adversaire est cloué quelques secondes. Il ne bouge plus, ne charge plus, et prend tout ce qu'on lui donne."
     },
@@ -101,7 +101,7 @@
       "contact": 8,
       "charge": 11.0,
       "pouvoir": "eclats",
-      "force": 1.6,
+      "force": 1.503,
       "devise": "projette une volée d'éclats tranchants",
       "detail": "Six éclats partent en éventail et rebondissent sur la paroi. Ils vivent longtemps : le terrain devient dangereux."
     },
@@ -116,7 +116,7 @@
       "contact": 6,
       "charge": 8.5,
       "pouvoir": "racines",
-      "force": 1.275,
+      "force": 1.188,
       "devise": "reprend ce qu'elle a perdu",
       "detail": "Elle se régénère lentement pendant plusieurs secondes. Seul élément qui remonte : les duels contre elle se gagnent vite ou pas du tout."
     },
@@ -131,7 +131,7 @@
       "contact": 8,
       "charge": 6.5,
       "pouvoir": "pas",
-      "force": 0.657,
+      "force": 0.744,
       "devise": "disparaît et reparaît derrière",
       "detail": "Un bond instantané qui la replace dans le dos de l'adversaire, et le choc qui suit compte double."
     },
@@ -146,7 +146,7 @@
       "contact": 6,
       "charge": 10.0,
       "pouvoir": "rayon",
-      "force": 1.168,
+      "force": 1.057,
       "devise": "tend un rayon qui brûle tant qu'il touche",
       "detail": "Un rayon continu vers l'adversaire pendant quelques secondes. Il ne fait mal que tant que la ligne reste libre : c'est le pouvoir le plus dépendant du placement."
     },
@@ -161,7 +161,7 @@
       "contact": 6,
       "charge": 7.5,
       "pouvoir": "nuage",
-      "force": 1.188,
+      "force": 1.218,
       "devise": "laisse une nappe qui ronge",
       "detail": "Une nappe immobile s'installe et ronge qui s'y attarde. Elle dure longtemps et finit par couvrir les couloirs."
     },
@@ -176,7 +176,7 @@
       "contact": 7,
       "charge": 8.0,
       "pouvoir": "reflet",
-      "force": 1.504,
+      "force": 1.587,
       "devise": "renvoie la moitié de ce qu'elle reçoit",
       "detail": "Le temps du reflet, la moitié des dégâts encaissés repart vers celui qui les a donnés. Le contre pur."
     }

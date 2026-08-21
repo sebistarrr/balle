@@ -60,29 +60,47 @@ def texte(ctx, s, x, y, taille, couleur, gras=True, cerne=8.0):
 # --------------------------------------------------------------------------
 #  Réglages communs à tous les duels d'éléments, identiques à la page voisine
 # --------------------------------------------------------------------------
-CX, CY, RC = 540.0, 1120.0, 560.0
-R = 44.0
-REPOS_CHOC = 0.55
+#  La charte et la mécanique sont celles de l'animation 27 : fond crème, carré
+#  noir, deux jauges en bas, et deux balles qui portent chacune une arme au bout
+#  d'un bras qui tourne.
+CREME = (0.980, 0.953, 0.851)
+NOIR = (0.0, 0.0, 0.0)
+GRIS_MORT = (0.541, 0.525, 0.471)
+
+X0, X1, Y0, Y1 = 60.0, 1020.0, 477.0, 1437.0
+EP = 9.0
+Y_TITRE = 440.0
+Y_JAUGE, H_JAUGE, L_JAUGE = 1452.0, 48.0, 402.0
+Y_STAT = 1545.0
+
+R = 67.0
+BRAS = 125.0
+TETE = 46.0
+REPOS = 0.40
 T_LIMITE = 95.0
 DT = 1 / 240
 GRAINE = 0
 
 #  Les deux fiches, recopiées du codex. Elles ne changent pas d'une affiche à
 #  l'autre : c'est toute la raison d'être du codex.
-FICHES = [{"cle": "metal", "nom": "MÉTAL", "cotes": 8, "teinte": 222, "sat": 14, "pv": 112, "vitesse": 470, "contact": 8, "charge": 11.0, "pouvoir": "eclats", "force": 1.6}, {"cle": "nature", "nom": "NATURE", "cotes": 5, "teinte": 108, "sat": 85, "pv": 110, "vitesse": 500, "contact": 6, "charge": 8.5, "pouvoir": "racines", "force": 1.275}]
+FICHES = [{"cle": "metal", "nom": "MÉTAL", "cotes": 8, "teinte": 222, "sat": 14, "pv": 112, "vitesse": 470, "contact": 8, "charge": 11.0, "pouvoir": "eclats", "force": 1.503}, {"cle": "nature", "nom": "NATURE", "cotes": 5, "teinte": 108, "sat": 85, "pv": 110, "vitesse": 500, "contact": 6, "charge": 8.5, "pouvoir": "racines", "force": 1.188}]
 
 
 class Combattant:
-    def __init__(self, f, i, x, y, cap, ang):
+    def __init__(self, f, i, cap, ang):
         self.f = f
         self.i = i
-        self.x, self.y = x, y
+        self.x = X1 - 280 if i else X0 + 280
+        self.y = (Y0 + Y1) / 2
         self.vx = math.cos(cap) * f["vitesse"]
         self.vy = math.sin(cap) * f["vitesse"]
         self.pv = float(f["pv"])
         self.pv_max = float(f["pv"])
         self.ang = ang
+        #  Les deux armes ne tournent ni à la même vitesse ni dans le même sens.
+        self.omega = (-1 if i else 1) * (1.5 + f["vitesse"] / 700)
         self.charge = 0.0
+        self.lancers = 0
         self.etats = {k: 0.0 for k in ("repos", "flash", "rapide", "blinde",
                                        "gele", "regen", "reflet", "embusque",
                                        "rayon", "brasier", "semis")}
@@ -91,13 +109,9 @@ class Combattant:
 class Partie:
     def __init__(self, graine):
         self.rng = np.random.default_rng(graine)
-        a0 = self.rng.uniform(0, TAU)
-        self.duo = []
-        for i, f in enumerate(FICHES):
-            a = a0 + i * math.pi
-            self.duo.append(Combattant(
-                f, i, CX + math.cos(a) * RC * 0.5, CY + math.sin(a) * RC * 0.5,
-                self.rng.uniform(0, TAU), self.rng.uniform(0, TAU)))
+        self.duo = [Combattant(f, i, self.rng.uniform(0, TAU),
+                               self.rng.uniform(0, TAU))
+                    for i, f in enumerate(FICHES)]
         self.braises = []
         self.eclats = []
         self.nuages = []
@@ -126,7 +140,7 @@ class Partie:
             degats /= 4
         if cible.etats["gele"] > 0:
             degats *= 1.5
-        if cible.etats["rapide"] > 0 and source in ("choc", "braise", "eclat"):
+        if cible.etats["rapide"] > 0 and source in ("arme", "braise", "eclat"):
             return
         cible.pv = max(0.0, cible.pv - degats)
         cible.etats["flash"] = 0.14
@@ -146,6 +160,7 @@ class Partie:
         e = self.autre(b)
         p = b.f["pouvoir"]
         force = b.f["force"]
+        b.lancers += 1
         self.ondes.append({"x": b.x, "y": b.y, "h": b.f["teinte"],
                            "s": b.f["sat"], "vie": 0.6})
         if p == "brasier":
@@ -155,8 +170,8 @@ class Partie:
             nx, ny = (e.x - b.x) / d, (e.y - b.y) / d
             s = math.hypot(e.vx, e.vy)
             e.vx, e.vy = nx * s, ny * s
-            e.x += nx * 190
-            e.y += ny * 190
+            e.x = min(max(e.x + nx * 190, X0 + EP + R), X1 - EP - R)
+            e.y = min(max(e.y + ny * 190, Y0 + EP + R), Y1 - EP - R)
             self.blesser(e, 14 * force, "ressac")
         elif p == "bourrasque":
             b.etats["rapide"] = 3.2 * force
@@ -187,8 +202,8 @@ class Partie:
             #  rien — le corps à corps est trop rare pour qu'une mise en place
             #  paie, et l'ombre restait à 18 % de victoires.
             s = math.hypot(e.vx, e.vy) or 1e-9
-            b.x = min(max(e.x - e.vx / s * 2.2 * R, CX - RC + R), CX + RC - R)
-            b.y = min(max(e.y - e.vy / s * 2.2 * R, CY - RC + R), CY + RC - R)
+            b.x = min(max(e.x - e.vx / s * 2.2 * R, X0 + EP + R), X1 - EP - R)
+            b.y = min(max(e.y - e.vy / s * 2.2 * R, Y0 + EP + R), Y1 - EP - R)
             self.blesser(e, 12 * force, "pas")
             b.etats["embusque"] = 3.0 * force
         elif p == "rayon":
@@ -201,24 +216,17 @@ class Partie:
             b.etats["reflet"] = 5.0 * force
 
     # -- physique ---------------------------------------------------------
-    def paroi(self, b):
-        dx, dy = b.x - CX, b.y - CY
-        d = math.hypot(dx, dy)
-        if d <= RC - R:
-            return
-        nx, ny = dx / d, dy / d
-        b.x, b.y = CX + nx * (RC - R), CY + ny * (RC - R)
-        p = 2 * (b.vx * nx + b.vy * ny)
-        if p > 0:
-            b.vx -= p * nx
-            b.vy -= p * ny
-        #  Une pincée de hasard, sans quoi un élément finit sur une corde
-        #  périodique et ne rencontre plus jamais l'autre.
-        s = math.hypot(b.vx, b.vy) or 1e-9
-        c = math.atan2(b.vy, b.vx) + self.rng.uniform(-0.06, 0.06)
-        b.vx, b.vy = math.cos(c) * s, math.sin(c) * s
+    def murs(self, b):
+        if b.x < X0 + EP + R:
+            b.x = X0 + EP + R; b.vx = abs(b.vx)
+        if b.x > X1 - EP - R:
+            b.x = X1 - EP - R; b.vx = -abs(b.vx)
+        if b.y < Y0 + EP + R:
+            b.y = Y0 + EP + R; b.vy = abs(b.vy)
+        if b.y > Y1 - EP - R:
+            b.y = Y1 - EP - R; b.vy = -abs(b.vy)
 
-    def corps_a_corps(self):
+    def entre_elles(self):
         a, b = self.duo
         dx, dy = b.x - a.x, b.y - a.y
         d = math.hypot(dx, dy)
@@ -229,17 +237,26 @@ class Partie:
         a.x -= nx * corr; a.y -= ny * corr
         b.x += nx * corr; b.y += ny * corr
         vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny
-        if vn < 0:
-            a.vx += vn * nx; a.vy += vn * ny
-            b.vx -= vn * nx; b.vy -= vn * ny
-        for t in self.duo:
-            if t.etats["repos"] > 0:
+        if vn > 0:
+            return
+        a.vx += vn * nx; a.vy += vn * ny
+        b.vx -= vn * nx; b.vy -= vn * ny
+
+    def armes(self):
+        """La tête de l'arme contre la balle d'en face — la mécanique de la
+        27."""
+        for b in self.duo:
+            if b.etats["repos"] > 0 or b.etats["gele"] > 0:
                 continue
-            t.etats["repos"] = REPOS_CHOC
-            mult = 2.5 if t.etats["embusque"] > 0 else 1.0
-            if mult > 1:
-                t.etats["embusque"] = 0.0
-            self.blesser(self.autre(t), t.f["contact"] * mult, "choc")
+            c = self.autre(b)
+            hx = b.x + math.cos(b.ang) * (BRAS + 32)
+            hy = b.y + math.sin(b.ang) * (BRAS + 32)
+            if math.hypot(c.x - hx, c.y - hy) < R + TETE:
+                b.etats["repos"] = REPOS
+                mult = 2.5 if b.etats["embusque"] > 0 else 1.0
+                if mult > 1:
+                    b.etats["embusque"] = 0.0
+                self.blesser(c, b.f["contact"] * mult, "arme")
 
     def pas(self):
         self.t += DT
@@ -276,11 +293,12 @@ class Partie:
             v = b.f["vitesse"] * (2 if b.etats["rapide"] > 0 else 1)
             s = math.hypot(b.vx, b.vy) or 1e-9
             b.vx *= v / s; b.vy *= v / s
-            b.ang += (4.5 if b.etats["rapide"] > 0 else 1.6) * DT
+            b.ang += b.omega * (2 if b.etats["rapide"] > 0 else 1) * DT
             b.x += b.vx * DT
             b.y += b.vy * DT
-            self.paroi(b)
-        self.corps_a_corps()
+            self.murs(b)
+        self.entre_elles()
+        self.armes()
 
         for b in self.duo:
             if b.etats["rayon"] > 0:
@@ -298,13 +316,12 @@ class Partie:
             o["vie"] -= DT
             o["x"] += o["vx"] * DT
             o["y"] += o["vy"] * DT
-            d = math.hypot(o["x"] - CX, o["y"] - CY)
-            if d > RC - 8:
-                nx, ny = (o["x"] - CX) / d, (o["y"] - CY) / d
-                o["x"], o["y"] = CX + nx * (RC - 8), CY + ny * (RC - 8)
-                p = 2 * (o["vx"] * nx + o["vy"] * ny)
-                o["vx"] -= p * nx
-                o["vy"] -= p * ny
+            if not X0 + EP < o["x"] < X1 - EP:
+                o["vx"] = -o["vx"]
+                o["x"] = min(max(o["x"], X0 + EP), X1 - EP)
+            if not Y0 + EP < o["y"] < Y1 - EP:
+                o["vy"] = -o["vy"]
+                o["y"] = min(max(o["y"], Y0 + EP), Y1 - EP)
             c = self.duo[1 - o["i"]]
             if o["vie"] > 0 and math.hypot(c.x - o["x"], c.y - o["y"]) < R + 10:
                 o["vie"] = 0.0
@@ -369,153 +386,221 @@ def jauge(ctx, x, y, l, h, frac, c):
     ctx.fill()
 
 
+def cerne(ctx, s, x, y, taille, coul, align="gauche", ep=7.0):
+    """Texte gras cerné de noir : la lettre de la 27."""
+    ctx.select_font_face("DejaVu Sans", cairo.FONT_SLANT_NORMAL,
+                         cairo.FONT_WEIGHT_BOLD)
+    ctx.set_font_size(taille)
+    ext = ctx.text_extents(s)
+    if align == "centre":
+        dx = -(ext.width / 2 + ext.x_bearing)
+    elif align == "droite":
+        dx = -(ext.width + ext.x_bearing)
+    else:
+        dx = -ext.x_bearing
+    ctx.new_path()
+    ctx.move_to(x + dx, y)
+    ctx.text_path(s)
+    if ep:
+        ctx.set_source_rgb(0, 0, 0)
+        ctx.set_line_join(cairo.LINE_JOIN_ROUND)
+        ctx.set_line_width(ep)
+        ctx.stroke_preserve()
+    ctx.set_source_rgba(*coul)
+    ctx.fill()
+
+
+def arme(ctx, b, mort):
+    """Le manche part du centre de la balle et sort du disque, et la tête est
+    la forme de l'élément : c'est à elle qu'on le reconnaît d'un duel à
+    l'autre, avant même de lire son nom."""
+    ax = b.x + math.cos(b.ang) * BRAS
+    ay = b.y + math.sin(b.ang) * BRAS
+    ctx.set_source_rgb(*(GRIS_MORT if mort else (0.169, 0.169, 0.200)))
+    ctx.set_line_width(15)
+    ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+    ctx.new_path()
+    ctx.move_to(b.x, b.y)
+    ctx.line_to(ax + math.cos(b.ang) * 18, ay + math.sin(b.ang) * 18)
+    ctx.stroke()
+    forme(ctx, ax + math.cos(b.ang) * 30, ay + math.sin(b.ang) * 30, TETE,
+          b.f["cotes"], b.ang)
+    if mort:
+        ctx.set_source_rgb(*GRIS_MORT)
+    else:
+        ctx.set_source_rgba(*coul(b.f["teinte"], b.f["sat"], 55))
+    ctx.fill_preserve()
+    ctx.set_source_rgb(*NOIR)
+    ctx.set_line_width(5)
+    ctx.stroke()
+
+
+def jauge(ctx, x, gauche, frac, c, nom, mort):
+    ctx.set_source_rgb(*CREME)
+    ctx.rectangle(x, Y_JAUGE, L_JAUGE, H_JAUGE)
+    ctx.fill()
+    l = L_JAUGE * min(1.0, frac)
+    ctx.set_source_rgba(*((GRIS_MORT + (1.0,)) if mort else c))
+    ctx.rectangle(x if gauche else x + L_JAUGE - l, Y_JAUGE, l, H_JAUGE)
+    ctx.fill()
+    ctx.set_source_rgb(*NOIR)
+    ctx.set_line_width(4)
+    ctx.rectangle(x + 2, Y_JAUGE + 2, L_JAUGE - 4, H_JAUGE - 4)
+    ctx.stroke()
+    cerne(ctx, nom, x + 12 if gauche else x + L_JAUGE - 12, Y_JAUGE + 35, 30,
+          (GRIS_MORT + (1.0,)) if mort else (1.0, 1.0, 1.0, 1.0),
+          "gauche" if gauche else "droite", 6)
+
+
 def dessiner(ctx, jeu, dt):
-    ctx.set_source_rgb(0.020, 0.027, 0.047)
+    ctx.set_source_rgb(*CREME)
     ctx.paint()
 
     A, B = FICHES
-    lA = mesure(ctx, A["nom"], 62)
-    lB = mesure(ctx, B["nom"], 62)
-    lV = mesure(ctx, "vs", 34)
-    x = W / 2 - (lA + 60 + lV + 60 + lB) / 2
-    ecrire(ctx, A["nom"], x, 250, 62, coul(A["teinte"], A["sat"], 62))
-    ecrire(ctx, "vs", x + lA + 30, 244, 34, (0.353, 0.392, 0.439, 1.0))
-    ecrire(ctx, B["nom"], x + lA + 60 + lV + 30, 250, 62,
-           coul(B["teinte"], B["sat"], 62))
+    mortA = jeu.vainqueur == 1
+    mortB = jeu.vainqueur == 0
 
-    # --- l'arène ---------------------------------------------------------
+    # --- l'arène et ce qu'elle enferme -----------------------------------
     ctx.save()
     ctx.new_path()
-    ctx.arc(CX, CY, RC, 0, TAU)
-    ctx.set_source_rgb(0.031, 0.043, 0.071)
+    ctx.rectangle(X0 + EP, Y0 + EP, X1 - X0 - 2 * EP, Y1 - Y0 - 2 * EP)
+    ctx.set_source_rgb(1, 1, 1)
     ctx.fill_preserve()
     ctx.clip()
 
-    ctx.push_group()
-    ctx.set_operator(cairo.OPERATOR_ADD)
     for o in jeu.nuages:
         v = min(1.0, o["vie"] / 1.5)
         deg = cairo.RadialGradient(o["x"], o["y"], 0, o["x"], o["y"], o["r"])
-        r, g, b = teinte(o["h"], o["s"] / 100.0, 0.40)
-        deg.add_color_stop_rgba(0, r, g, b, 0.42 * v)
+        r, g, b = teinte(o["h"], o["s"] / 100.0, 0.52)
+        deg.add_color_stop_rgba(0, r, g, b, 0.45 * v)
         deg.add_color_stop_rgba(1, r, g, b, 0.0)
         ctx.set_source(deg)
         ctx.new_path(); ctx.arc(o["x"], o["y"], o["r"], 0, TAU); ctx.fill()
     for o in jeu.braises:
         v = min(1.0, o["vie"] / 1.2)
-        ctx.set_source_rgba(*coul(o["h"], o["s"], 58, 0.75 * v))
+        ctx.set_source_rgba(*coul(o["h"], o["s"], 52, 0.8 * v))
         ctx.new_path(); ctx.arc(o["x"], o["y"], 13 * v + 4, 0, TAU); ctx.fill()
     for o in jeu.eclats:
-        ctx.set_source_rgba(*coul(o["h"], o["s"], 70, min(1.0, o["vie"])))
-        ctx.set_line_width(4)
+        ctx.set_source_rgba(*coul(o["h"], o["s"], 45, min(1.0, o["vie"])))
+        ctx.set_line_width(5)
         ctx.new_path()
         ctx.move_to(o["x"], o["y"])
         ctx.line_to(o["x"] - o["vx"] * 0.022, o["y"] - o["vy"] * 0.022)
         ctx.stroke()
     for o in jeu.traits:
         v = o["vie"] / 0.3
-        ctx.set_source_rgba(*coul(o["h"], o["s"], 78, v))
-        ctx.set_line_width(9 * v)
+        ctx.set_source_rgba(*coul(o["h"], o["s"], 50, v))
+        ctx.set_line_width(11 * v)
         ctx.new_path(); ctx.move_to(o["ax"], o["ay"]); ctx.line_to(o["bx"], o["by"])
         ctx.stroke()
     for b in jeu.duo:
         if b.etats["rayon"] <= 0:
             continue
         e = jeu.autre(b)
-        ctx.set_source_rgba(*coul(b.f["teinte"], b.f["sat"], 72, 0.85))
-        ctx.set_line_width(16)
+        ctx.set_source_rgba(*coul(b.f["teinte"], b.f["sat"], 55, 0.9))
+        ctx.set_line_width(18)
         ctx.new_path(); ctx.move_to(b.x, b.y); ctx.line_to(e.x, e.y); ctx.stroke()
         ctx.set_source_rgb(1, 1, 1)
-        ctx.set_line_width(4)
+        ctx.set_line_width(5)
         ctx.new_path(); ctx.move_to(b.x, b.y); ctx.line_to(e.x, e.y); ctx.stroke()
     for o in jeu.ondes:
         v = o["vie"] / 0.6
-        ctx.set_source_rgba(*coul(o["h"], o["s"], 68, 0.6 * v))
-        ctx.set_line_width(5 * v)
+        ctx.set_source_rgba(*coul(o["h"], o["s"], 50, 0.65 * v))
+        ctx.set_line_width(6 * v)
         ctx.new_path(); ctx.arc(o["x"], o["y"], R + 210 * (1 - v), 0, TAU)
         ctx.stroke()
-    ctx.pop_group_to_source()
-    ctx.paint()
+    ctx.restore()
 
+    ctx.set_source_rgb(*NOIR)
+    ctx.set_line_width(EP * 2)
+    ctx.rectangle(X0, Y0, X1 - X0, Y1 - Y0)
+    ctx.stroke()
+
+    # --- les deux éléments, par-dessus le cadre comme dans la 27 ----------
     for b in jeu.duo:
+        mort = jeu.vainqueur == 1 - b.i
+        if mort:
+            v = 1 - min(1.0, (jeu.t - jeu.fini) / 0.7)
+            if v <= 0:
+                continue
+            ctx.set_source_rgba(1, 1, 1, v)
+            ctx.new_path()
+            ctx.arc(b.x, b.y, R * (1 + (1 - v) * 0.5), 0, TAU)
+            ctx.fill()
+            continue
         #  Les auras d'état : on doit pouvoir lire d'un coup d'œil ce qui
         #  protège ou entrave chacun.
         auras = []
         if b.etats["blinde"] > 0:
-            auras.append(((0.788, 0.545, 0.227), b.etats["blinde"]))
+            auras.append(((0.659, 0.455, 0.122), b.etats["blinde"]))
         if b.etats["reflet"] > 0:
-            auras.append((teinte(322, 0.88, 0.70), b.etats["reflet"]))
+            auras.append((teinte(322, 0.88, 0.50), b.etats["reflet"]))
         if b.etats["rapide"] > 0:
-            auras.append((teinte(172, 0.60, 0.70), b.etats["rapide"]))
+            auras.append((teinte(172, 0.60, 0.45), b.etats["rapide"]))
         if b.etats["regen"] > 0:
-            auras.append((teinte(108, 0.85, 0.60), b.etats["regen"]))
+            auras.append((teinte(108, 0.85, 0.40), b.etats["regen"]))
         if b.etats["gele"] > 0:
-            auras.append((teinte(196, 0.88, 0.75), b.etats["gele"]))
+            auras.append((teinte(196, 0.88, 0.50), b.etats["gele"]))
         for k, (c, v) in enumerate(auras):
-            ctx.set_source_rgba(c[0], c[1], c[2], min(1.0, v) * 0.8)
-            ctx.set_line_width(3)
-            forme(ctx, b.x, b.y, R + 12 + k * 9, b.f["cotes"], b.ang)
+            ctx.set_source_rgba(c[0], c[1], c[2], min(1.0, v) * 0.85)
+            ctx.set_line_width(4)
+            ctx.new_path()
+            ctx.arc(b.x, b.y, R + 12 + k * 10, 0, TAU)
             ctx.stroke()
 
-        ctx.push_group()
-        ctx.set_operator(cairo.OPERATOR_ADD)
-        deg = cairo.RadialGradient(b.x, b.y, R * 0.4, b.x, b.y, R * 2.2)
-        r, g, bl = teinte(b.f["teinte"], b.f["sat"] / 100.0, 0.55)
-        deg.add_color_stop_rgba(0, r, g, bl, 0.42)
-        deg.add_color_stop_rgba(1, r, g, bl, 0.0)
-        ctx.set_source(deg)
-        ctx.new_path(); ctx.arc(b.x, b.y, R * 2.2, 0, TAU); ctx.fill()
-        ctx.pop_group_to_source()
-        ctx.paint()
-
-        forme(ctx, b.x, b.y, R, b.f["cotes"], b.ang)
+        arme(ctx, b, False)
         if b.etats["flash"] > 0:
             ctx.set_source_rgb(1, 1, 1)
         else:
-            ctx.set_source_rgba(*coul(b.f["teinte"], b.f["sat"], 52))
+            ctx.set_source_rgba(*coul(b.f["teinte"], b.f["sat"], 55))
+        ctx.new_path()
+        ctx.arc(b.x, b.y, R, 0, TAU)
         ctx.fill_preserve()
-        ctx.set_source_rgba(*coul(b.f["teinte"], b.f["sat"], 80))
-        ctx.set_line_width(3.5)
+        ctx.set_source_rgb(*NOIR)
+        ctx.set_line_width(5)
         ctx.stroke()
-    ctx.restore()
+        cerne(ctx, str(math.ceil(b.pv)), b.x, b.y + 21, 58, (0, 0, 0, 1),
+              "centre", 0)
 
-    ctx.set_source_rgba(0.745, 0.804, 0.863, 0.5)
-    ctx.set_line_width(4)
-    ctx.new_path(); ctx.arc(CX, CY, RC, 0, TAU); ctx.stroke()
+    # --- jauges et compteurs ---------------------------------------------
+    jauge(ctx, X0, True, jeu.duo[0].charge / A["charge"],
+          coul(A["teinte"], A["sat"], 50), A["pouvoir"].upper(), mortA)
+    jauge(ctx, X1 - L_JAUGE, False, jeu.duo[1].charge / B["charge"],
+          coul(B["teinte"], B["sat"], 50), B["pouvoir"].upper(), mortB)
 
-    # --- les jauges ------------------------------------------------------
-    for b in jeu.duo:
-        gauche = b.i == 0
-        x0 = 70.0 if gauche else W / 2 + 30
-        l = W / 2 - 100
-        c = coul(b.f["teinte"], b.f["sat"], 55)
-        jauge(ctx, x0, 320, l, 26, b.pv / b.pv_max, c)
-        ctx.set_source_rgb(0.165, 0.204, 0.259)
-        ctx.set_line_width(2)
-        ctx.rectangle(x0, 320, l, 26)
-        ctx.stroke()
-        jauge(ctx, x0, 354, l, 10, b.charge / b.f["charge"],
-              coul(b.f["teinte"], b.f["sat"], 72))
-        xt = x0 if gauche else x0 + l
-        al = "gauche" if gauche else "droite"
-        ecrire(ctx, "%d pv" % math.ceil(b.pv), xt, 400, 34,
-               coul(b.f["teinte"], b.f["sat"], 62), al)
-        ecrire(ctx, b.f["pouvoir"], xt, 432, 25, (0.486, 0.533, 0.596, 1.0), al,
-               gras=False)
+    cerne(ctx, "%s × %d" % (A["pouvoir"], jeu.duo[0].lancers), X0, Y_STAT, 40,
+          (GRIS_MORT + (1.0,)) if mortA else coul(A["teinte"], A["sat"], 45),
+          "gauche")
+    cerne(ctx, "%s × %d" % (B["pouvoir"], jeu.duo[1].lancers), X1, Y_STAT, 40,
+          (GRIS_MORT + (1.0,)) if mortB else coul(B["teinte"], B["sat"], 45),
+          "droite")
 
-    if jeu.fini is not None:
-        v = min(1.0, (jeu.t - jeu.fini) / 0.4)
-        g = jeu.duo[jeu.vainqueur]
-        ctx.set_source_rgba(0.016, 0.024, 0.039, 0.68 * v)
-        ctx.rectangle(0, 0, W, H)
-        ctx.fill()
-        ecrire(ctx, "vainqueur", W / 2, H / 2 - 120, 44,
-               (0.78, 0.84, 0.86, v), "centre", gras=False)
-        ecrire(ctx, g.f["nom"], W / 2, H / 2 + 10, 110,
-               coul(g.f["teinte"], g.f["sat"], 64, v), "centre")
-        ecrire(ctx, "%d pv sur %d" % (math.ceil(g.pv), g.pv_max),
-               W / 2, H / 2 + 90, 40, (0.63, 0.71, 0.75, v), "centre",
-               gras=False)
+    # --- titre, en dernier -----------------------------------------------
+    lA = mesure(ctx, A["nom"], 76)
+    lB = mesure(ctx, B["nom"], 76)
+    lV = mesure(ctx, "VS", 47) + 16
+    x = W / 2 - (lA + 112 + lV + 112 + lB) / 2
+    cerne(ctx, A["nom"], x, Y_TITRE, 76,
+          (GRIS_MORT + (1.0,)) if mortA else coul(A["teinte"], A["sat"], 50))
+    x += lA + 22
+    for fiche, mort in ((A, mortA),):
+        forme(ctx, x + 34, Y_TITRE - 24, 32, fiche["cotes"], 0)
+        ctx.set_source_rgba(*((GRIS_MORT + (1.0,)) if mort
+                              else coul(fiche["teinte"], fiche["sat"], 55)))
+        ctx.fill_preserve()
+        ctx.set_source_rgb(*NOIR); ctx.set_line_width(5); ctx.stroke()
+    x += 90
+    cerne(ctx, "VS", x, Y_TITRE - 6, 47, (0.231, 0.231, 0.231, 1.0), "gauche", 5)
+    x += lV + 22
+    for fiche, mort in ((B, mortB),):
+        forme(ctx, x + 34, Y_TITRE - 24, 32, fiche["cotes"], 0)
+        ctx.set_source_rgba(*((GRIS_MORT + (1.0,)) if mort
+                              else coul(fiche["teinte"], fiche["sat"], 55)))
+        ctx.fill_preserve()
+        ctx.set_source_rgb(*NOIR); ctx.set_line_width(5); ctx.stroke()
+    x += 90
+    cerne(ctx, B["nom"], x, Y_TITRE, 76,
+          (GRIS_MORT + (1.0,)) if mortB else coul(B["teinte"], B["sat"], 50))
 
 
 def mesure(ctx, s, taille):
