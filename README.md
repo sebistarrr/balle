@@ -598,6 +598,11 @@ L'arme est ancrée **près de son manche** et non en son milieu : le manche
 disparaît sous le disque et seule la tête dépasse, comme dans la 27. Ancrée au
 centre, elle restait cachée derrière la balle.
 
+Une teinte a dû bouger : le poison était à 78 degrés et 78 pour cent de
+saturation, la nature à 108 et 85 — le même vert. Dans leur duel commun, les
+deux balles étaient indiscernables. Le poison est passé à l'olive éteint,
+88 degrés et 40 pour cent.
+
 ### Les pouvoirs, chacun le sien
 
 Aucun ne se contente d'un cercle qui grandit. Le **brasier** sème des braises
